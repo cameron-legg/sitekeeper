@@ -1,0 +1,53 @@
+# ── Virtual environment ───────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+
+# ── Python bytecode ───────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# ── Distribution / packaging ──────────────────────────────────────────────────
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+MANIFEST
+
+# ── Testing & coverage ────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+nosetests.xml
+test-results/
+
+# ── Type checking ─────────────────────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+.pytype/
+
+# ── Environment / secrets ─────────────────────────────────────────────────────
+# Commit .env.example and .env.test.example — never the real files
+.env
+.env.test
+.flaskenv
+
+# ── Alembic ───────────────────────────────────────────────────────────────────
+# Keep migrations/versions/ committed; ignore only the generated __pycache__
+migrations/__pycache__/
+migrations/versions/__pycache__/
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

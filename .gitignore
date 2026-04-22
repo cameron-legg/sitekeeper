@@ -1,0 +1,33 @@
+# ── OS / editor ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.iml
+
+# ── Environment / secrets ─────────────────────────────────────────────────────
+# Never commit real .env files — use .env.example as the template
+.env
+.env.local
+.env.*.local
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+# Keep docker-compose.yml but ignore any local override files
+docker-compose.override.yml
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Kiro ─────────────────────────────────────────────────────────────────────
+# Spec files are intentionally committed; ignore only local hook overrides
+.kiro/hooks/

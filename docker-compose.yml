@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sitekeeper}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sitekeeper}
+      POSTGRES_DB: ${POSTGRES_DB:-sitekeeper}
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  db_test:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sitekeeper}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sitekeeper}
+      POSTGRES_DB: ${POSTGRES_TEST_DB:-sitekeeper_test}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+  postgres_test_data:
