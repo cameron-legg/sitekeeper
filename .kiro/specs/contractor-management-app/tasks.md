@@ -277,6 +277,38 @@ Incremental implementation of the Contractor Management App: Python Flask + Post
   - Confirm TypeScript compiles without errors
   - Ask the user if questions arise.
 
+- [x] 20. Line item v2 — sub-entry structure
+  - Restructured line items to support named groups with sub-entries
+  - Each LineItem has: name, notes, hourly_rate, sort_order (price removed — now derived)
+  - Two entry types under each LineItem:
+    - Material: name, notes, url, unit_price, quantity → cost = unit_price × quantity
+    - Hours: name, notes, url, hours → cost = hours × parent.hourly_rate
+  - LineItem exposes total_cost (sum of all entry costs) and total_hours (sum of hours entries)
+  - Migration 002 applied: dropped price/url/hours from line_items and saved_items; added hourly_rate; created line_item_entries and saved_item_entries tables
+  - SavedItem mirrors LineItem structure with SavedItemEntry children
+  - ConversionService deep-copies entries when converting estimate → invoice
+
+- [x] 21. Saved item library — save, populate, and home screen access
+  - POST .../line-items/<id>/save-to-library copies a line item + entries into saved_items library
+  - POST /api/v1/saved-items/<id>/populate copies a saved item + entries into a new line item (snapshot)
+  - EstimateEditorScreen and InvoiceEditorScreen: "Add Line Item" modal has two tabs — "New Item" and "From Library"
+  - HomeScreen: "📚 Library" button in header navigates to SavedItemsScreen
+  - SavedItemEditorScreen: supports creating/editing saved items with sub-entries
+
+- [x] 22. Frontend fixes and SDK upgrade
+  - Fixed Alert.prompt (iOS-only) in EstimatesTab and InvoicesTab — replaced with cross-platform Modal + TextInput
+  - Fixed LineItemFormModal height on Android — changed from bottom sheet (minHeight 60%) to full-screen modal
+  - Fixed navigation RESET error after login — removed imperative navigation.reset(); RootNavigator now reacts to token store changes automatically
+  - Fixed EXPO_PUBLIC_API_URL — set to machine LAN IP (10.0.0.136:5000) so physical devices can reach Flask
+  - Fixed Flask binding — added --host=0.0.0.0 so LAN devices can connect
+  - Upgraded Expo SDK 53 → 54 to match installed Expo Go version
+  - Added .gitignore files for root, backend, and frontend
+
+- [x] 23. Documentation
+  - Created backend/README.md with full setup, migration, and run instructions
+  - Updated root README.md with corrected port (5434) and quick-start guide
+  - Created backend/.flaskenv for automatic host/port configuration
+
 ## Notes
 
 - Tasks marked with `*` are optional and can be skipped for a faster MVP
@@ -285,3 +317,6 @@ Incremental implementation of the Contractor Management App: Python Flask + Post
 - Integration tests (Tasks 7.1–7.3 and 18.2) require the `db_test` Docker container — run `docker compose up -d db_test` before executing them
 - The dev database runs in the `db` container — run `docker compose up -d db` before starting the Flask server
 - Checkpoints at Tasks 8 and 17 gate backend and frontend completion respectively before integration
+- The dev database container maps to host port 5434 (not 5432) to avoid conflicts with local PostgreSQL
+- Run Flask from inside backend/ with: venv/bin/flask run --host=0.0.0.0 --port=5000
+- Expo SDK 54 is required — ensure Expo Go on device is also SDK 54

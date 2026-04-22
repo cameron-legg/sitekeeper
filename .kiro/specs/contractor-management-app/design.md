@@ -84,7 +84,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sitekeeper}
       POSTGRES_DB: ${POSTGRES_DB:-sitekeeper}
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -105,7 +105,7 @@ volumes:
   postgres_test_data:
 ```
 
-Two services are defined: `db` (development, port 5432) and `db_test` (integration tests, port 5433). The Flask app reads `DATABASE_URL` from the environment; `backend/.env` points to the `db` service and `backend/.env.test` points to `db_test`. Start both with `docker compose up -d`.
+Two services are defined: `db` (development, host port **5434**) and `db_test` (integration tests, port 5433). The `db` service maps to host port 5434 (not 5432) to avoid conflicts with local PostgreSQL installations. The Flask app reads `DATABASE_URL` from the environment; `backend/.env` points to the `db` service and `backend/.env.test` points to `db_test`. Start both with `docker compose up -d`.
 
 ### API Versioning
 
@@ -125,12 +125,21 @@ All endpoints are prefixed with `/api/v1`. Flask Blueprints are used to register
 /api/v1/estimates/{estimate_id}
 /api/v1/estimates/{estimate_id}/line-items
 /api/v1/estimates/{estimate_id}/line-items/{item_id}
+/api/v1/estimates/{estimate_id}/line-items/{item_id}/entries
+/api/v1/estimates/{estimate_id}/line-items/{item_id}/entries/{entry_id}
+/api/v1/estimates/{estimate_id}/line-items/{item_id}/save-to-library
 /api/v1/estimates/{estimate_id}/convert-to-invoice
 /api/v1/invoices/{invoice_id}
 /api/v1/invoices/{invoice_id}/line-items
 /api/v1/invoices/{invoice_id}/line-items/{item_id}
+/api/v1/invoices/{invoice_id}/line-items/{item_id}/entries
+/api/v1/invoices/{invoice_id}/line-items/{item_id}/entries/{entry_id}
+/api/v1/invoices/{invoice_id}/line-items/{item_id}/save-to-library
 /api/v1/saved-items
 /api/v1/saved-items/{item_id}
+/api/v1/saved-items/{item_id}/entries
+/api/v1/saved-items/{item_id}/entries/{entry_id}
+/api/v1/saved-items/{item_id}/populate
 ```
 
 ---
@@ -193,10 +202,10 @@ Similar interfaces exist for `IJobRepository`, `IContactRepository`, `INoteRepos
 - `JobService` — CRUD for jobs, cascades deletes to notes/estimates/invoices; automatically sets `finished_at = now()` when a job's status transitions to `completed` (if not already set)
 - `ContactService` — manages contacts and primary-contact designation; resolves effective primary contact (job-level or inherited from site)
 - `NoteService` — CRUD for notes, manages timestamps
-- `EstimateService` — CRUD for estimates and individual line items (add, edit, delete), computes totals, manages `delivered` flag
-- `InvoiceService` — CRUD for invoices and individual line items (add, edit, delete), computes totals, manages `delivered` flag
-- `ConversionService` — converts an Estimate to an Invoice, copies line items, records source reference
-- `SavedItemService` — CRUD for saved items, enforces user ownership; copies field values into a new `LINE_ITEM` record when a saved item is used to pre-populate a line item (no FK link retained)
+- `EstimateService` — CRUD for estimates and line items; each line item has `name`, `notes`, `hourly_rate`; line item entries (materials and hours) are managed separately; `calculate_total` sums entry costs across all line items
+- `InvoiceService` — same pattern as EstimateService
+- `ConversionService` — deep-copies line items AND their entries when converting estimate to invoice
+- `SavedItemService` — CRUD for saved items and their entries; `populate_line_item` copies a saved item + all its entries into a new LineItem (snapshot pattern)
 
 #### Route Blueprints
 
@@ -207,12 +216,24 @@ blueprints/
   jobs_bp        — GET/POST /api/v1/job-sites/<id>/jobs, GET/PUT/DELETE /api/v1/jobs/<id>
   contacts_bp    — GET/POST /api/v1/job-sites/<id>/contacts, GET/POST /api/v1/jobs/<id>/contacts
   notes_bp       — GET/POST/PUT/DELETE /api/v1/jobs/<id>/notes
-  estimates_bp   — GET/POST /api/v1/jobs/<id>/estimates, GET/PUT/DELETE /api/v1/estimates/<id>
+  estimates_bp   — full CRUD + line-item CRUD + entry CRUD + save-to-library
+                   GET/POST /api/v1/jobs/<id>/estimates, GET/PUT/DELETE /api/v1/estimates/<id>
                    POST /api/v1/estimates/<id>/line-items, PUT/DELETE /api/v1/estimates/<id>/line-items/<item_id>
-  invoices_bp    — GET/POST /api/v1/jobs/<id>/invoices, GET/PUT/DELETE /api/v1/invoices/<id>
+                   POST /api/v1/estimates/<id>/line-items/<item_id>/entries
+                   PUT/DELETE /api/v1/estimates/<id>/line-items/<item_id>/entries/<entry_id>
+                   POST /api/v1/estimates/<id>/line-items/<item_id>/save-to-library
+  invoices_bp    — same pattern as estimates_bp
+                   GET/POST /api/v1/jobs/<id>/invoices, GET/PUT/DELETE /api/v1/invoices/<id>
                    POST /api/v1/invoices/<id>/line-items, PUT/DELETE /api/v1/invoices/<id>/line-items/<item_id>
+                   POST /api/v1/invoices/<id>/line-items/<item_id>/entries
+                   PUT/DELETE /api/v1/invoices/<id>/line-items/<item_id>/entries/<entry_id>
+                   POST /api/v1/invoices/<id>/line-items/<item_id>/save-to-library
   conversion_bp  — POST /api/v1/estimates/<id>/convert-to-invoice
-  saved_items_bp — GET/POST /api/v1/saved-items, GET/PUT/DELETE /api/v1/saved-items/<id>
+  saved_items_bp — full CRUD + entry CRUD + populate
+                   GET/POST /api/v1/saved-items, GET/PUT/DELETE /api/v1/saved-items/<id>
+                   POST /api/v1/saved-items/<id>/entries
+                   PUT/DELETE /api/v1/saved-items/<id>/entries/<entry_id>
+                   POST /api/v1/saved-items/<id>/populate
 ```
 
 An `auth_required` decorator validates the JWT from the `Authorization: Bearer <token>` header and injects `current_user_id` into the request context.
@@ -240,6 +261,8 @@ RootNavigator (Stack)
 React Navigation's `NavigationContainer` handles deep linking and URL-based routing for the web platform.
 
 A `MarkdownEditor` component wraps a text input with a preview toggle, providing markdown-aware editing (checklists, bold, italic, etc.) for Note creation and editing screens.
+
+A `LineItemEditor` component manages a single line item and its entries inline. It shows the item name, hourly rate, a collapsible list of entries, per-entry totals, and buttons to add/edit/delete entries and save the item to the library.
 
 #### Data Fetching Layer
 
@@ -348,13 +371,23 @@ erDiagram
     }
     LINE_ITEM {
         uuid id PK
-        uuid parent_id FK
+        uuid parent_id
         string parent_type
         string name
         text notes
+        numeric hourly_rate
+        int sort_order
+    }
+    LINE_ITEM_ENTRY {
+        uuid id PK
+        uuid line_item_id FK
+        string entry_type
+        string name
+        text notes
         text url
+        numeric unit_price
+        numeric quantity
         numeric hours
-        numeric price
         int sort_order
     }
     SAVED_ITEM {
@@ -362,9 +395,21 @@ erDiagram
         uuid user_id FK
         string name
         text notes
+        numeric hourly_rate
+        timestamp created_at
+        timestamp updated_at
+    }
+    SAVED_ITEM_ENTRY {
+        uuid id PK
+        uuid saved_item_id FK
+        string entry_type
+        string name
+        text notes
         text url
+        numeric unit_price
+        numeric quantity
         numeric hours
-        numeric price
+        int sort_order
     }
 
     USER ||--o{ JOB_SITE : owns
@@ -382,11 +427,13 @@ erDiagram
     INVOICE ||--o{ LINE_ITEM : contains
     ESTIMATE ||--o| INVOICE : converted_to
     USER ||--o{ SAVED_ITEM : owns
+    LINE_ITEM ||--o{ LINE_ITEM_ENTRY : has
+    SAVED_ITEM ||--o{ SAVED_ITEM_ENTRY : has
 ```
 
 ### Key Design Decisions
 
-**LINE_ITEM polymorphism**: Line items use a `parent_type` discriminator (`'estimate'` or `'invoice'`) and `parent_id` rather than separate tables. This keeps the schema simple and makes the total-calculation logic reusable. Each line item carries a `name` (required) and `price` (required); `notes`, `url`, and `hours` are optional nullable columns.
+**LineItem v2**: Each LineItem is a named group (e.g. "Toilet Replacement") with an optional `hourly_rate`. Sub-items are stored in `LineItemEntry` rows of two types: `'material'` (unit_price × quantity = cost) and `'hours'` (hours × parent.hourly_rate = cost). The LineItem's `total_cost` and `total_hours` are computed server-side by summing its entries. The old flat `price`/`url`/`hours` columns were removed in migration 002.
 
 **Primary Contact**: `primary_contact_id` is a nullable FK on both `JOB_SITE` and `JOB`. The `ContactService.get_effective_primary_contact(job_id)` method implements the inheritance rule: if the job has a `primary_contact_id`, return it; otherwise return the parent site's `primary_contact_id`.
 
@@ -400,7 +447,9 @@ erDiagram
 
 **Markdown notes**: Note bodies are stored as plain text (markdown source) in the database. The Expo app renders them using a markdown renderer component and provides a markdown-aware editor with support for checklists and formatting. No server-side markdown processing is required.
 
-**Saved Items snapshot pattern**: When a user picks a Saved_Item to pre-populate a line item, the service copies the field values (`name`, `notes`, `url`, `hours`, `price`) into a new `LINE_ITEM` record with no FK reference back to the saved item. Subsequent edits to the Saved_Item do not affect existing line items, and editing a line item does not affect the Saved_Item.
+**Save-to-library**: A line item (with all its entries) can be saved to the user's SavedItem library via `POST .../save-to-library`. The saved item is an independent copy. Later, `populate_line_item` copies a SavedItem + its SavedItemEntries into a new LineItem + LineItemEntries (snapshot pattern — no FK link retained).
+
+**Saved Items snapshot pattern**: When a user picks a SavedItem to pre-populate a line item, the service copies the saved item's `name`, `notes`, `hourly_rate`, and all its `SavedItemEntry` children into a new `LineItem` + `LineItemEntry` records with no FK reference back to the saved item. Subsequent edits to the SavedItem do not affect existing line items, and editing a line item does not affect the SavedItem.
 
 **`delivered` flag**: A simple boolean column on both `ESTIMATE` and `INVOICE`, defaulting to `false` on creation. Toggled via a PATCH endpoint (`PATCH /api/v1/estimates/<id>` or `PATCH /api/v1/invoices/<id>` with `{"delivered": true/false}`). The App displays delivery status on each estimate and invoice.
 
@@ -486,27 +535,49 @@ CREATE TABLE invoices (
 );
 
 CREATE TABLE line_items (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    parent_id   UUID NOT NULL,
-    parent_type TEXT NOT NULL CHECK (parent_type IN ('estimate', 'invoice')),
-    name        TEXT NOT NULL,
-    notes       TEXT,
-    url         TEXT,
-    hours       NUMERIC(12,4),
-    price       NUMERIC(12,4) NOT NULL,
-    sort_order  INT NOT NULL DEFAULT 0
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    parent_id    UUID NOT NULL,
+    parent_type  TEXT NOT NULL CHECK (parent_type IN ('estimate', 'invoice')),
+    name         TEXT NOT NULL,
+    notes        TEXT,
+    hourly_rate  NUMERIC(12,4),
+    sort_order   INT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE line_item_entries (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    line_item_id UUID NOT NULL REFERENCES line_items(id) ON DELETE CASCADE,
+    entry_type   TEXT NOT NULL CHECK (entry_type IN ('material', 'hours')),
+    name         TEXT NOT NULL,
+    notes        TEXT,
+    url          TEXT,
+    unit_price   NUMERIC(12,4),
+    quantity     NUMERIC(12,4),
+    hours        NUMERIC(12,4),
+    sort_order   INT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE saved_items (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name        TEXT NOT NULL,
-    notes       TEXT,
-    url         TEXT,
-    hours       NUMERIC(12,4),
-    price       NUMERIC(12,4),
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name         TEXT NOT NULL,
+    notes        TEXT,
+    hourly_rate  NUMERIC(12,4),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE saved_item_entries (
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    saved_item_id  UUID NOT NULL REFERENCES saved_items(id) ON DELETE CASCADE,
+    entry_type     TEXT NOT NULL CHECK (entry_type IN ('material', 'hours')),
+    name           TEXT NOT NULL,
+    notes          TEXT,
+    url            TEXT,
+    unit_price     NUMERIC(12,4),
+    quantity       NUMERIC(12,4),
+    hours          NUMERIC(12,4),
+    sort_order     INT NOT NULL DEFAULT 0
 );
 ```
 
@@ -638,7 +709,7 @@ CREATE TABLE saved_items (
 
 ### Property 16: Line item total calculation
 
-*For any* estimate or invoice containing one or more line items, the total reported by the system SHALL equal the exact arithmetic sum of the `price` field for every line item in that document.
+*For any* estimate or invoice containing one or more line items, the total reported by the system SHALL equal the exact arithmetic sum of all entry costs across all line items, where a material entry's cost = `unit_price × quantity` and an hours entry's cost = `hours × parent line item's hourly_rate`.
 
 **Validates: Requirements 6.3, 7.3**
 
@@ -646,7 +717,7 @@ CREATE TABLE saved_items (
 
 ### Property 17: Estimate and invoice line item round-trip
 
-*For any* estimate or invoice and any set of line items added to it, all line items SHALL be retrievable with their `name`, `price`, `notes`, `url`, and `hours` fields intact and matching the values that were submitted.
+*For any* estimate or invoice and any set of line items added to it, all line items SHALL be retrievable with their `name`, `notes`, and `hourly_rate` fields intact and matching the values that were submitted, and all entries under each line item SHALL be retrievable with their `entry_type`, `name`, `unit_price`, `quantity`, and `hours` fields intact.
 
 **Validates: Requirements 6.2, 6.4, 7.2, 7.4**
 
@@ -654,7 +725,7 @@ CREATE TABLE saved_items (
 
 ### Property 18: Estimate-to-invoice conversion preserves line items and records source
 
-*For any* estimate with any number of line items, converting it to an invoice SHALL produce a new invoice on the same job whose line items are identical in `name`, `price`, `notes`, `url`, and `hours` to those of the source estimate, and the new invoice SHALL record a reference to the source estimate's identifier.
+*For any* estimate with any number of line items and entries, converting it to an invoice SHALL produce a new invoice on the same job whose line items AND their entries are identical to those of the source estimate, and the new invoice SHALL record a reference to the source estimate's identifier.
 
 **Validates: Requirements 8.1, 8.3**
 
@@ -710,7 +781,7 @@ CREATE TABLE saved_items (
 
 ### Property 25: Line item pre-population independence
 
-*For any* saved item used to pre-populate a line item on an estimate or invoice, the resulting line item SHALL have field values equal to those of the saved item at the time of creation; subsequently editing the saved item SHALL NOT change the line item's field values, and editing the line item SHALL NOT change the saved item's field values.
+*For any* saved item used to pre-populate a line item on an estimate or invoice, the resulting line item SHALL have field values equal to those of the saved item at the time of creation, AND all saved item entries SHALL be copied into new line item entries; subsequently editing the saved item SHALL NOT change the line item's field values or entries, and editing the line item SHALL NOT change the saved item's field values or entries.
 
 **Validates: Requirements 11.5, 11.6**
 
@@ -721,6 +792,22 @@ CREATE TABLE saved_items (
 *For any* string (including strings containing markdown syntax such as `#`, `*`, `- [ ]`, backticks, and other special characters), storing it as a note body and then retrieving the note SHALL return the exact same string unchanged.
 
 **Validates: Requirements 5.5**
+
+---
+
+### Property 27: Line item total_cost derivation
+
+*For any* line item with any combination of material and hours entries, the `total_cost` reported by the system SHALL equal the sum of (material entry: `unit_price × quantity`) plus the sum of (hours entry: `hours × parent line item's hourly_rate`) across all entries.
+
+**Validates: Requirements 6.3, 7.3**
+
+---
+
+### Property 28: Line item total_hours derivation
+
+*For any* line item with any combination of material and hours entries, the `total_hours` reported by the system SHALL equal the sum of the `hours` field across all entries of type `'hours'`, and material entries SHALL contribute zero to `total_hours`.
+
+**Validates: Requirements 6.3, 7.3**
 
 ---
 
@@ -825,19 +912,40 @@ from decimal import Decimal
     line_items=st.lists(
         st.fixed_dictionaries({
             "name": st.text(min_size=1),
-            "price": st.decimals(min_value=Decimal("0.00"), max_value=Decimal("99999"), places=4),
-            "notes": st.one_of(st.none(), st.text()),
-            "url": st.one_of(st.none(), st.text()),
-            "hours": st.one_of(st.none(), st.decimals(min_value=Decimal("0"), max_value=Decimal("9999"), places=4)),
+            "hourly_rate": st.decimals(min_value=Decimal("0.00"), max_value=Decimal("999"), places=4),
+            "entries": st.lists(
+                st.one_of(
+                    st.fixed_dictionaries({
+                        "entry_type": st.just("material"),
+                        "name": st.text(min_size=1),
+                        "unit_price": st.decimals(min_value=Decimal("0.00"), max_value=Decimal("99999"), places=4),
+                        "quantity": st.decimals(min_value=Decimal("0.01"), max_value=Decimal("9999"), places=4),
+                    }),
+                    st.fixed_dictionaries({
+                        "entry_type": st.just("hours"),
+                        "name": st.text(min_size=1),
+                        "hours": st.decimals(min_value=Decimal("0"), max_value=Decimal("9999"), places=4),
+                    }),
+                ),
+                min_size=0,
+                max_size=20,
+            ),
         }),
         min_size=1,
-        max_size=50,
+        max_size=20,
     )
 )
 @settings(max_examples=100)
 def test_line_item_total_calculation(line_items):
     # Feature: contractor-management-app, Property 16: Line item total calculation
     estimate = create_estimate_with_items(line_items)
-    expected = sum(item["price"] for item in line_items)
+    expected = sum(
+        sum(
+            (e["unit_price"] * e["quantity"]) if e["entry_type"] == "material"
+            else (e["hours"] * item["hourly_rate"])
+            for e in item["entries"]
+        )
+        for item in line_items
+    )
     assert estimate_service.calculate_total(estimate) == expected
 ```
