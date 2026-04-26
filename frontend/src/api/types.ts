@@ -85,7 +85,14 @@ export interface Estimate {
   job_id: string;
   title: string;
   delivered: boolean;
-  total: string | null;
+  /** Tax rate as a percentage string, e.g. "8.5" = 8.5%. Null = no tax. */
+  tax_rate: string | null;
+  /** Pre-tax total of all line items */
+  subtotal: string;
+  /** Tax amount (applied to material entries only) */
+  tax_amount: string;
+  /** subtotal + tax_amount */
+  total: string;
   created_at: string;
   updated_at: string;
 }
@@ -96,7 +103,14 @@ export interface Invoice {
   title: string;
   delivered: boolean;
   source_estimate_id: string | null;
-  total: string | null;
+  /** Tax rate as a percentage string, e.g. "8.5" = 8.5%. Null = no tax. */
+  tax_rate: string | null;
+  /** Pre-tax total of all line items */
+  subtotal: string;
+  /** Tax amount (applied to material entries only) */
+  tax_amount: string;
+  /** subtotal + tax_amount */
+  total: string;
   created_at: string;
   updated_at: string;
 }

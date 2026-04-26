@@ -27,16 +27,66 @@ def _entry_cost(entry: LineItemEntry, hourly_rate: Decimal) -> Decimal:
         return hrs * hourly_rate
 
 
+def _entry_material_cost(entry: LineItemEntry) -> Decimal:
+    """Return the taxable (material) cost of an entry, or zero for hours."""
+    if entry.entry_type == "material":
+        up = entry.unit_price or Decimal("0")
+        qty = entry.quantity or Decimal("0")
+        return up * qty
+    return Decimal("0")
+
+
 def compute_line_item_totals(item: LineItem) -> dict:
-    """Return total_cost and total_hours for a LineItem."""
+    """Return total_cost, total_hours, and material_cost for a LineItem."""
     rate = item.hourly_rate or Decimal("0")
     total_cost = Decimal("0")
     total_hours = Decimal("0")
+    material_cost = Decimal("0")
     for entry in item.entries:
         total_cost += _entry_cost(entry, rate)
         if entry.entry_type == "hours":
             total_hours += entry.hours or Decimal("0")
-    return {"total_cost": total_cost, "total_hours": total_hours}
+        else:
+            material_cost += _entry_material_cost(entry)
+    return {
+        "total_cost": total_cost,
+        "total_hours": total_hours,
+        "material_cost": material_cost,
+    }
+
+
+def compute_totals_with_tax(items: list[LineItem], tax_rate: Decimal | None) -> dict:
+    """Compute subtotal, tax_amount, and total for a list of line items.
+
+    Tax applies only to material entries. Hours are never taxed.
+
+    Args:
+        items: List of LineItem objects with their entries loaded.
+        tax_rate: Tax rate as a percentage (e.g. Decimal("8.5") = 8.5%).
+                  None or zero means no tax.
+
+    Returns:
+        dict with keys: subtotal, taxable_amount, tax_rate, tax_amount, total
+    """
+    subtotal = Decimal("0")
+    taxable_amount = Decimal("0")
+
+    for item in items:
+        totals = compute_line_item_totals(item)
+        subtotal += totals["total_cost"]
+        taxable_amount += totals["material_cost"]
+
+    rate = tax_rate or Decimal("0")
+    tax_amount = (taxable_amount * rate / Decimal("100")).quantize(Decimal("0.0001"))
+    total = subtotal + tax_amount
+
+    return {
+        "subtotal": subtotal,
+        "taxable_amount": taxable_amount,
+        "tax_rate": rate,
+        "tax_amount": tax_amount,
+        "total": total,
+    }
 
 
 class EstimateService:
@@ -84,16 +134,25 @@ class EstimateService:
     def get(self, estimate_id: str, user_id: str) -> Estimate:
         return self._verify_estimate_access(estimate_id, user_id)
 
-    def create(self, job_id: str, user_id: str, title: str, delivered: bool = False) -> Estimate:
+    def create(self, job_id: str, user_id: str, title: str, delivered: bool = False,
+               tax_rate: Decimal | None = None) -> Estimate:
         self._verify_job_access(job_id, user_id)
-        return self._estimate_repo.create(Estimate(job_id=job_id, title=title, delivered=delivered))
+        return self._estimate_repo.create(Estimate(
+            job_id=job_id, title=title, delivered=delivered, tax_rate=tax_rate,
+        ))
 
-    def update(self, estimate_id: str, user_id: str, title: str | None = None, delivered: bool | None = None) -> Estimate:
+    def update(self, estimate_id: str, user_id: str, title: str | None = None,
+               delivered: bool | None = None, tax_rate: Decimal | None = None,
+               clear_tax: bool = False) -> Estimate:
         estimate = self._verify_estimate_access(estimate_id, user_id)
         if title is not None:
             estimate.title = title
         if delivered is not None:
             estimate.delivered = delivered
+        if clear_tax:
+            estimate.tax_rate = None
+        elif tax_rate is not None:
+            estimate.tax_rate = tax_rate
         return self._estimate_repo.update(estimate)
 
     def delete(self, estimate_id: str, user_id: str) -> None:
@@ -197,8 +256,12 @@ class EstimateService:
     # Totals
     # ------------------------------------------------------------------
 
+    def calculate_totals(self, estimate_id: str, user_id: str) -> dict:
+        """Return full tax breakdown for the estimate."""
+        estimate = self._verify_estimate_access(estimate_id, user_id)
+        items = self._estimate_repo.get_line_items(estimate_id)
+        return compute_totals_with_tax(items, estimate.tax_rate)
+
     def calculate_total(self, estimate_id: str, user_id: str) -> Decimal:
-        items = self.get_line_items(estimate_id, user_id)
-        return sum(
-            compute_line_item_totals(item)["total_cost"] for item in items
-        )
+        """Convenience: return just the grand total (subtotal + tax)."""
+        return self.calculate_totals(estimate_id, user_id)["total"]

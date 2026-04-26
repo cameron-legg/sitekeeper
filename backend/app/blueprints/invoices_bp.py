@@ -51,14 +51,18 @@ def _serialize_line_item(item) -> dict:
     }
 
 
-def _serialize_invoice(invoice, total: Decimal | None = None) -> dict:
+def _serialize_invoice(invoice, totals: dict | None = None) -> dict:
+    t = totals or {}
     return {
         "id": str(invoice.id),
         "job_id": str(invoice.job_id),
         "title": invoice.title,
         "delivered": invoice.delivered,
         "source_estimate_id": str(invoice.source_estimate_id) if invoice.source_estimate_id else None,
-        "total": str(total) if total is not None else None,
+        "tax_rate": str(invoice.tax_rate) if invoice.tax_rate is not None else None,
+        "subtotal": str(t.get("subtotal", "0")),
+        "tax_amount": str(t.get("tax_amount", "0")),
+        "total": str(t.get("total", "0")),
         "created_at": invoice.created_at.isoformat() if invoice.created_at else None,
         "updated_at": invoice.updated_at.isoformat() if invoice.updated_at else None,
     }
@@ -74,7 +78,7 @@ def list_invoices(job_id: str):
     user_id = g.current_user_id
     try:
         invoices = _service.list_for_job(job_id, user_id)
-        result = [_serialize_invoice(i, _service.calculate_total(str(i.id), user_id)) for i in invoices]
+        result = [_serialize_invoice(i, _service.calculate_totals(str(i.id), user_id)) for i in invoices]
         return jsonify(result), 200
     except NotFoundError:
         return not_found("Job")
@@ -90,11 +94,17 @@ def create_invoice(job_id: str):
     title = data.get("title", "").strip()
     if not title:
         return error_response("VALIDATION_ERROR", "Title is required.", field="title")
+    tax_rate = None
+    if data.get("tax_rate") is not None:
+        tax_rate, err = _parse_decimal(data["tax_rate"], "tax_rate")
+        if err:
+            return err
     try:
         inv = _service.create(job_id=job_id, user_id=user_id, title=title,
                               delivered=bool(data.get("delivered", False)),
-                              source_estimate_id=data.get("source_estimate_id"))
-        return jsonify(_serialize_invoice(inv, _service.calculate_total(str(inv.id), user_id))), 201
+                              source_estimate_id=data.get("source_estimate_id"),
+                              tax_rate=tax_rate)
+        return jsonify(_serialize_invoice(inv, _service.calculate_totals(str(inv.id), user_id))), 201
     except NotFoundError:
         return not_found("Job")
     except Exception:
@@ -107,7 +117,7 @@ def get_invoice(invoice_id: str):
     user_id = g.current_user_id
     try:
         inv = _service.get(invoice_id, user_id)
-        return jsonify(_serialize_invoice(inv, _service.calculate_total(invoice_id, user_id))), 200
+        return jsonify(_serialize_invoice(inv, _service.calculate_totals(invoice_id, user_id))), 200
     except NotFoundError:
         return not_found("Invoice")
     except Exception:
@@ -127,9 +137,19 @@ def patch_invoice(invoice_id: str):
     delivered = data.get("delivered")
     if delivered is not None:
         delivered = bool(delivered)
+    tax_rate = None
+    clear_tax = False
+    if "tax_rate" in data:
+        if data["tax_rate"] is None:
+            clear_tax = True
+        else:
+            tax_rate, err = _parse_decimal(data["tax_rate"], "tax_rate")
+            if err:
+                return err
     try:
-        inv = _service.update(invoice_id=invoice_id, user_id=user_id, title=title, delivered=delivered)
-        return jsonify(_serialize_invoice(inv, _service.calculate_total(invoice_id, user_id))), 200
+        inv = _service.update(invoice_id=invoice_id, user_id=user_id, title=title,
+                              delivered=delivered, tax_rate=tax_rate, clear_tax=clear_tax)
+        return jsonify(_serialize_invoice(inv, _service.calculate_totals(invoice_id, user_id))), 200
     except NotFoundError:
         return not_found("Invoice")
     except Exception:

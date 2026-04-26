@@ -35,8 +35,8 @@ export function useEstimate(estimateId: string) {
 export function useCreateEstimate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ jobId, title }: { jobId: string; title: string }) =>
-      apiClient.post<Estimate>(`/api/v1/jobs/${jobId}/estimates`, { title }).then((r) => r.data),
+    mutationFn: ({ jobId, title, tax_rate }: { jobId: string; title: string; tax_rate?: string }) =>
+      apiClient.post<Estimate>(`/api/v1/jobs/${jobId}/estimates`, { title, tax_rate }).then((r) => r.data),
     onSuccess: (est) => qc.invalidateQueries({ queryKey: KEYS.forJob(est.job_id) }),
   });
 }
@@ -44,7 +44,7 @@ export function useCreateEstimate() {
 export function useUpdateEstimate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ estimateId, ...data }: { estimateId: string; title?: string; delivered?: boolean }) =>
+    mutationFn: ({ estimateId, ...data }: { estimateId: string; title?: string; delivered?: boolean; tax_rate?: string | null }) =>
       apiClient.patch<Estimate>(`/api/v1/estimates/${estimateId}`, data).then((r) => r.data),
     onSuccess: (est) => {
       qc.invalidateQueries({ queryKey: KEYS.detail(est.id) });

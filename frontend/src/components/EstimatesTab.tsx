@@ -1,32 +1,20 @@
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  Modal,
-  TextInput,
-  StyleSheet,
+  View, Text, FlatList, TouchableOpacity, ActivityIndicator,
+  Alert, Modal, TextInput, StyleSheet,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
 import {
-  useEstimates,
-  useCreateEstimate,
-  useUpdateEstimate,
-  useDeleteEstimate,
-  useConvertEstimate,
+  useEstimates, useCreateEstimate, useUpdateEstimate,
+  useDeleteEstimate, useConvertEstimate,
 } from "../api/hooks/useEstimates";
 import type { Estimate } from "../api/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-interface Props {
-  jobId: string;
-}
+interface Props { jobId: string; }
 
 export default function EstimatesTab({ jobId }: Props) {
   const navigation = useNavigation<Nav>();
@@ -38,28 +26,21 @@ export default function EstimatesTab({ jobId }: Props) {
 
   const [showModal, setShowModal] = useState(false);
   const [title, setTitle] = useState("");
+  const [taxRate, setTaxRate] = useState("");
   const [titleError, setTitleError] = useState<string | null>(null);
 
   function openNew() {
-    setTitle("");
-    setTitleError(null);
-    setShowModal(true);
+    setTitle(""); setTaxRate(""); setTitleError(null); setShowModal(true);
   }
 
   function handleCreate() {
     const t = title.trim();
-    if (!t) {
-      setTitleError("Title is required.");
-      return;
-    }
+    if (!t) { setTitleError("Title is required."); return; }
     setTitleError(null);
     createEstimate.mutate(
-      { jobId, title: t },
+      { jobId, title: t, tax_rate: taxRate.trim() || undefined },
       {
-        onSuccess: (est) => {
-          setShowModal(false);
-          navigation.navigate("EstimateEditor", { estimateId: est.id, jobId });
-        },
+        onSuccess: (est) => { setShowModal(false); navigation.navigate("EstimateEditor", { estimateId: est.id, jobId }); },
         onError: () => setTitleError("Failed to create estimate."),
       }
     );
@@ -70,25 +51,17 @@ export default function EstimatesTab({ jobId }: Props) {
   }
 
   function handleConvert(estimate: Estimate) {
-    Alert.alert(
-      "Convert to Invoice",
-      `Convert "${estimate.title}" to an invoice?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Convert", onPress: () => convertEstimate.mutate({ estimateId: estimate.id, jobId }) },
-      ]
-    );
+    Alert.alert("Convert to Invoice", `Convert "${estimate.title}" to an invoice?`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Convert", onPress: () => convertEstimate.mutate({ estimateId: estimate.id, jobId }) },
+    ]);
   }
 
   function handleDelete(estimate: Estimate) {
-    Alert.alert(
-      "Delete Estimate",
-      `Delete "${estimate.title}"? This cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: () => deleteEstimate.mutate({ estimateId: estimate.id, jobId }) },
-      ]
-    );
+    Alert.alert("Delete Estimate", `Delete "${estimate.title}"? This cannot be undone.`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => deleteEstimate.mutate({ estimateId: estimate.id, jobId }) },
+    ]);
   }
 
   if (isLoading) return <View style={styles.centered}><ActivityIndicator color="#2563eb" /></View>;
@@ -116,9 +89,25 @@ export default function EstimatesTab({ jobId }: Props) {
                 </Text>
               </View>
             </View>
-            {item.total != null && (
-              <Text style={styles.total}>Total: ${parseFloat(item.total).toFixed(2)}</Text>
-            )}
+
+            {/* Tax breakdown */}
+            <View style={styles.totalsBlock}>
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Subtotal</Text>
+                <Text style={styles.totalValue}>${parseFloat(item.subtotal || "0").toFixed(2)}</Text>
+              </View>
+              {item.tax_rate && parseFloat(item.tax_rate) > 0 && (
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Tax ({item.tax_rate}% on materials)</Text>
+                  <Text style={styles.totalValue}>${parseFloat(item.tax_amount || "0").toFixed(2)}</Text>
+                </View>
+              )}
+              <View style={[styles.totalRow, styles.grandRow]}>
+                <Text style={styles.grandLabel}>Total</Text>
+                <Text style={styles.grandValue}>${parseFloat(item.total || "0").toFixed(2)}</Text>
+              </View>
+            </View>
+
             <View style={styles.actions}>
               <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate("EstimateEditor", { estimateId: item.id, jobId })}>
                 <Text style={styles.actionBtnText}>Edit</Text>
@@ -146,14 +135,23 @@ export default function EstimatesTab({ jobId }: Props) {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>New Estimate</Text>
             {titleError && <Text style={styles.inlineError}>{titleError}</Text>}
+            <Text style={styles.fieldLabel}>Title <Text style={styles.req}>*</Text></Text>
             <TextInput
               style={styles.modalInput}
               value={title}
               onChangeText={setTitle}
               placeholder="Estimate title"
               autoFocus
-              onSubmitEditing={handleCreate}
             />
+            <Text style={styles.fieldLabel}>Sales Tax Rate % (optional)</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={taxRate}
+              onChangeText={setTaxRate}
+              placeholder="e.g. 8.5"
+              keyboardType="decimal-pad"
+            />
+            <Text style={styles.taxHint}>Applies to material items only, not labour hours.</Text>
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowModal(false)}>
                 <Text style={styles.cancelText}>Cancel</Text>
@@ -185,7 +183,7 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 17, fontWeight: "600", color: "#374151", marginBottom: 6 },
   emptySubtitle: { fontSize: 14, color: "#9ca3af", textAlign: "center" },
   card: { backgroundColor: "#fff", borderRadius: 10, padding: 14, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
-  cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
+  cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
   cardTitle: { fontSize: 15, fontWeight: "600", color: "#1a1a1a", flex: 1, marginRight: 8 },
   badge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   badgeGreen: { backgroundColor: "#d1fae5" },
@@ -193,7 +191,13 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 11, fontWeight: "600" },
   badgeTextGreen: { color: "#065f46" },
   badgeTextGrey: { color: "#6b7280" },
-  total: { fontSize: 14, color: "#374151", fontWeight: "500", marginBottom: 10 },
+  totalsBlock: { backgroundColor: "#f9fafb", borderRadius: 8, padding: 10, marginBottom: 10 },
+  totalRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 3 },
+  totalLabel: { fontSize: 13, color: "#6b7280" },
+  totalValue: { fontSize: 13, color: "#374151" },
+  grandRow: { borderTopWidth: 1, borderTopColor: "#e5e7eb", marginTop: 4, paddingTop: 4, marginBottom: 0 },
+  grandLabel: { fontSize: 14, fontWeight: "700", color: "#1a1a1a" },
+  grandValue: { fontSize: 14, fontWeight: "700", color: "#2563eb" },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   actionBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, backgroundColor: "#eff6ff" },
   actionBtnText: { fontSize: 12, color: "#2563eb", fontWeight: "500" },
@@ -203,10 +207,13 @@ const styles = StyleSheet.create({
   addBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: 24 },
   modalCard: { backgroundColor: "#fff", borderRadius: 12, padding: 24, width: "100%", maxWidth: 400 },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: "#1a1a1a", marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: "#1a1a1a", marginBottom: 12 },
+  fieldLabel: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 4, marginTop: 10 },
+  req: { color: "#dc2626" },
   inlineError: { color: "#dc2626", fontSize: 13, marginBottom: 8 },
-  modalInput: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, color: "#1a1a1a", backgroundColor: "#f9fafb", marginBottom: 16 },
-  modalActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
+  modalInput: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, color: "#1a1a1a", backgroundColor: "#f9fafb" },
+  taxHint: { fontSize: 12, color: "#9ca3af", marginTop: 4, marginBottom: 4 },
+  modalActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end", marginTop: 16 },
   cancelBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: "#d1d5db" },
   cancelText: { fontSize: 14, color: "#374151" },
   confirmBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: "#2563eb", minWidth: 80, alignItems: "center" },

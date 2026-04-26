@@ -56,13 +56,17 @@ def _serialize_line_item(item) -> dict:
     }
 
 
-def _serialize_estimate(estimate, total: Decimal | None = None) -> dict:
+def _serialize_estimate(estimate, totals: dict | None = None) -> dict:
+    t = totals or {}
     return {
         "id": str(estimate.id),
         "job_id": str(estimate.job_id),
         "title": estimate.title,
         "delivered": estimate.delivered,
-        "total": str(total) if total is not None else None,
+        "tax_rate": str(estimate.tax_rate) if estimate.tax_rate is not None else None,
+        "subtotal": str(t.get("subtotal", "0")),
+        "tax_amount": str(t.get("tax_amount", "0")),
+        "total": str(t.get("total", "0")),
         "created_at": estimate.created_at.isoformat() if estimate.created_at else None,
         "updated_at": estimate.updated_at.isoformat() if estimate.updated_at else None,
     }
@@ -78,7 +82,7 @@ def list_estimates(job_id: str):
     user_id = g.current_user_id
     try:
         estimates = _service.list_for_job(job_id, user_id)
-        result = [_serialize_estimate(e, _service.calculate_total(str(e.id), user_id)) for e in estimates]
+        result = [_serialize_estimate(e, _service.calculate_totals(str(e.id), user_id)) for e in estimates]
         return jsonify(result), 200
     except NotFoundError:
         return not_found("Job")
@@ -94,9 +98,16 @@ def create_estimate(job_id: str):
     title = data.get("title", "").strip()
     if not title:
         return error_response("VALIDATION_ERROR", "Title is required.", field="title")
+    tax_rate = None
+    if data.get("tax_rate") is not None:
+        tax_rate, err = _parse_decimal(data["tax_rate"], "tax_rate")
+        if err:
+            return err
     try:
-        est = _service.create(job_id=job_id, user_id=user_id, title=title, delivered=bool(data.get("delivered", False)))
-        return jsonify(_serialize_estimate(est, _service.calculate_total(str(est.id), user_id))), 201
+        est = _service.create(job_id=job_id, user_id=user_id, title=title,
+                              delivered=bool(data.get("delivered", False)),
+                              tax_rate=tax_rate)
+        return jsonify(_serialize_estimate(est, _service.calculate_totals(str(est.id), user_id))), 201
     except NotFoundError:
         return not_found("Job")
     except Exception:
@@ -109,7 +120,7 @@ def get_estimate(estimate_id: str):
     user_id = g.current_user_id
     try:
         est = _service.get(estimate_id, user_id)
-        return jsonify(_serialize_estimate(est, _service.calculate_total(estimate_id, user_id))), 200
+        return jsonify(_serialize_estimate(est, _service.calculate_totals(estimate_id, user_id))), 200
     except NotFoundError:
         return not_found("Estimate")
     except Exception:
@@ -129,9 +140,19 @@ def patch_estimate(estimate_id: str):
     delivered = data.get("delivered")
     if delivered is not None:
         delivered = bool(delivered)
+    tax_rate = None
+    clear_tax = False
+    if "tax_rate" in data:
+        if data["tax_rate"] is None:
+            clear_tax = True
+        else:
+            tax_rate, err = _parse_decimal(data["tax_rate"], "tax_rate")
+            if err:
+                return err
     try:
-        est = _service.update(estimate_id=estimate_id, user_id=user_id, title=title, delivered=delivered)
-        return jsonify(_serialize_estimate(est, _service.calculate_total(estimate_id, user_id))), 200
+        est = _service.update(estimate_id=estimate_id, user_id=user_id, title=title,
+                              delivered=delivered, tax_rate=tax_rate, clear_tax=clear_tax)
+        return jsonify(_serialize_estimate(est, _service.calculate_totals(estimate_id, user_id))), 200
     except NotFoundError:
         return not_found("Estimate")
     except Exception:

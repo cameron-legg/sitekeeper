@@ -451,7 +451,9 @@ erDiagram
 
 **Saved Items snapshot pattern**: When a user picks a SavedItem to pre-populate a line item, the service copies the saved item's `name`, `notes`, `hourly_rate`, and all its `SavedItemEntry` children into a new `LineItem` + `LineItemEntry` records with no FK reference back to the saved item. Subsequent edits to the SavedItem do not affect existing line items, and editing a line item does not affect the SavedItem.
 
-**`delivered` flag**: A simple boolean column on both `ESTIMATE` and `INVOICE`, defaulting to `false` on creation. Toggled via a PATCH endpoint (`PATCH /api/v1/estimates/<id>` or `PATCH /api/v1/invoices/<id>` with `{"delivered": true/false}`). The App displays delivery status on each estimate and invoice.
+**`delivered` flag**: A simple boolean column on both `ESTIMATE` and `INVOICE`, defaulting to `false` on creation. Toggled via a PATCH endpoint. The App displays delivery status on each estimate and invoice.
+
+**Sales tax**: `tax_rate` is a nullable `NUMERIC(6,4)` column on both `ESTIMATE` and `INVOICE`, stored as a percentage (e.g. `8.5` = 8.5%). `NULL` means no tax. Tax applies **only to material entries** — hours entries are never taxed. The API response includes a full breakdown: `subtotal` (pre-tax total), `tax_amount` (tax on materials only), and `total` (subtotal + tax_amount). When an estimate is converted to an invoice, the `tax_rate` is copied to the new invoice.
 
 ### Database Schema (PostgreSQL DDL — abbreviated)
 
@@ -520,6 +522,7 @@ CREATE TABLE estimates (
     job_id      UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
     title       TEXT NOT NULL,
     delivered   BOOLEAN NOT NULL DEFAULT false,
+    tax_rate    NUMERIC(6,4),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -530,6 +533,7 @@ CREATE TABLE invoices (
     title               TEXT NOT NULL,
     source_estimate_id  UUID REFERENCES estimates(id) ON DELETE SET NULL,
     delivered           BOOLEAN NOT NULL DEFAULT false,
+    tax_rate            NUMERIC(6,4),
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );

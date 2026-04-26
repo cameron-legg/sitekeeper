@@ -309,6 +309,16 @@ Incremental implementation of the Contractor Management App: Python Flask + Post
   - Updated root README.md with corrected port (5434) and quick-start guide
   - Created backend/.flaskenv for automatic host/port configuration
 
+- [x] 24. Sales tax on estimates and invoices
+  - Added `tax_rate NUMERIC(6,4)` column to `estimates` and `invoices` (migration 003)
+  - Tax rate stored as a percentage (e.g. 8.5 = 8.5%); NULL means no tax
+  - Tax applies to material entries only — hours entries are never taxed
+  - `compute_totals_with_tax()` in `estimate_service.py` returns: `subtotal`, `taxable_amount`, `tax_rate`, `tax_amount`, `total`
+  - API responses for estimates and invoices now include `tax_rate`, `subtotal`, `tax_amount`, `total`
+  - Conversion (estimate → invoice) copies `tax_rate` to the new invoice
+  - EstimatesTab and InvoicesTab: create modal includes a "Sales Tax Rate %" field; card shows subtotal / tax / total breakdown
+  - EstimateEditorScreen and InvoiceEditorScreen: tax rate field on the edit page; grand total section shows full breakdown
+
 ## Notes
 
 - Tasks marked with `*` are optional and can be skipped for a faster MVP

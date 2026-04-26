@@ -255,6 +255,9 @@ class Estimate(db.Model):
     )
     title = Column(String(255), nullable=False)
     delivered = Column(Boolean, nullable=False, default=False)
+    # tax_rate is stored as a percentage (e.g. 8.5 = 8.5%). NULL = no tax.
+    # Tax applies only to material entries, not hours.
+    tax_rate = Column(Numeric(6, 4), nullable=True)
     created_at = Column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )
@@ -305,6 +308,9 @@ class Invoice(db.Model):
         nullable=True,
     )
     delivered = Column(Boolean, nullable=False, default=False)
+    # tax_rate is stored as a percentage (e.g. 8.5 = 8.5%). NULL = no tax.
+    # Tax applies only to material entries, not hours.
+    tax_rate = Column(Numeric(6, 4), nullable=True)
     created_at = Column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )

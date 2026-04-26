@@ -34,6 +34,7 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
   const deleteEntry = useDeleteEstimateEntry();
 
   const [title, setTitle] = useState(estimate?.title ?? "");
+  const [taxRate, setTaxRate] = useState(estimate?.tax_rate ?? "");
   const [titleError, setTitleError] = useState<string | null>(null);
   const [isSavingTitle, setIsSavingTitle] = useState(false);
 
@@ -48,7 +49,10 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
   const [newItemError, setNewItemError] = useState<string | null>(null);
 
   React.useEffect(() => {
-    if (estimate && !title) setTitle(estimate.title);
+    if (estimate && !title) {
+      setTitle(estimate.title);
+      setTaxRate(estimate.tax_rate ?? "");
+    }
   }, [estimate]);
 
   React.useLayoutEffect(() => {
@@ -61,12 +65,12 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
     setTitleError(null);
     if (isNew) {
       setIsSavingTitle(true);
-      createEstimate.mutate({ jobId, title: t }, {
+      createEstimate.mutate({ jobId, title: t, tax_rate: taxRate.trim() || undefined }, {
         onSuccess: (est) => { setIsSavingTitle(false); navigation.setParams({ estimateId: est.id } as any); },
         onError: () => { setIsSavingTitle(false); setTitleError("Failed to create estimate."); },
       });
     } else {
-      updateEstimate.mutate({ estimateId: estimateId!, title: t }, {
+      updateEstimate.mutate({ estimateId: estimateId!, title: t, tax_rate: taxRate.trim() || null }, {
         onError: () => setTitleError("Failed to update title."),
       });
     }
@@ -105,7 +109,7 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
   return (
     <View style={styles.flex}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {/* Title */}
+        {/* Title + Tax Rate */}
         <Text style={styles.sectionLabel}>Title</Text>
         {titleError && <Text style={styles.fieldError}>{titleError}</Text>}
         <View style={styles.titleRow}>
@@ -123,6 +127,16 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
             {isSavingTitle ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveBtnText}>Save</Text>}
           </TouchableOpacity>
         </View>
+
+        <Text style={styles.sectionLabel} >Sales Tax Rate %</Text>
+        <TextInput
+          style={styles.input}
+          value={taxRate}
+          onChangeText={setTaxRate}
+          placeholder="e.g. 8.5 (leave blank for no tax)"
+          keyboardType="decimal-pad"
+        />
+        <Text style={styles.taxHint}>Tax applies to material items only, not labour hours.</Text>
 
         {/* Line items */}
         {estimateId && (
@@ -147,16 +161,29 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
               <Text style={styles.emptyText}>No line items yet. Tap "Add Line Item" to start.</Text>
             )}
 
-            {/* Grand total */}
+            {/* Grand total with tax breakdown */}
             {(lineItems ?? []).length > 0 && (
-              <View style={styles.grandTotalRow}>
-                <View>
-                  <Text style={styles.grandTotalLabel}>Grand Total</Text>
-                  {grandHours > 0 && (
-                    <Text style={styles.grandHours}>{grandHours.toFixed(2)} total hours</Text>
-                  )}
+              <View style={styles.grandTotalBlock}>
+                <View style={styles.grandTotalRow}>
+                  <Text style={styles.grandTotalLabel}>Subtotal</Text>
+                  <Text style={styles.grandTotalValue}>${grandTotal.toFixed(2)}</Text>
                 </View>
-                <Text style={styles.grandTotalValue}>${grandTotal.toFixed(2)}</Text>
+                {estimate?.tax_rate && parseFloat(estimate.tax_rate) > 0 && (
+                  <View style={styles.grandTotalRow}>
+                    <Text style={styles.grandTotalLabel}>
+                      Tax ({estimate.tax_rate}% on materials)
+                    </Text>
+                    <Text style={styles.grandTotalValue}>
+                      ${parseFloat(estimate.tax_amount || "0").toFixed(2)}
+                    </Text>
+                  </View>
+                )}
+                <View style={[styles.grandTotalRow, styles.grandTotalFinal]}>
+                  <Text style={styles.grandTotalFinalLabel}>Total</Text>
+                  <Text style={styles.grandTotalFinalValue}>
+                    ${parseFloat(estimate?.total || grandTotal.toFixed(2)).toFixed(2)}
+                  </Text>
+                </View>
               </View>
             )}
 
@@ -273,13 +300,18 @@ const styles = StyleSheet.create({
   saveBtnText: { color: "#fff", fontSize: 14, fontWeight: "600" },
   btnDisabled: { opacity: 0.6 },
   emptyText: { fontSize: 14, color: "#9ca3af", textAlign: "center", paddingVertical: 20 },
-  grandTotalRow: {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    paddingVertical: 14, borderTopWidth: 2, borderTopColor: "#e5e7eb", marginTop: 8,
+  grandTotalBlock: {
+    backgroundColor: "#f9fafb", borderRadius: 10, padding: 14,
+    borderTopWidth: 2, borderTopColor: "#e5e7eb", marginTop: 8,
   },
-  grandTotalLabel: { fontSize: 15, fontWeight: "700", color: "#374151" },
+  grandTotalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  grandTotalLabel: { fontSize: 14, color: "#6b7280" },
+  grandTotalValue: { fontSize: 14, color: "#374151" },
+  grandTotalFinal: { borderTopWidth: 1, borderTopColor: "#e5e7eb", paddingTop: 8, marginTop: 2, marginBottom: 0 },
+  grandTotalFinalLabel: { fontSize: 16, fontWeight: "700", color: "#1a1a1a" },
+  grandTotalFinalValue: { fontSize: 20, fontWeight: "700", color: "#2563eb" },
   grandHours: { fontSize: 12, color: "#6b7280", marginTop: 2 },
-  grandTotalValue: { fontSize: 22, fontWeight: "700", color: "#1a1a1a" },
+  taxHint: { fontSize: 12, color: "#9ca3af", marginTop: 4, marginBottom: 12 },
   addItemBtn: { backgroundColor: "#2563eb", borderRadius: 8, paddingVertical: 12, alignItems: "center", marginTop: 12 },
   addItemBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: 24 },

@@ -37,11 +37,13 @@ class ConversionService:
         if site is None:
             raise NotFoundError(f"Estimate {estimate_id} not found.")
 
+        # Create the new invoice — copy tax_rate from the source estimate
         invoice = self._invoice_repo.create(Invoice(
             job_id=str(estimate.job_id),
             title=estimate.title,
             delivered=False,
             source_estimate_id=estimate_id,
+            tax_rate=estimate.tax_rate,
         ))
 
         # Deep copy: line items + their entries

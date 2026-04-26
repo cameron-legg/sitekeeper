@@ -6,7 +6,7 @@ from ..models import Invoice, LineItem, LineItemEntry
 from ..repositories.invoice_repo import IInvoiceRepository, SQLAlchemyInvoiceRepository
 from ..repositories.job_repo import IJobRepository, SQLAlchemyJobRepository
 from ..repositories.job_site_repo import IJobSiteRepository, SQLAlchemyJobSiteRepository
-from .estimate_service import compute_line_item_totals
+from .estimate_service import compute_line_item_totals, compute_totals_with_tax
 
 
 class NotFoundError(Exception):
@@ -63,20 +63,26 @@ class InvoiceService:
         return self._verify_invoice_access(invoice_id, user_id)
 
     def create(self, job_id: str, user_id: str, title: str, delivered: bool = False,
-               source_estimate_id: str | None = None) -> Invoice:
+               source_estimate_id: str | None = None,
+               tax_rate: Decimal | None = None) -> Invoice:
         self._verify_job_access(job_id, user_id)
         return self._invoice_repo.create(Invoice(
             job_id=job_id, title=title, delivered=delivered,
-            source_estimate_id=source_estimate_id,
+            source_estimate_id=source_estimate_id, tax_rate=tax_rate,
         ))
 
     def update(self, invoice_id: str, user_id: str, title: str | None = None,
-               delivered: bool | None = None) -> Invoice:
+               delivered: bool | None = None, tax_rate: Decimal | None = None,
+               clear_tax: bool = False) -> Invoice:
         invoice = self._verify_invoice_access(invoice_id, user_id)
         if title is not None:
             invoice.title = title
         if delivered is not None:
             invoice.delivered = delivered
+        if clear_tax:
+            invoice.tax_rate = None
+        elif tax_rate is not None:
+            invoice.tax_rate = tax_rate
         return self._invoice_repo.update(invoice)
 
     def delete(self, invoice_id: str, user_id: str) -> None:
@@ -180,8 +186,12 @@ class InvoiceService:
     # Totals
     # ------------------------------------------------------------------
 
+    def calculate_totals(self, invoice_id: str, user_id: str) -> dict:
+        """Return full tax breakdown for the invoice."""
+        invoice = self._verify_invoice_access(invoice_id, user_id)
+        items = self._invoice_repo.get_line_items(invoice_id)
+        return compute_totals_with_tax(items, invoice.tax_rate)
+
     def calculate_total(self, invoice_id: str, user_id: str) -> Decimal:
-        items = self.get_line_items(invoice_id, user_id)
-        return sum(
-            compute_line_item_totals(item)["total_cost"] for item in items
-        )
+        """Convenience: return just the grand total (subtotal + tax)."""
+        return self.calculate_totals(invoice_id, user_id)["total"]

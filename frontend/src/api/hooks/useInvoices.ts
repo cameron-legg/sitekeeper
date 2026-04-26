@@ -33,8 +33,8 @@ export function useInvoice(invoiceId: string) {
 export function useCreateInvoice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ jobId, title }: { jobId: string; title: string }) =>
-      apiClient.post<Invoice>(`/api/v1/jobs/${jobId}/invoices`, { title }).then((r) => r.data),
+    mutationFn: ({ jobId, title, tax_rate }: { jobId: string; title: string; tax_rate?: string }) =>
+      apiClient.post<Invoice>(`/api/v1/jobs/${jobId}/invoices`, { title, tax_rate }).then((r) => r.data),
     onSuccess: (inv) => qc.invalidateQueries({ queryKey: KEYS.forJob(inv.job_id) }),
   });
 }
@@ -42,7 +42,7 @@ export function useCreateInvoice() {
 export function useUpdateInvoice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ invoiceId, ...data }: { invoiceId: string; title?: string; delivered?: boolean }) =>
+    mutationFn: ({ invoiceId, ...data }: { invoiceId: string; title?: string; delivered?: boolean; tax_rate?: string | null }) =>
       apiClient.patch<Invoice>(`/api/v1/invoices/${invoiceId}`, data).then((r) => r.data),
     onSuccess: (inv) => {
       qc.invalidateQueries({ queryKey: KEYS.detail(inv.id) });
