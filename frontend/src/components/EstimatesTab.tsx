@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   View, Text, FlatList, TouchableOpacity, ActivityIndicator,
-  Alert, Modal, TextInput, StyleSheet,
+  Modal, TextInput, StyleSheet,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -29,6 +29,10 @@ export default function EstimatesTab({ jobId }: Props) {
   const [taxRate, setTaxRate] = useState("");
   const [titleError, setTitleError] = useState<string | null>(null);
 
+  // Confirm modals
+  const [confirmConvert, setConfirmConvert] = useState<Estimate | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Estimate | null>(null);
+
   function openNew() {
     setTitle(""); setTaxRate(""); setTitleError(null); setShowModal(true);
   }
@@ -51,17 +55,11 @@ export default function EstimatesTab({ jobId }: Props) {
   }
 
   function handleConvert(estimate: Estimate) {
-    Alert.alert("Convert to Invoice", `Convert "${estimate.title}" to an invoice?`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Convert", onPress: () => convertEstimate.mutate({ estimateId: estimate.id, jobId }) },
-    ]);
+    setConfirmConvert(estimate);
   }
 
   function handleDelete(estimate: Estimate) {
-    Alert.alert("Delete Estimate", `Delete "${estimate.title}"? This cannot be undone.`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => deleteEstimate.mutate({ estimateId: estimate.id, jobId }) },
-    ]);
+    setConfirmDelete(estimate);
   }
 
   if (isLoading) return <View style={styles.centered}><ActivityIndicator color="#2563eb" /></View>;
@@ -169,6 +167,70 @@ export default function EstimatesTab({ jobId }: Props) {
           </View>
         </View>
       </Modal>
+
+      {/* Convert to invoice confirmation */}
+      <Modal visible={!!confirmConvert} transparent animationType="fade" onRequestClose={() => setConfirmConvert(null)}>
+        <View style={styles.overlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Convert to Invoice</Text>
+            <Text style={styles.confirmBody}>
+              Convert "{confirmConvert?.title}" to an invoice?
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setConfirmConvert(null)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmBtn, convertEstimate.isPending && styles.btnDisabled]}
+                onPress={() => {
+                  if (!confirmConvert) return;
+                  convertEstimate.mutate(
+                    { estimateId: confirmConvert.id, jobId },
+                    { onSuccess: () => setConfirmConvert(null), onError: () => setConfirmConvert(null) }
+                  );
+                }}
+                disabled={convertEstimate.isPending}
+              >
+                {convertEstimate.isPending
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.confirmText}>Convert</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete confirmation */}
+      <Modal visible={!!confirmDelete} transparent animationType="fade" onRequestClose={() => setConfirmDelete(null)}>
+        <View style={styles.overlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Delete Estimate</Text>
+            <Text style={styles.confirmBody}>
+              Delete "{confirmDelete?.title}"? This cannot be undone.
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setConfirmDelete(null)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmBtn, styles.confirmBtnDanger, deleteEstimate.isPending && styles.btnDisabled]}
+                onPress={() => {
+                  if (!confirmDelete) return;
+                  deleteEstimate.mutate(
+                    { estimateId: confirmDelete.id, jobId },
+                    { onSuccess: () => setConfirmDelete(null), onError: () => setConfirmDelete(null) }
+                  );
+                }}
+                disabled={deleteEstimate.isPending}
+              >
+                {deleteEstimate.isPending
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.confirmText}>Delete</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -219,4 +281,6 @@ const styles = StyleSheet.create({
   confirmBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: "#2563eb", minWidth: 80, alignItems: "center" },
   confirmText: { color: "#fff", fontSize: 14, fontWeight: "600" },
   btnDisabled: { opacity: 0.6 },
+  confirmBody: { fontSize: 14, color: "#374151", marginBottom: 16, lineHeight: 20 },
+  confirmBtnDanger: { backgroundColor: "#dc2626" },
 });

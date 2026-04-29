@@ -69,3 +69,12 @@ npx expo start --clear   # from frontend/ directory
 
 ### Physical device testing
 Set `EXPO_PUBLIC_API_URL=http://<your-LAN-IP>:5000` in `frontend/.env` and restart Expo with `--clear`.
+
+## Production
+
+- **Live URL**: https://entouch.org
+- **Server SSH alias**: `awspantrypix`
+- **Deploy script**: `./deploy.sh` (run from project root)
+- **Full deployment details**: see `.kiro/steering/deployment.md`
+
+Never commit `backend/.env` or any file containing `JWT_SECRET`. The production `.env` lives only on the server at `/home/sitekeeper/app/backend/.env`.

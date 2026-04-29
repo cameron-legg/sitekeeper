@@ -9,6 +9,7 @@
  */
 
 import React from "react";
+import { View, ActivityIndicator } from "react-native";
 import { NavigationContainer, LinkingOptions } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
@@ -34,7 +35,12 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // Web deep-link / URL mapping
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: ["sitekeeper://", "http://localhost:8081"],
+  prefixes: [
+    "sitekeeper://",
+    "http://localhost:8081",
+    "https://entouch.org",
+    "https://www.entouch.org",
+  ],
   config: {
     screens: {
       Login: "login",
@@ -53,6 +59,18 @@ const linking: LinkingOptions<RootStackParamList> = {
 
 export default function RootNavigator() {
   const token = useAuthStore((s) => s.token);
+  const hydrated = useAuthStore((s) => s._hydrated);
+
+  // Don't render the navigator until the persisted auth state is loaded.
+  // Without this, on web the navigator renders with token=null before
+  // localStorage is read, causing a blank screen or incorrect redirect.
+  if (!hydrated) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer ref={navigationRef} linking={linking}>

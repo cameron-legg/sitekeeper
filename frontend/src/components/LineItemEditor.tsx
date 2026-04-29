@@ -14,7 +14,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -76,8 +75,8 @@ function EntryModal({ visible, initial, onClose, onSave, isSaving }: EntryModalP
     if (values.entry_type === "material") {
       if (!values.unit_price.trim()) errs.unit_price = "Unit price is required.";
       else if (isNaN(parseFloat(values.unit_price))) errs.unit_price = "Must be a number.";
-      if (!values.quantity.trim()) errs.quantity = "Quantity is required.";
-      else if (isNaN(parseFloat(values.quantity))) errs.quantity = "Must be a number.";
+      if (values.quantity.trim() && isNaN(parseFloat(values.quantity)))
+        errs.quantity = "Must be a number.";
     } else {
       if (!values.hours.trim()) errs.hours = "Hours is required.";
       else if (isNaN(parseFloat(values.hours))) errs.hours = "Must be a number.";
@@ -86,7 +85,12 @@ function EntryModal({ visible, initial, onClose, onSave, isSaving }: EntryModalP
       setErrors(errs);
       return;
     }
-    onSave(values);
+    // Default quantity to "1" if left blank
+    const finalValues: EntryFormValues = {
+      ...values,
+      quantity: values.entry_type === "material" && !values.quantity.trim() ? "1" : values.quantity,
+    };
+    onSave(finalValues);
   }
 
   return (
@@ -148,7 +152,7 @@ function EntryModal({ visible, initial, onClose, onSave, isSaving }: EntryModalP
                 />
                 {errors.unit_price && <Text style={styles.fieldError}>{errors.unit_price}</Text>}
 
-                <Text style={styles.fieldLabel}>Quantity <Text style={styles.req}>*</Text></Text>
+                <Text style={styles.fieldLabel}>Quantity <Text style={styles.optional}>(default: 1)</Text></Text>
                 <TextInput
                   style={[styles.input, errors.quantity && styles.inputError]}
                   value={values.quantity}
@@ -229,6 +233,11 @@ export default function LineItemEditor({
   const [entryModalVisible, setEntryModalVisible] = useState(false);
   const [editingEntry, setEditingEntry] = useState<LineItemEntry | null>(null);
 
+  // Confirm modals
+  const [confirmDeleteEntry, setConfirmDeleteEntry] = useState<LineItemEntry | null>(null);
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState(false);
+  const [confirmSaveToLibrary, setConfirmSaveToLibrary] = useState(false);
+
   function handleSaveName() {
     if (nameVal.trim()) {
       onUpdateItem({ name: nameVal.trim(), hourly_rate: hourlyRateVal.trim() || undefined });
@@ -256,18 +265,12 @@ export default function LineItemEditor({
     setEntryModalVisible(true);
   }
 
-  function confirmDeleteEntry(entry: LineItemEntry) {
-    Alert.alert("Delete Entry", `Delete "${entry.name}"?`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => onDeleteEntry(entry.id) },
-    ]);
+  function confirmDeleteEntryFn(entry: LineItemEntry) {
+    setConfirmDeleteEntry(entry);
   }
 
-  function confirmDeleteItem() {
-    Alert.alert("Delete Line Item", `Delete "${item.name}" and all its entries?`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: onDeleteItem },
-    ]);
+  function confirmDeleteItemFn() {
+    setConfirmDeleteItem(true);
   }
 
   function entryTotal(entry: LineItemEntry): string {
@@ -341,16 +344,11 @@ export default function LineItemEditor({
               </TouchableOpacity>
               <View style={styles.itemActions}>
                 {onSaveToLibrary && (
-                  <TouchableOpacity style={styles.saveLibBtn} onPress={() => {
-                    Alert.alert("Save to Library", `Save "${item.name}" to your item library for reuse?`, [
-                      { text: "Cancel", style: "cancel" },
-                      { text: "Save", onPress: onSaveToLibrary },
-                    ]);
-                  }}>
+                  <TouchableOpacity style={styles.saveLibBtn} onPress={() => setConfirmSaveToLibrary(true)}>
                     <Text style={styles.saveLibText}>📚 Save</Text>
                   </TouchableOpacity>
                 )}
-                <TouchableOpacity onPress={confirmDeleteItem}>
+                <TouchableOpacity onPress={confirmDeleteItemFn}>
                   <Text style={styles.deleteItemText}>Delete</Text>
                 </TouchableOpacity>
               </View>
@@ -383,7 +381,7 @@ export default function LineItemEditor({
               <TouchableOpacity style={styles.entryEditBtn} onPress={() => openEditEntry(entry)}>
                 <Text style={styles.entryEditText}>Edit</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.entryDeleteBtn} onPress={() => confirmDeleteEntry(entry)}>
+              <TouchableOpacity style={styles.entryDeleteBtn} onPress={() => confirmDeleteEntryFn(entry)}>
                 <Text style={styles.entryDeleteText}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -402,6 +400,69 @@ export default function LineItemEditor({
         onSave={handleSaveEntry}
         isSaving={isSavingEntry}
       />
+
+      {/* Save to library confirmation */}
+      <Modal visible={confirmSaveToLibrary} transparent animationType="fade" onRequestClose={() => setConfirmSaveToLibrary(false)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Save to Library</Text>
+            <Text style={styles.confirmBody}>Save "{item.name}" to your item library for reuse?</Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setConfirmSaveToLibrary(false)}>
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmOkBtn}
+                onPress={() => { setConfirmSaveToLibrary(false); onSaveToLibrary?.(); }}
+              >
+                <Text style={styles.confirmOkText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete entry confirmation */}
+      <Modal visible={!!confirmDeleteEntry} transparent animationType="fade" onRequestClose={() => setConfirmDeleteEntry(null)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Delete Entry</Text>
+            <Text style={styles.confirmBody}>Delete "{confirmDeleteEntry?.name}"?</Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setConfirmDeleteEntry(null)}>
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmOkBtn, styles.confirmOkBtnDanger]}
+                onPress={() => { if (confirmDeleteEntry) { onDeleteEntry(confirmDeleteEntry.id); } setConfirmDeleteEntry(null); }}
+              >
+                <Text style={styles.confirmOkText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete line item confirmation */}
+      <Modal visible={confirmDeleteItem} transparent animationType="fade" onRequestClose={() => setConfirmDeleteItem(false)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Delete Line Item</Text>
+            <Text style={styles.confirmBody}>Delete "{item.name}" and all its entries?</Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setConfirmDeleteItem(false)}>
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmOkBtn, styles.confirmOkBtnDanger]}
+                onPress={() => { setConfirmDeleteItem(false); onDeleteItem(); }}
+              >
+                <Text style={styles.confirmOkText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -502,6 +563,7 @@ const styles = StyleSheet.create({
   typeBtnTextActive: { color: "#2563eb", fontWeight: "700" },
   fieldLabel: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 4, marginTop: 12 },
   req: { color: "#dc2626" },
+  optional: { fontSize: 12, fontWeight: "400", color: "#9ca3af" },
   input: {
     borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8,
     paddingHorizontal: 12, paddingVertical: 9, fontSize: 15,
@@ -510,4 +572,15 @@ const styles = StyleSheet.create({
   inputError: { borderColor: "#dc2626" },
   multiline: { minHeight: 60 },
   fieldError: { color: "#dc2626", fontSize: 12, marginTop: 2 },
+  // Confirm modal styles
+  confirmOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: 24 },
+  confirmCard: { backgroundColor: "#fff", borderRadius: 12, padding: 24, width: "100%", maxWidth: 360 },
+  confirmTitle: { fontSize: 17, fontWeight: "700", color: "#1a1a1a", marginBottom: 8 },
+  confirmBody: { fontSize: 14, color: "#374151", marginBottom: 20, lineHeight: 20 },
+  confirmActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
+  confirmCancelBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: "#d1d5db" },
+  confirmCancelText: { fontSize: 14, color: "#374151" },
+  confirmOkBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: "#2563eb", minWidth: 72, alignItems: "center" },
+  confirmOkBtnDanger: { backgroundColor: "#dc2626" },
+  confirmOkText: { color: "#fff", fontSize: 14, fontWeight: "600" },
 });

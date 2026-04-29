@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, ActivityIndicator,
-  Alert, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Modal,
+  StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Modal,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
@@ -46,6 +46,7 @@ export default function SavedItemEditorScreen({ route, navigation }: Props) {
   const [editingEntry, setEditingEntry] = useState<SavedItemEntry | null>(null);
   const [entryForm, setEntryForm] = useState<EntryForm>(EMPTY_ENTRY);
   const [entryErrors, setEntryErrors] = useState<Partial<Record<keyof EntryForm, string>>>({});
+  const [confirmDeleteEntryItem, setConfirmDeleteEntryItem] = useState<SavedItemEntry | null>(null);
 
   useEffect(() => {
     if (existing) {
@@ -133,10 +134,7 @@ export default function SavedItemEditorScreen({ route, navigation }: Props) {
   }
 
   function confirmDeleteEntry(entry: SavedItemEntry) {
-    Alert.alert("Delete Entry", `Delete "${entry.name}"?`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => deleteEntry.mutate({ itemId: itemId!, entryId: entry.id }) },
-    ]);
+    setConfirmDeleteEntryItem(entry);
   }
 
   const isSaving = createItem.isPending || updateItem.isPending;
@@ -253,6 +251,31 @@ export default function SavedItemEditorScreen({ route, navigation }: Props) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Delete entry confirmation */}
+      <Modal visible={!!confirmDeleteEntryItem} transparent animationType="fade" onRequestClose={() => setConfirmDeleteEntryItem(null)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Delete Entry</Text>
+            <Text style={styles.confirmBody}>Delete "{confirmDeleteEntryItem?.name}"?</Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setConfirmDeleteEntryItem(null)}>
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmDeleteBtn}
+                onPress={() => {
+                  if (!confirmDeleteEntryItem || !itemId) return;
+                  deleteEntry.mutate({ itemId, entryId: confirmDeleteEntryItem.id });
+                  setConfirmDeleteEntryItem(null);
+                }}
+              >
+                <Text style={styles.confirmDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -298,4 +321,13 @@ const styles = StyleSheet.create({
   typeBtnActive: { borderColor: "#2563eb", backgroundColor: "#eff6ff" },
   typeBtnText: { fontSize: 14, color: "#6b7280", fontWeight: "500" },
   typeBtnTextActive: { color: "#2563eb", fontWeight: "700" },
+  confirmOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: 24 },
+  confirmCard: { backgroundColor: "#fff", borderRadius: 12, padding: 24, width: "100%", maxWidth: 360 },
+  confirmTitle: { fontSize: 17, fontWeight: "700", color: "#1a1a1a", marginBottom: 8 },
+  confirmBody: { fontSize: 14, color: "#374151", marginBottom: 20, lineHeight: 20 },
+  confirmActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
+  confirmCancelBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: "#d1d5db" },
+  confirmCancelText: { fontSize: 14, color: "#374151" },
+  confirmDeleteBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: "#dc2626", minWidth: 72, alignItems: "center" },
+  confirmDeleteText: { color: "#fff", fontSize: 14, fontWeight: "600" },
 });

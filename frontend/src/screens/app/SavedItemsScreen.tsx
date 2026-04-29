@@ -1,11 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
+  Modal,
   StyleSheet,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -21,6 +21,8 @@ export default function SavedItemsScreen({ route, navigation }: Props) {
 
   const { data: items, isLoading, isError } = useSavedItems();
   const deleteItem = useDeleteSavedItem();
+
+  const [confirmDelete, setConfirmDelete] = useState<SavedItem | null>(null);
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
@@ -42,18 +44,7 @@ export default function SavedItemsScreen({ route, navigation }: Props) {
   }
 
   function handleDelete(item: SavedItem) {
-    Alert.alert(
-      "Delete Saved Item",
-      `Delete "${item.name}" from your library?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => deleteItem.mutate(item.id),
-        },
-      ]
-    );
+    setConfirmDelete(item);
   }
 
   if (isLoading) {
@@ -139,6 +130,36 @@ export default function SavedItemsScreen({ route, navigation }: Props) {
           <Text style={styles.fabText}>+ New Item</Text>
         </TouchableOpacity>
       )}
+
+      {/* Delete confirmation */}
+      <Modal visible={!!confirmDelete} transparent animationType="fade" onRequestClose={() => setConfirmDelete(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Delete Saved Item</Text>
+            <Text style={styles.modalBody}>Delete "{confirmDelete?.name}" from your library?</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setConfirmDelete(null)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteConfirmBtn, deleteItem.isPending && styles.btnDisabled]}
+                onPress={() => {
+                  if (!confirmDelete) return;
+                  deleteItem.mutate(confirmDelete.id, {
+                    onSuccess: () => setConfirmDelete(null),
+                    onError: () => setConfirmDelete(null),
+                  });
+                }}
+                disabled={deleteItem.isPending}
+              >
+                {deleteItem.isPending
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.deleteConfirmText}>Delete</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -233,4 +254,14 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   fabText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: 24 },
+  modalCard: { backgroundColor: "#fff", borderRadius: 12, padding: 24, width: "100%", maxWidth: 360 },
+  modalTitle: { fontSize: 17, fontWeight: "700", color: "#1a1a1a", marginBottom: 8 },
+  modalBody: { fontSize: 14, color: "#374151", marginBottom: 20, lineHeight: 20 },
+  modalActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
+  cancelBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: "#d1d5db" },
+  cancelText: { fontSize: 14, color: "#374151" },
+  deleteConfirmBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: "#dc2626", minWidth: 72, alignItems: "center" },
+  deleteConfirmText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  btnDisabled: { opacity: 0.6 },
 });

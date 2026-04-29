@@ -5,8 +5,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  Modal,
   StyleSheet,
-  Alert,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
@@ -52,6 +52,7 @@ const STATUS_COLORS: Record<Job["status"], string> = {
 export default function JobDetailScreen({ route, navigation }: Props) {
   const { jobId, jobName } = route.params;
   const [activeTab, setActiveTab] = useState<TabKey>("notes");
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const { data: job, isLoading, isError } = useJob(jobId);
   const updateJob = useUpdateJob();
@@ -70,17 +71,7 @@ export default function JobDetailScreen({ route, navigation }: Props) {
   }
 
   function handleClearFinished() {
-    Alert.alert(
-      "Clear Finished Date",
-      "Remove the finished date from this job?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear",
-          onPress: () => updateJob.mutate({ jobId, finished_at: null }),
-        },
-      ]
-    );
+    setShowClearConfirm(true);
   }
 
   function formatDate(iso: string) {
@@ -198,6 +189,35 @@ export default function JobDetailScreen({ route, navigation }: Props) {
         {activeTab === "estimates" && <EstimatesTab jobId={jobId} />}
         {activeTab === "invoices" && <InvoicesTab jobId={jobId} />}
       </View>
+
+      {/* Clear finished date confirmation */}
+      <Modal visible={showClearConfirm} transparent animationType="fade" onRequestClose={() => setShowClearConfirm(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Clear Finished Date</Text>
+            <Text style={styles.modalBody}>Remove the finished date from this job?</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowClearConfirm(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.clearBtn, updateJob.isPending && styles.btnDisabled]}
+                onPress={() => {
+                  updateJob.mutate({ jobId, finished_at: null }, {
+                    onSuccess: () => setShowClearConfirm(false),
+                    onError: () => setShowClearConfirm(false),
+                  });
+                }}
+                disabled={updateJob.isPending}
+              >
+                {updateJob.isPending
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.clearBtnText}>Clear</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -298,4 +318,14 @@ const styles = StyleSheet.create({
   tabContent: {
     flex: 1,
   },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: 24 },
+  modalCard: { backgroundColor: "#fff", borderRadius: 12, padding: 24, width: "100%", maxWidth: 360 },
+  modalTitle: { fontSize: 17, fontWeight: "700", color: "#1a1a1a", marginBottom: 8 },
+  modalBody: { fontSize: 14, color: "#374151", marginBottom: 20, lineHeight: 20 },
+  modalActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
+  cancelBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: "#d1d5db" },
+  cancelText: { fontSize: 14, color: "#374151" },
+  clearBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: "#2563eb", minWidth: 72, alignItems: "center" },
+  clearBtnText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  btnDisabled: { opacity: 0.6 },
 });
