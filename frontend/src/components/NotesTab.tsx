@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Modal,
   StyleSheet,
   ScrollView,
@@ -34,6 +33,7 @@ export default function NotesTab({ jobId }: Props) {
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editorBody, setEditorBody] = useState("");
   const [editorError, setEditorError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Note | null>(null);
 
   function openCreate() {
     setEditingNote(null);
@@ -77,14 +77,7 @@ export default function NotesTab({ jobId }: Props) {
   }
 
   function handleDelete(note: Note) {
-    Alert.alert("Delete Note", "Delete this note? This cannot be undone.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => deleteNote.mutate({ jobId, noteId: note.id }),
-      },
-    ]);
+    setConfirmDelete(note);
   }
 
   function formatDate(iso: string) {
@@ -200,6 +193,36 @@ export default function NotesTab({ jobId }: Props) {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Delete note confirmation */}
+      <Modal visible={!!confirmDelete} transparent animationType="fade" onRequestClose={() => setConfirmDelete(null)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Delete Note</Text>
+            <Text style={styles.confirmBody}>Delete this note? This cannot be undone.</Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setConfirmDelete(null)}>
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmDangerBtn, deleteNote.isPending && styles.confirmBtnDisabled]}
+                onPress={() => {
+                  if (!confirmDelete) return;
+                  deleteNote.mutate(
+                    { jobId, noteId: confirmDelete.id },
+                    { onSuccess: () => setConfirmDelete(null), onError: () => setConfirmDelete(null) }
+                  );
+                }}
+                disabled={deleteNote.isPending}
+              >
+                {deleteNote.isPending
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.confirmDangerText}>Delete</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -269,6 +292,18 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   editorScroll: { flex: 1, padding: 16 },
+
+  // Confirm modal
+  confirmOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: 24 },
+  confirmCard: { backgroundColor: "#fff", borderRadius: 12, padding: 24, width: "100%", maxWidth: 360 },
+  confirmTitle: { fontSize: 17, fontWeight: "700", color: "#1a1a1a", marginBottom: 8 },
+  confirmBody: { fontSize: 14, color: "#374151", marginBottom: 20, lineHeight: 20 },
+  confirmActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
+  confirmCancelBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: "#d1d5db" },
+  confirmCancelText: { fontSize: 14, color: "#374151" },
+  confirmDangerBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: "#dc2626", minWidth: 80, alignItems: "center" },
+  confirmDangerText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  confirmBtnDisabled: { opacity: 0.6 },
 });
 
 const markdownStyles = {

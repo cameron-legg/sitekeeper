@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Modal,
   Linking,
   StyleSheet,
@@ -31,6 +30,7 @@ interface Props {
 export default function ContactsTab({ jobId }: Props) {
   const navigation = useNavigation<Nav>();
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<Contact | null>(null);
 
   const { data: effectivePrimary, isLoading: loadingPrimary } =
     useEffectivePrimaryContact(jobId);
@@ -78,18 +78,7 @@ export default function ContactsTab({ jobId }: Props) {
 
   function handleRemove(contact: Contact) {
     closeSheet();
-    Alert.alert(
-      "Remove Contact",
-      `Remove "${contact.name}" from this job?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: () => removeContact.mutate({ jobId, contactId: contact.id }),
-        },
-      ]
-    );
+    setConfirmRemove(contact);
   }
 
   if (loadingContacts || loadingPrimary) {
@@ -315,6 +304,38 @@ export default function ContactsTab({ jobId }: Props) {
           </View>
         )}
       </Modal>
+
+      {/* Remove contact confirmation */}
+      <Modal visible={!!confirmRemove} transparent animationType="fade" onRequestClose={() => setConfirmRemove(null)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Remove Contact</Text>
+            <Text style={styles.confirmBody}>
+              Remove "{confirmRemove?.name}" from this job?
+            </Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setConfirmRemove(null)}>
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmDangerBtn, removeContact.isPending && styles.confirmBtnDisabled]}
+                onPress={() => {
+                  if (!confirmRemove) return;
+                  removeContact.mutate(
+                    { jobId, contactId: confirmRemove.id },
+                    { onSuccess: () => setConfirmRemove(null), onError: () => setConfirmRemove(null) }
+                  );
+                }}
+                disabled={removeContact.isPending}
+              >
+                {removeContact.isPending
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.confirmDangerText}>Remove</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -474,4 +495,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cancelBtnText: { fontSize: 15, fontWeight: "600", color: "#374151" },
+
+  // Confirm modal
+  confirmOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: 24 },
+  confirmCard: { backgroundColor: "#fff", borderRadius: 12, padding: 24, width: "100%", maxWidth: 360 },
+  confirmTitle: { fontSize: 17, fontWeight: "700", color: "#1a1a1a", marginBottom: 8 },
+  confirmBody: { fontSize: 14, color: "#374151", marginBottom: 20, lineHeight: 20 },
+  confirmActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
+  confirmCancelBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: "#d1d5db" },
+  confirmCancelText: { fontSize: 14, color: "#374151" },
+  confirmDangerBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: "#dc2626", minWidth: 80, alignItems: "center" },
+  confirmDangerText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  confirmBtnDisabled: { opacity: 0.6 },
 });

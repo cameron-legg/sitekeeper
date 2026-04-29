@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   StyleSheet,
   TextInput,
   Modal,
@@ -32,12 +31,11 @@ export default function HomeScreen({ navigation }: Props) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newSiteName, setNewSiteName] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
+  const [confirmDeleteSite, setConfirmDeleteSite] = useState<JobSite | null>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   function handleLogout() {
-    Alert.alert("Log out", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Log out", style: "destructive", onPress: clearAuth },
-    ]);
+    setShowLogoutConfirm(true);
   }
 
   function handleCreateSite() {
@@ -62,18 +60,7 @@ export default function HomeScreen({ navigation }: Props) {
   }
 
   function handleDelete(site: JobSite) {
-    Alert.alert(
-      "Delete Job Site",
-      `Delete "${site.name}"? This will remove all jobs, notes, estimates, and invoices within it.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => deleteSite.mutate(site.id),
-        },
-      ]
-    );
+    setConfirmDeleteSite(site);
   }
 
   function renderItem({ item }: { item: JobSite }) {
@@ -207,6 +194,59 @@ export default function HomeScreen({ navigation }: Props) {
                 ) : (
                   <Text style={styles.modalConfirmText}>Create</Text>
                 )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete job site confirmation */}
+      <Modal visible={!!confirmDeleteSite} transparent animationType="fade" onRequestClose={() => setConfirmDeleteSite(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Delete Job Site</Text>
+            <Text style={styles.confirmBody}>
+              Delete "{confirmDeleteSite?.name}"? This will remove all jobs, notes, estimates, and invoices within it.
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setConfirmDeleteSite(null)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteConfirmBtn, deleteSite.isPending && styles.buttonDisabled]}
+                onPress={() => {
+                  if (!confirmDeleteSite) return;
+                  deleteSite.mutate(confirmDeleteSite.id, {
+                    onSuccess: () => setConfirmDeleteSite(null),
+                    onError: () => setConfirmDeleteSite(null),
+                  });
+                }}
+                disabled={deleteSite.isPending}
+              >
+                {deleteSite.isPending
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.deleteConfirmText}>Delete</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Logout confirmation */}
+      <Modal visible={showLogoutConfirm} transparent animationType="fade" onRequestClose={() => setShowLogoutConfirm(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Log out</Text>
+            <Text style={styles.confirmBody}>Are you sure you want to log out?</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowLogoutConfirm(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteConfirmBtn}
+                onPress={() => { setShowLogoutConfirm(false); clearAuth(); }}
+              >
+                <Text style={styles.deleteConfirmText}>Log out</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -419,4 +459,7 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.6,
   },
+  confirmBody: { fontSize: 14, color: "#374151", marginBottom: 20, lineHeight: 20 },
+  deleteConfirmBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: "#dc2626", minWidth: 80, alignItems: "center" },
+  deleteConfirmText: { color: "#fff", fontSize: 14, fontWeight: "600" },
 });

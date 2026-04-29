@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, ActivityIndicator,
-  Alert, Modal, ScrollView, StyleSheet,
+  Modal, ScrollView, StyleSheet,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";

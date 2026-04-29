@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   StyleSheet,
   TextInput,
   Modal,
@@ -41,6 +40,7 @@ export default function JobSiteDetailScreen({ route, navigation }: Props) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newJobName, setNewJobName] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Job | null>(null);
 
   React.useLayoutEffect(() => {
     navigation.setOptions({ title: siteName });
@@ -68,18 +68,7 @@ export default function JobSiteDetailScreen({ route, navigation }: Props) {
   }
 
   function handleDelete(job: Job) {
-    Alert.alert(
-      "Delete Job",
-      `Delete "${job.name}"? This will remove all notes, estimates, and invoices for this job.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => deleteJob.mutate({ jobId: job.id, siteId }),
-        },
-      ]
-    );
+    setConfirmDelete(job);
   }
 
   function formatDate(iso: string) {
@@ -213,6 +202,38 @@ export default function JobSiteDetailScreen({ route, navigation }: Props) {
                 ) : (
                   <Text style={styles.modalConfirmText}>Create</Text>
                 )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete job confirmation */}
+      <Modal visible={!!confirmDelete} transparent animationType="fade" onRequestClose={() => setConfirmDelete(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Delete Job</Text>
+            <Text style={styles.confirmBody}>
+              Delete "{confirmDelete?.name}"? This will remove all notes, estimates, and invoices for this job.
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setConfirmDelete(null)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteConfirmBtn, deleteJob.isPending && styles.buttonDisabled]}
+                onPress={() => {
+                  if (!confirmDelete) return;
+                  deleteJob.mutate(
+                    { jobId: confirmDelete.id, siteId },
+                    { onSuccess: () => setConfirmDelete(null), onError: () => setConfirmDelete(null) }
+                  );
+                }}
+                disabled={deleteJob.isPending}
+              >
+                {deleteJob.isPending
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.deleteConfirmText}>Delete</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -368,4 +389,7 @@ const styles = StyleSheet.create({
   },
   modalConfirmText: { color: "#fff", fontSize: 14, fontWeight: "600" },
   buttonDisabled: { opacity: 0.6 },
+  confirmBody: { fontSize: 14, color: "#374151", marginBottom: 20, lineHeight: 20 },
+  deleteConfirmBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: "#dc2626", minWidth: 80, alignItems: "center" },
+  deleteConfirmText: { color: "#fff", fontSize: 14, fontWeight: "600" },
 });
