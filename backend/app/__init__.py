@@ -1,10 +1,14 @@
 """Flask application factory."""
 
+import logging
+
 from flask import Flask
 from flask_cors import CORS
 
 from .config import Config
 from .extensions import bcrypt, db
+
+logger = logging.getLogger(__name__)
 
 
 def create_app(config=None):
@@ -38,6 +42,27 @@ def create_app(config=None):
     origins = [o.strip() for o in cors_origins.split(",")] if cors_origins != "*" else "*"
     CORS(app, origins=origins)
 
+    # Initialise MinIO storage (skip in test mode to avoid requiring MinIO)
+    if not app.config.get("TESTING"):
+        from .minio_client import MinioStorage
+
+        minio_storage = MinioStorage(
+            endpoint=app.config["MINIO_ENDPOINT"],
+            access_key=app.config["MINIO_ACCESS_KEY"],
+            secret_key=app.config["MINIO_SECRET_KEY"],
+            bucket_name=app.config["MINIO_BUCKET_NAME"],
+            use_ssl=app.config.get("MINIO_USE_SSL", False),
+        )
+        try:
+            minio_storage.ensure_bucket()
+        except Exception:
+            logger.warning(
+                "MinIO is unreachable — PDF features will be unavailable until MinIO is running."
+            )
+        app.minio_storage = minio_storage
+    else:
+        app.minio_storage = None
+
     # Register all blueprints under /api/v1
     from .blueprints.auth_bp import auth_bp
     from .blueprints.job_sites_bp import job_sites_bp
@@ -49,6 +74,7 @@ def create_app(config=None):
     from .blueprints.conversion_bp import conversion_bp
     from .blueprints.saved_items_bp import saved_items_bp
     from .blueprints.profile_bp import profile_bp
+    from .blueprints.pdf_bp import pdf_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/v1")
     app.register_blueprint(job_sites_bp, url_prefix="/api/v1")
@@ -60,5 +86,6 @@ def create_app(config=None):
     app.register_blueprint(conversion_bp, url_prefix="/api/v1")
     app.register_blueprint(saved_items_bp, url_prefix="/api/v1")
     app.register_blueprint(profile_bp, url_prefix="/api/v1")
+    app.register_blueprint(pdf_bp, url_prefix="/api/v1")
 
     return app

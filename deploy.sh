@@ -54,6 +54,11 @@ deploy_backend() {
         sudo -u sitekeeper git -C $APP_DIR pull --ff-only 2>&1
     "
 
+    info "  Starting/updating Docker containers (DB + MinIO)..."
+    ssh "$SSH_HOST" "
+        sudo -u sitekeeper docker compose -f $APP_DIR/docker-compose.prod.yml up -d 2>&1
+    "
+
     info "  Installing/updating Python dependencies..."
     ssh "$SSH_HOST" "
         sudo -u sitekeeper $APP_DIR/backend/venv/bin/pip install -q \

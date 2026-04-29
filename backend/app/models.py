@@ -273,6 +273,8 @@ class Estimate(db.Model):
         server_default=func.now(),
         onupdate=func.now(),
     )
+    pdf_generated_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    pdf_object_key = Column(Text, nullable=True)
 
     job = relationship("Job", back_populates="estimates")
     line_items = relationship(
@@ -326,6 +328,8 @@ class Invoice(db.Model):
         server_default=func.now(),
         onupdate=func.now(),
     )
+    pdf_generated_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    pdf_object_key = Column(Text, nullable=True)
 
     job = relationship("Job", back_populates="invoices")
     source_estimate = relationship(

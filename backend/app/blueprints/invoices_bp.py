@@ -13,6 +13,14 @@ invoices_bp = Blueprint("invoices", __name__)
 _service = InvoiceService()
 
 
+def _compute_pdf_status(doc) -> str:
+    if doc.pdf_generated_at is None:
+        return "none"
+    if doc.updated_at > doc.pdf_generated_at:
+        return "stale"
+    return "current"
+
+
 def _parse_decimal(value, field_name: str):
     try:
         return Decimal(str(value)), None
@@ -65,6 +73,7 @@ def _serialize_invoice(invoice, totals: dict | None = None) -> dict:
         "total": str(t.get("total", "0")),
         "created_at": invoice.created_at.isoformat() if invoice.created_at else None,
         "updated_at": invoice.updated_at.isoformat() if invoice.updated_at else None,
+        "pdf_status": _compute_pdf_status(invoice),
     }
 
 

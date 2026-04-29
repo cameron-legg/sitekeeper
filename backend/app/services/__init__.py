@@ -8,6 +8,7 @@ from .estimate_service import EstimateService
 from .invoice_service import InvoiceService
 from .conversion_service import ConversionService
 from .saved_item_service import SavedItemService
+from .pdf_service import PdfService
 
 __all__ = [
     "JobSiteService",
@@ -18,4 +19,5 @@ __all__ = [
     "InvoiceService",
     "ConversionService",
     "SavedItemService",
+    "PdfService",
 ]

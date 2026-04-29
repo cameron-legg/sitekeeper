@@ -12,6 +12,7 @@ import {
   useDeleteEstimateEntry, useSaveEstimateLineItemToLibrary,
 } from "../../api/hooks/useEstimates";
 import { useSavedItems, usePopulateSavedItem } from "../../api/hooks/useSavedItems";
+import { useGenerateEstimatePdf, downloadEstimatePdf } from "../../api/hooks/usePdf";
 import LineItemEditor from "../../components/LineItemEditor";
 import type { SavedItem } from "../../api/types";
 
@@ -41,6 +42,10 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
   const saveToLibrary = useSaveEstimateLineItemToLibrary();
   const populateSaved = usePopulateSavedItem();
   const { data: savedItems } = useSavedItems();
+
+  const generatePdf = useGenerateEstimatePdf();
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const [showAddItem, setShowAddItem] = useState(false);
   const [addItemMode, setAddItemMode] = useState<"new" | "library">("new");
@@ -184,6 +189,74 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
                     ${parseFloat(estimate?.total || grandTotal.toFixed(2)).toFixed(2)}
                   </Text>
                 </View>
+              </View>
+            )}
+
+            {/* PDF Actions */}
+            {estimateId && (
+              <View style={styles.pdfActionsBlock}>
+                {pdfError && <Text style={styles.pdfError}>{pdfError}</Text>}
+
+                {estimate?.pdf_status === "stale" && (
+                  <View style={styles.pdfStaleWarning}>
+                    <Text style={styles.pdfStaleText}>⚠ PDF is outdated — regenerate to get the latest version</Text>
+                  </View>
+                )}
+
+                {(estimate?.pdf_status === "none" || estimate?.pdf_status === "stale") && (
+                  <TouchableOpacity
+                    style={[styles.pdfBtn, generatePdf.isPending && styles.btnDisabled]}
+                    onPress={() => {
+                      setPdfError(null);
+                      generatePdf.mutate({ estimateId: estimateId! }, {
+                        onError: () => setPdfError("Failed to generate PDF. Please try again."),
+                      });
+                    }}
+                    disabled={generatePdf.isPending}
+                  >
+                    {generatePdf.isPending
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Text style={styles.pdfBtnText}>📄 Generate PDF</Text>}
+                  </TouchableOpacity>
+                )}
+
+                {estimate?.pdf_status === "current" && (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.pdfDownloadBtn, isDownloading && styles.btnDisabled]}
+                      onPress={async () => {
+                        setPdfError(null);
+                        setIsDownloading(true);
+                        try {
+                          await downloadEstimatePdf(estimateId!);
+                        } catch {
+                          setPdfError("Failed to download PDF. Please try again.");
+                        } finally {
+                          setIsDownloading(false);
+                        }
+                      }}
+                      disabled={isDownloading}
+                    >
+                      {isDownloading
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={styles.pdfDownloadBtnText}>⬇ Download PDF</Text>}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.pdfRegenerateBtn, generatePdf.isPending && styles.btnDisabled]}
+                      onPress={() => {
+                        setPdfError(null);
+                        generatePdf.mutate({ estimateId: estimateId! }, {
+                          onError: () => setPdfError("Failed to generate PDF. Please try again."),
+                        });
+                      }}
+                      disabled={generatePdf.isPending}
+                    >
+                      {generatePdf.isPending
+                        ? <ActivityIndicator size="small" color="#6b7280" />
+                        : <Text style={styles.pdfRegenerateBtnText}>🔄 Regenerate PDF</Text>}
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
             )}
 
@@ -336,4 +409,65 @@ const styles = StyleSheet.create({
   savedItemName: { fontSize: 14, fontWeight: "600", color: "#1a1a1a" },
   savedItemMeta: { fontSize: 12, color: "#6b7280" },
   pickText: { fontSize: 14, color: "#2563eb", fontWeight: "600" },
+  pdfActionsBlock: {
+    marginTop: 16,
+    padding: 14,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  pdfError: {
+    color: "#dc2626",
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  pdfStaleWarning: {
+    backgroundColor: "#fef3c7",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#fcd34d",
+  },
+  pdfStaleText: {
+    fontSize: 13,
+    color: "#92400e",
+    fontWeight: "500",
+  },
+  pdfBtn: {
+    backgroundColor: "#2563eb",
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  pdfBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  pdfDownloadBtn: {
+    backgroundColor: "#059669",
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  pdfDownloadBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  pdfRegenerateBtn: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  pdfRegenerateBtnText: {
+    color: "#6b7280",
+    fontSize: 14,
+    fontWeight: "500",
+  },
 });

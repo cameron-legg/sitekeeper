@@ -96,6 +96,8 @@ export interface Estimate {
   total: string;
   created_at: string;
   updated_at: string;
+  /** Computed PDF status: "none" if never generated, "current" if up-to-date, "stale" if document changed since last generation */
+  pdf_status: "none" | "current" | "stale";
 }
 
 export interface Invoice {
@@ -114,6 +116,8 @@ export interface Invoice {
   total: string;
   created_at: string;
   updated_at: string;
+  /** Computed PDF status: "none" if never generated, "current" if up-to-date, "stale" if document changed since last generation */
+  pdf_status: "none" | "current" | "stale";
 }
 
 /** A sub-entry under a SavedItem. */

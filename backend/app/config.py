@@ -25,6 +25,17 @@ class Config:
     # CORS — comma-separated list of allowed origins, or "*" for all
     CORS_ORIGINS: str = os.environ.get("CORS_ORIGINS", "*")
 
+    # MinIO (S3-compatible blob storage for PDFs)
+    MINIO_ENDPOINT: str = os.environ.get("MINIO_ENDPOINT", "localhost:9000")
+    MINIO_ACCESS_KEY: str = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
+    MINIO_SECRET_KEY: str = os.environ.get("MINIO_SECRET_KEY", "minioadmin")
+    MINIO_BUCKET_NAME: str = os.environ.get("MINIO_BUCKET_NAME", "sitekeeper-pdfs")
+    MINIO_USE_SSL: bool = os.environ.get("MINIO_USE_SSL", "false").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
+
     # Flask
     SECRET_KEY: str = os.environ.get("SECRET_KEY", JWT_SECRET)
     TESTING: bool = False
