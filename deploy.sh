@@ -69,6 +69,7 @@ deploy_backend() {
     ssh "$SSH_HOST" "
         sudo -u sitekeeper bash -c '
             cd $APP_DIR/backend &&
+            set -a && source .env && set +a &&
             DATABASE_URL=postgresql://sitekeeper:sitekeeper@localhost:5435/sitekeeper \
             $APP_DIR/backend/venv/bin/alembic upgrade head 2>&1
         '
