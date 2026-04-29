@@ -42,8 +42,15 @@ class MinioStorage:
         """Create the storage bucket if it does not already exist."""
         try:
             if not self.client.bucket_exists(self.bucket_name):
-                self.client.make_bucket(self.bucket_name)
-                logger.info("Created MinIO bucket '%s'", self.bucket_name)
+                try:
+                    self.client.make_bucket(self.bucket_name)
+                    logger.info("Created MinIO bucket '%s'", self.bucket_name)
+                except S3Error as exc:
+                    # Handle race condition: another worker may have created it
+                    if exc.code == "BucketAlreadyOwnedByYou" or exc.code == "BucketAlreadyExists":
+                        logger.info("MinIO bucket '%s' already exists (concurrent creation)", self.bucket_name)
+                    else:
+                        raise
             else:
                 logger.info("MinIO bucket '%s' already exists", self.bucket_name)
         except S3Error:
