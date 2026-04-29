@@ -7,6 +7,7 @@ export interface JobSite {
   user_id: string;
   name: string;
   description: string | null;
+  address: string | null;
   primary_contact_id: string | null;
   job_count: number;
   created_at: string;

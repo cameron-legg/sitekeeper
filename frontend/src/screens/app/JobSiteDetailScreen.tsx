@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,10 +8,12 @@ import {
   StyleSheet,
   TextInput,
   Modal,
+  ScrollView,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { useJobs, useCreateJob, useDeleteJob } from "../../api/hooks/useJobs";
+import { useJobSite, useUpdateJobSite } from "../../api/hooks/useJobSites";
 import type { Job } from "../../api/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "JobSiteDetail">;
@@ -33,18 +35,68 @@ const STATUS_LABELS: Record<Job["status"], string> = {
 export default function JobSiteDetailScreen({ route, navigation }: Props) {
   const { siteId, siteName } = route.params;
 
+  const { data: site } = useJobSite(siteId);
   const { data: jobs, isLoading, isError } = useJobs(siteId);
   const createJob = useCreateJob();
   const deleteJob = useDeleteJob();
+  const updateSite = useUpdateJobSite();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newJobName, setNewJobName] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Job | null>(null);
 
+  // Edit site modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editName, setEditName] = useState(siteName);
+  const [editAddress, setEditAddress] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Keep header title in sync with latest site data
+  const displayName = site?.name ?? siteName;
+
   React.useLayoutEffect(() => {
-    navigation.setOptions({ title: siteName });
-  }, [navigation, siteName]);
+    navigation.setOptions({
+      title: displayName,
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={openEditModal}
+          style={styles.headerEditBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text style={styles.headerEditText}>Edit</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, displayName, site]);
+
+  function openEditModal() {
+    setEditName(site?.name ?? siteName);
+    setEditAddress(site?.address ?? "");
+    setEditError(null);
+    setShowEditModal(true);
+  }
+
+  function handleSaveEdit() {
+    const name = editName.trim();
+    if (!name) {
+      setEditError("Site name is required.");
+      return;
+    }
+    setEditError(null);
+    updateSite.mutate(
+      { siteId, name, address: editAddress.trim() || "" },
+      {
+        onSuccess: (updated) => {
+          setShowEditModal(false);
+          navigation.setParams({ siteName: updated.name });
+        },
+        onError: () => {
+          setEditError("Failed to update job site. Please try again.");
+        },
+      }
+    );
+  }
 
   function handleCreateJob() {
     const name = newJobName.trim();
@@ -119,8 +171,22 @@ export default function JobSiteDetailScreen({ route, navigation }: Props) {
     );
   }
 
+  const siteAddress = site?.address;
+
   return (
     <View style={styles.flex}>
+      {/* Address banner */}
+      {siteAddress ? (
+        <TouchableOpacity style={styles.addressBanner} onPress={openEditModal} activeOpacity={0.7}>
+          <Text style={styles.addressLabel}>📍 Address</Text>
+          <Text style={styles.addressText}>{siteAddress}</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity style={styles.addAddressBanner} onPress={openEditModal} activeOpacity={0.7}>
+          <Text style={styles.addAddressText}>+ Add address</Text>
+        </TouchableOpacity>
+      )}
+
       {isLoading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#2563eb" />
@@ -159,6 +225,7 @@ export default function JobSiteDetailScreen({ route, navigation }: Props) {
         <Text style={styles.fabText}>+ New Job</Text>
       </TouchableOpacity>
 
+      {/* Create job modal */}
       <Modal
         visible={showCreateModal}
         transparent
@@ -239,6 +306,67 @@ export default function JobSiteDetailScreen({ route, navigation }: Props) {
           </View>
         </View>
       </Modal>
+
+      {/* Edit job site modal */}
+      <Modal
+        visible={showEditModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit Job Site</Text>
+
+            {editError && (
+              <Text style={styles.inlineError}>{editError}</Text>
+            )}
+
+            <Text style={styles.fieldLabel}>Site Name</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Site name"
+              autoFocus
+            />
+
+            <Text style={styles.fieldLabel}>Address</Text>
+            <TextInput
+              style={[styles.modalInput, styles.addressInput]}
+              value={editAddress}
+              onChangeText={setEditAddress}
+              placeholder="Street address, city, state, zip"
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowEditModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalConfirmBtn,
+                  updateSite.isPending && styles.buttonDisabled,
+                ]}
+                onPress={handleSaveEdit}
+                disabled={updateSite.isPending}
+              >
+                {updateSite.isPending ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.modalConfirmText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -251,7 +379,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   errorText: { color: "#dc2626", fontSize: 15 },
-  listContent: { padding: 16, gap: 10 },
+  listContent: { padding: 16, paddingTop: 8, gap: 10 },
   emptyContainer: { flex: 1, padding: 16 },
   emptyState: {
     flex: 1,
@@ -269,6 +397,45 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#9ca3af",
     textAlign: "center",
+  },
+  addressBanner: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  addressLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6b7280",
+    marginBottom: 2,
+  },
+  addressText: {
+    fontSize: 14,
+    color: "#374151",
+    lineHeight: 20,
+  },
+  addAddressBanner: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  addAddressText: {
+    fontSize: 14,
+    color: "#2563eb",
+    fontWeight: "500",
+  },
+  headerEditBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  headerEditText: {
+    fontSize: 15,
+    color: "#2563eb",
+    fontWeight: "600",
   },
   jobRow: {
     backgroundColor: "#fff",
@@ -355,6 +522,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   inlineError: { color: "#dc2626", fontSize: 13, marginBottom: 8 },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 6,
+  },
   modalInput: {
     borderWidth: 1,
     borderColor: "#d1d5db",
@@ -365,6 +538,9 @@ const styles = StyleSheet.create({
     color: "#1a1a1a",
     backgroundColor: "#f9fafb",
     marginBottom: 16,
+  },
+  addressInput: {
+    minHeight: 72,
   },
   modalActions: {
     flexDirection: "row",

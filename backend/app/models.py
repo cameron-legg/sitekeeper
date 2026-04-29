@@ -139,6 +139,7 @@ class JobSite(db.Model):
     )
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
+    address = Column(Text, nullable=True)
     primary_contact_id = Column(
         UUID(as_uuid=True),
         ForeignKey("contacts.id", ondelete="SET NULL"),

@@ -35,9 +35,9 @@ class JobSiteService:
             raise NotFoundError(f"Job site {site_id} not found.")
         return site
 
-    def create(self, user_id: str, name: str, description: str | None = None) -> JobSite:
+    def create(self, user_id: str, name: str, description: str | None = None, address: str | None = None) -> JobSite:
         """Create and persist a new job site owned by user_id."""
-        site = JobSite(user_id=user_id, name=name, description=description)
+        site = JobSite(user_id=user_id, name=name, description=description, address=address)
         return self._repo.create(site)
 
     def update(
@@ -46,6 +46,7 @@ class JobSiteService:
         user_id: str,
         name: str | None = None,
         description: str | None = None,
+        address: str | None = None,
     ) -> JobSite:
         """Update fields on an existing job site.
 
@@ -59,6 +60,8 @@ class JobSiteService:
             site.name = name
         if description is not None:
             site.description = description
+        if address is not None:
+            site.address = address
         return self._repo.update(site)
 
     def delete(self, site_id: str, user_id: str) -> None:

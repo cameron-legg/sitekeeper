@@ -140,6 +140,7 @@ All endpoints are prefixed with `/api/v1`. Flask Blueprints are used to register
 /api/v1/saved-items/{item_id}/entries
 /api/v1/saved-items/{item_id}/entries/{entry_id}
 /api/v1/saved-items/{item_id}/populate
+/api/v1/profile
 ```
 
 ---
@@ -194,7 +195,7 @@ class IJobSiteRepository(ABC):
     def delete(self, site_id: str, user_id: str) -> None: ...
 ```
 
-Similar interfaces exist for `IJobRepository`, `IContactRepository`, `INoteRepository`, `IEstimateRepository`, `IInvoiceRepository`, and `ISavedItemRepository`.
+Similar interfaces exist for `IJobRepository`, `IContactRepository`, `INoteRepository`, `IEstimateRepository`, `IInvoiceRepository`, `ISavedItemRepository`, and `IProfileRepository`.
 
 #### Service Classes
 
@@ -206,6 +207,7 @@ Similar interfaces exist for `IJobRepository`, `IContactRepository`, `INoteRepos
 - `InvoiceService` — same pattern as EstimateService
 - `ConversionService` — deep-copies line items AND their entries when converting estimate to invoice
 - `SavedItemService` — CRUD for saved items and their entries; `populate_line_item` copies a saved item + all its entries into a new LineItem (snapshot pattern)
+- `ProfileService` — get and update user profile settings (name, state, company name, phone, payment method)
 
 #### Route Blueprints
 
@@ -234,6 +236,7 @@ blueprints/
                    POST /api/v1/saved-items/<id>/entries
                    PUT/DELETE /api/v1/saved-items/<id>/entries/<entry_id>
                    POST /api/v1/saved-items/<id>/populate
+  profile_bp     — GET/PUT /api/v1/profile
 ```
 
 An `auth_required` decorator validates the JWT from the `Authorization: Bearer <token>` header and injects `current_user_id` into the request context.
@@ -249,6 +252,7 @@ RootNavigator (Stack)
 │   └── RegisterScreen
 └── AppStack (Stack) — shown when authenticated
     ├── HomeScreen (Job Sites list)
+    ├── ProfileSettingsScreen (User profile settings)
     ├── JobSiteDetailScreen (Jobs list for a site)
     ├── JobDetailScreen (Notes, Contacts, Estimates, Invoices tabs)
     ├── EstimateEditorScreen
@@ -277,7 +281,7 @@ useUpdateJobSite()               // PUT mutation
 useDeleteJobSite()               // DELETE mutation
 ```
 
-Query keys follow a hierarchical pattern (`['job-sites']`, `['job-sites', siteId]`, `['jobs', jobId]`) so that mutations can invalidate the correct cache entries.
+Query keys follow a hierarchical pattern (`['job-sites']`, `['job-sites', siteId]`, `['jobs', jobId]`, `['profile']`) so that mutations can invalidate the correct cache entries.
 
 #### Client State (Zustand)
 
@@ -306,6 +310,11 @@ erDiagram
         uuid id PK
         string email UK
         string password_hash
+        string name
+        string state
+        string company_name
+        string phone
+        string payment_method
         timestamp created_at
     }
     JOB_SITE {
@@ -455,6 +464,8 @@ erDiagram
 
 **Sales tax**: `tax_rate` is a nullable `NUMERIC(6,4)` column on both `ESTIMATE` and `INVOICE`, stored as a percentage (e.g. `8.5` = 8.5%). `NULL` means no tax. Tax applies **only to material entries** — hours entries are never taxed. The API response includes a full breakdown: `subtotal` (pre-tax total), `tax_amount` (tax on materials only), and `total` (subtotal + tax_amount). When an estimate is converted to an invoice, the `tax_rate` is copied to the new invoice.
 
+**User profile**: Profile fields (`name`, `state`, `company_name`, `phone`, `payment_method`) are stored directly on the `users` table as nullable columns. This avoids a separate table and join for a 1:1 relationship. The `state` field stores a 2-letter US state code. The `payment_method` field is a free-text string to accommodate various payment methods (Venmo, Zelle, check, etc.) — this may evolve into a structured type in the future. Profile data is accessed via `GET /api/v1/profile` and updated via `PUT /api/v1/profile`, both requiring authentication.
+
 ### Database Schema (PostgreSQL DDL — abbreviated)
 
 ```sql
@@ -462,6 +473,11 @@ CREATE TABLE users (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email       TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
+    name        TEXT,
+    state       VARCHAR(2),
+    company_name TEXT,
+    phone       TEXT,
+    payment_method TEXT,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

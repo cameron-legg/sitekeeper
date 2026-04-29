@@ -203,3 +203,21 @@ A mobile-first application for small contractors to manage their business operat
 4. THE App SHALL allow a User to delete a Saved_Item.
 5. WHEN adding a Line_Item to an Estimate or Invoice, THE App SHALL allow the User to select a Saved_Item from their Item_Library to pre-populate the Line_Item fields.
 6. WHEN a Saved_Item is used to pre-populate a Line_Item, THE resulting Line_Item SHALL be stored as an independent record with no ongoing link to the source Saved_Item.
+
+---
+
+### Requirement 12: User Profile Settings
+
+**User Story:** As a contractor, I want to manage my profile settings so that my business information is stored and available for use across the app (e.g. on invoices).
+
+#### Acceptance Criteria
+
+1. THE App SHALL allow a User to view and edit their profile settings from the home screen.
+2. THE App SHALL display the User's email address as a read-only field on the profile settings screen.
+3. THE App SHALL allow a User to set their name.
+4. THE App SHALL allow a User to set their US state as a 2-letter state code.
+5. THE App SHALL allow a User to set their company name.
+6. THE App SHALL allow a User to set their phone number.
+7. THE App SHALL allow a User to set their payment method (e.g. Venmo handle, Zelle, etc.).
+8. WHEN a User saves their profile settings, THE Backend SHALL persist all profile fields and associate them with the User's account.
+9. THE Backend SHALL expose profile settings via authenticated GET and PUT endpoints at `/api/v1/profile`.

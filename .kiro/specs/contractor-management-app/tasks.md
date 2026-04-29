@@ -319,6 +319,21 @@ Incremental implementation of the Contractor Management App: Python Flask + Post
   - EstimatesTab and InvoicesTab: create modal includes a "Sales Tax Rate %" field; card shows subtotal / tax / total breakdown
   - EstimateEditorScreen and InvoiceEditorScreen: tax rate field on the edit page; grand total section shows full breakdown
 
+- [x] 25. User profile settings
+  - Added `name`, `state` (2-letter US code), `company_name`, `phone`, `payment_method` columns to `users` table (migration 004, all nullable)
+  - Updated `User` model in `backend/app/models.py` with the 5 new columns
+  - Created `backend/app/repositories/profile_repo.py` with `IProfileRepository` interface + SQLAlchemy implementation
+  - Created `backend/app/services/profile_service.py` with `ProfileService` for get/update profile
+  - Created `backend/app/blueprints/profile_bp.py` with `GET /api/v1/profile` and `PUT /api/v1/profile` (both `@auth_required`)
+  - Registered `profile_bp` blueprint in `backend/app/__init__.py`
+  - Added `UserProfile` type to `frontend/src/api/types.ts`
+  - Created `frontend/src/api/hooks/useProfile.ts` with `useProfile()` query and `useUpdateProfile()` mutation hooks
+  - Created `frontend/src/screens/app/ProfileSettingsScreen.tsx` with form for all profile fields, tappable US state picker grid, read-only email display, validation, and save feedback
+  - Added `ProfileSettings` to `RootStackParamList` in navigation types
+  - Registered `ProfileSettingsScreen` in `RootNavigator.tsx` with header and `/profile` URL
+  - Added "⚙️ Profile" button to HomeScreen header
+  - _Requirements: 12.1–12.9_
+
 ## Notes
 
 - Tasks marked with `*` are optional and can be skipped for a faster MVP

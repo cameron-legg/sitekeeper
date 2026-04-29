@@ -24,6 +24,7 @@ def _serialize_site(site, job_count: int = 0) -> dict:
         "user_id": str(site.user_id),
         "name": site.name,
         "description": site.description,
+        "address": site.address,
         "primary_contact_id": str(site.primary_contact_id) if site.primary_contact_id else None,
         "job_count": job_count,
         "created_at": site.created_at.isoformat() if site.created_at else None,
@@ -55,9 +56,10 @@ def create_job_site():
         return error_response("VALIDATION_ERROR", "Name is required.", field="name")
 
     description = data.get("description")
+    address = data.get("address")
 
     try:
-        site = _service.create(user_id=user_id, name=name, description=description)
+        site = _service.create(user_id=user_id, name=name, description=description, address=address)
         job_count = 0
         return jsonify(_serialize_site(site, job_count)), 201
     except Exception:
@@ -91,6 +93,7 @@ def update_job_site(site_id: str):
 
     name = data.get("name")
     description = data.get("description")
+    address = data.get("address")
 
     if name is not None and not str(name).strip():
         return error_response("VALIDATION_ERROR", "Name cannot be empty.", field="name")
@@ -101,6 +104,7 @@ def update_job_site(site_id: str):
             user_id=user_id,
             name=str(name).strip() if name is not None else None,
             description=description,
+            address=address,
         )
         from ..repositories.job_site_repo import SQLAlchemyJobSiteRepository
         repo = SQLAlchemyJobSiteRepository()

@@ -20,8 +20,8 @@ SiteKeeper is a mobile-first contractor management app built with Expo (React Na
 │   │   ├── auth/         # IAuthService, EmailPasswordAuthService, auth_required decorator
 │   │   ├── blueprints/   # Flask route blueprints (one per resource)
 │   │   ├── repositories/ # Repository interfaces + SQLAlchemy implementations
-│   │   ├── services/     # Business logic layer
-│   │   ├── models.py     # All SQLAlchemy ORM models
+│   │   ├── services/     # Business logic layer (includes ProfileService)
+│   │   ├── models.py     # All SQLAlchemy ORM models (User has profile fields)
 │   │   ├── extensions.py # db, bcrypt instances
 │   │   └── __init__.py   # create_app factory
 │   ├── migrations/       # Alembic migration scripts

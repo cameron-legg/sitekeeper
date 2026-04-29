@@ -51,6 +51,7 @@ export function useUpdateJobSite() {
       siteId: string;
       name?: string;
       description?: string;
+      address?: string;
     }) =>
       apiClient
         .put<JobSite>(`/api/v1/job-sites/${siteId}`, data)
