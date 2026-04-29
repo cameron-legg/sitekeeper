@@ -83,10 +83,8 @@ deploy_backend() {
 deploy_frontend() {
     info "Building frontend for web (API_URL=$API_URL)..."
 
-    EXPO_PUBLIC_API_URL="$API_URL" npx expo export --platform web \
-        --output-dir frontend/dist 2>&1 \
-        | grep -E "Exported|Error|error" \
-        || true
+    (cd frontend && EXPO_PUBLIC_API_URL="$API_URL" npx --yes expo export --platform web \
+        --output-dir dist)
 
     [[ -f frontend/dist/index.html ]] || die "Build failed — frontend/dist/index.html not found."
 
