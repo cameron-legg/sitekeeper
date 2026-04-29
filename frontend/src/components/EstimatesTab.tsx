@@ -10,6 +10,7 @@ import {
   useEstimates, useCreateEstimate, useUpdateEstimate,
   useDeleteEstimate, useConvertEstimate,
 } from "../api/hooks/useEstimates";
+import { useGenerateEstimatePdf, downloadEstimatePdf } from "../api/hooks/usePdf";
 import type { Estimate } from "../api/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -36,6 +37,21 @@ export default function EstimatesTab({ jobId }: Props) {
   // Confirm modals
   const [confirmConvert, setConfirmConvert] = useState<Estimate | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Estimate | null>(null);
+
+  // PDF
+  const generatePdf = useGenerateEstimatePdf();
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  // Keep selectedEstimate in sync when list data refreshes (e.g. after PDF generation)
+  React.useEffect(() => {
+    if (selectedEstimate && estimates) {
+      const fresh = estimates.find((e) => e.id === selectedEstimate.id);
+      if (fresh && fresh.pdf_status !== selectedEstimate.pdf_status) {
+        setSelectedEstimate(fresh);
+      }
+    }
+  }, [estimates]);
 
   function openSheet(estimate: Estimate) { setSelectedEstimate(estimate); }
   function closeSheet() { setSelectedEstimate(null); }
@@ -184,6 +200,75 @@ export default function EstimatesTab({ jobId }: Props) {
                 <TouchableOpacity style={styles.menuItem} onPress={() => handleConvert(selectedEstimate)}>
                   <Text style={styles.menuItemText}>🧾  Convert to Invoice</Text>
                 </TouchableOpacity>
+
+                <View style={styles.menuDivider} />
+
+                {/* PDF actions */}
+                {(selectedEstimate.pdf_status === "none" || selectedEstimate.pdf_status === "stale") && (
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => {
+                      setPdfError(null);
+                      generatePdf.mutate({ estimateId: selectedEstimate.id }, {
+                        onError: () => setPdfError("Failed to generate PDF."),
+                      });
+                    }}
+                    disabled={generatePdf.isPending}
+                  >
+                    <Text style={styles.menuItemText}>
+                      {generatePdf.isPending ? "⏳  Generating PDF…" : "📄  Generate PDF"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {selectedEstimate.pdf_status === "stale" && (
+                  <View style={styles.pdfStaleHint}>
+                    <Text style={styles.pdfStaleHintText}>⚠ PDF is outdated — regenerate to get the latest version</Text>
+                  </View>
+                )}
+
+                {selectedEstimate.pdf_status === "current" && (
+                  <>
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={async () => {
+                        setPdfError(null);
+                        setIsDownloading(true);
+                        try {
+                          await downloadEstimatePdf(selectedEstimate.id);
+                        } catch {
+                          setPdfError("Failed to download PDF.");
+                        } finally {
+                          setIsDownloading(false);
+                        }
+                      }}
+                      disabled={isDownloading}
+                    >
+                      <Text style={styles.menuItemText}>
+                        {isDownloading ? "⏳  Downloading…" : "⬇️  Download PDF"}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.menuDivider} />
+
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={() => {
+                        setPdfError(null);
+                        generatePdf.mutate({ estimateId: selectedEstimate.id }, {
+                          onError: () => setPdfError("Failed to generate PDF."),
+                        });
+                      }}
+                      disabled={generatePdf.isPending}
+                    >
+                      <Text style={styles.menuItemText}>
+                        {generatePdf.isPending ? "⏳  Regenerating…" : "🔄  Regenerate PDF"}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                {pdfError && <Text style={styles.pdfErrorText}>{pdfError}</Text>}
 
                 <View style={styles.menuDivider} />
 
@@ -390,4 +475,7 @@ const styles = StyleSheet.create({
   confirmBtnDanger: { backgroundColor: "#dc2626" },
   btnDisabled: { opacity: 0.6 },
   confirmBody: { fontSize: 14, color: "#374151", marginBottom: 16, lineHeight: 20 },
+  pdfStaleHint: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: "#fef3c7" },
+  pdfStaleHintText: { fontSize: 13, color: "#92400e" },
+  pdfErrorText: { fontSize: 13, color: "#dc2626", paddingHorizontal: 16, paddingVertical: 8 },
 });

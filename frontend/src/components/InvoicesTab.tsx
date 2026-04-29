@@ -9,6 +9,7 @@ import type { RootStackParamList } from "../navigation/types";
 import {
   useInvoices, useCreateInvoice, useUpdateInvoice, useDeleteInvoice,
 } from "../api/hooks/useInvoices";
+import { useGenerateInvoicePdf, downloadInvoicePdf } from "../api/hooks/usePdf";
 import type { Invoice } from "../api/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -33,6 +34,21 @@ export default function InvoicesTab({ jobId }: Props) {
 
   // Confirm delete
   const [confirmDelete, setConfirmDelete] = useState<Invoice | null>(null);
+
+  // PDF
+  const generatePdf = useGenerateInvoicePdf();
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  // Keep selectedInvoice in sync when list data refreshes (e.g. after PDF generation)
+  React.useEffect(() => {
+    if (selectedInvoice && invoices) {
+      const fresh = invoices.find((i) => i.id === selectedInvoice.id);
+      if (fresh && fresh.pdf_status !== selectedInvoice.pdf_status) {
+        setSelectedInvoice(fresh);
+      }
+    }
+  }, [invoices]);
 
   function openSheet(invoice: Invoice) { setSelectedInvoice(invoice); }
   function closeSheet() { setSelectedInvoice(null); }
@@ -182,6 +198,75 @@ export default function InvoicesTab({ jobId }: Props) {
                     {selectedInvoice.delivered ? "↩️  Mark as Draft" : "✅  Mark Delivered"}
                   </Text>
                 </TouchableOpacity>
+
+                <View style={styles.menuDivider} />
+
+                {/* PDF actions */}
+                {(selectedInvoice.pdf_status === "none" || selectedInvoice.pdf_status === "stale") && (
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => {
+                      setPdfError(null);
+                      generatePdf.mutate({ invoiceId: selectedInvoice.id }, {
+                        onError: () => setPdfError("Failed to generate PDF."),
+                      });
+                    }}
+                    disabled={generatePdf.isPending}
+                  >
+                    <Text style={styles.menuItemText}>
+                      {generatePdf.isPending ? "⏳  Generating PDF…" : "📄  Generate PDF"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {selectedInvoice.pdf_status === "stale" && (
+                  <View style={styles.pdfStaleHint}>
+                    <Text style={styles.pdfStaleHintText}>⚠ PDF is outdated — regenerate to get the latest version</Text>
+                  </View>
+                )}
+
+                {selectedInvoice.pdf_status === "current" && (
+                  <>
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={async () => {
+                        setPdfError(null);
+                        setIsDownloading(true);
+                        try {
+                          await downloadInvoicePdf(selectedInvoice.id);
+                        } catch {
+                          setPdfError("Failed to download PDF.");
+                        } finally {
+                          setIsDownloading(false);
+                        }
+                      }}
+                      disabled={isDownloading}
+                    >
+                      <Text style={styles.menuItemText}>
+                        {isDownloading ? "⏳  Downloading…" : "⬇️  Download PDF"}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.menuDivider} />
+
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={() => {
+                        setPdfError(null);
+                        generatePdf.mutate({ invoiceId: selectedInvoice.id }, {
+                          onError: () => setPdfError("Failed to generate PDF."),
+                        });
+                      }}
+                      disabled={generatePdf.isPending}
+                    >
+                      <Text style={styles.menuItemText}>
+                        {generatePdf.isPending ? "⏳  Regenerating…" : "🔄  Regenerate PDF"}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                {pdfError && <Text style={styles.pdfErrorText}>{pdfError}</Text>}
 
                 <View style={styles.menuDivider} />
 
@@ -361,4 +446,7 @@ const styles = StyleSheet.create({
   confirmBtnDanger: { backgroundColor: "#dc2626" },
   btnDisabled: { opacity: 0.6 },
   confirmBody: { fontSize: 14, color: "#374151", marginBottom: 16, lineHeight: 20 },
+  pdfStaleHint: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: "#fef3c7" },
+  pdfStaleHintText: { fontSize: 13, color: "#92400e" },
+  pdfErrorText: { fontSize: 13, color: "#dc2626", paddingHorizontal: 16, paddingVertical: 8 },
 });

@@ -17,8 +17,8 @@ export function useGenerateEstimatePdf() {
   return useMutation({
     mutationFn: ({ estimateId }: { estimateId: string }) =>
       apiClient.post(`/api/v1/estimates/${estimateId}/pdf`).then((r) => r.data),
-    onSuccess: (_, { estimateId }) =>
-      qc.invalidateQueries({ queryKey: ["estimates", estimateId] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["estimates"] }),
   });
 }
 
@@ -27,8 +27,8 @@ export function useGenerateInvoicePdf() {
   return useMutation({
     mutationFn: ({ invoiceId }: { invoiceId: string }) =>
       apiClient.post(`/api/v1/invoices/${invoiceId}/pdf`).then((r) => r.data),
-    onSuccess: (_, { invoiceId }) =>
-      qc.invalidateQueries({ queryKey: ["invoices", invoiceId] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["invoices"] }),
   });
 }
 
