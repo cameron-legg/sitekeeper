@@ -10,6 +10,7 @@ Routes:
     DELETE /api/v1/jobs/<id>/contacts/<contact_id>      — remove contact from job
     POST   /api/v1/jobs/<id>/contacts/<contact_id>/set-primary — set primary contact
     GET    /api/v1/jobs/<id>/contacts/effective-primary — get effective primary contact
+    PATCH  /api/v1/contacts/<contact_id>                — update a contact's fields
 """
 
 from flask import Blueprint, g, jsonify, request
@@ -189,5 +190,37 @@ def get_effective_primary_contact(job_id: str):
         }), 200
     except NotFoundError:
         return not_found("Job")
+    except Exception:
+        return server_error()
+
+
+# ---------------------------------------------------------------------------
+# Contact update (shared — not scoped to a parent)
+# ---------------------------------------------------------------------------
+
+@contacts_bp.patch("/contacts/<contact_id>")
+@auth_required
+def update_contact(contact_id: str):
+    """Update fields on an existing contact."""
+    data = request.get_json(silent=True) or {}
+
+    name = data.get("name")
+    if name is not None:
+        name = str(name).strip()
+        if not name:
+            return error_response("VALIDATION_ERROR", "Name cannot be empty.", field="name")
+
+    try:
+        contact = _service.update_contact(
+            contact_id=contact_id,
+            name=name,
+            phone=data.get("phone"),
+            email=data.get("email"),
+            mailing_address=data.get("mailing_address"),
+            notes=data.get("notes"),
+        )
+        return jsonify(_serialize_contact(contact)), 200
+    except NotFoundError:
+        return not_found("Contact")
     except Exception:
         return server_error()

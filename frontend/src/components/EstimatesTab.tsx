@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   View, Text, FlatList, TouchableOpacity, ActivityIndicator,
-  Modal, TextInput, StyleSheet,
+  Modal, TextInput, StyleSheet, Platform, ScrollView,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -24,7 +24,11 @@ export default function EstimatesTab({ jobId }: Props) {
   const deleteEstimate = useDeleteEstimate();
   const convertEstimate = useConvertEstimate();
 
-  const [showModal, setShowModal] = useState(false);
+  // Bottom sheet
+  const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
+
+  // Create modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [title, setTitle] = useState("");
   const [taxRate, setTaxRate] = useState("");
   const [titleError, setTitleError] = useState<string | null>(null);
@@ -33,8 +37,11 @@ export default function EstimatesTab({ jobId }: Props) {
   const [confirmConvert, setConfirmConvert] = useState<Estimate | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Estimate | null>(null);
 
+  function openSheet(estimate: Estimate) { setSelectedEstimate(estimate); }
+  function closeSheet() { setSelectedEstimate(null); }
+
   function openNew() {
-    setTitle(""); setTaxRate(""); setTitleError(null); setShowModal(true);
+    setTitle(""); setTaxRate(""); setTitleError(null); setShowCreateModal(true);
   }
 
   function handleCreate() {
@@ -44,21 +51,32 @@ export default function EstimatesTab({ jobId }: Props) {
     createEstimate.mutate(
       { jobId, title: t, tax_rate: taxRate.trim() || undefined },
       {
-        onSuccess: (est) => { setShowModal(false); navigation.navigate("EstimateEditor", { estimateId: est.id, jobId }); },
+        onSuccess: (est) => {
+          setShowCreateModal(false);
+          navigation.navigate("EstimateEditor", { estimateId: est.id, jobId });
+        },
         onError: () => setTitleError("Failed to create estimate."),
       }
     );
   }
 
+  function handleEdit(estimate: Estimate) {
+    closeSheet();
+    navigation.navigate("EstimateEditor", { estimateId: estimate.id, jobId });
+  }
+
   function handleToggleDelivered(estimate: Estimate) {
+    closeSheet();
     updateEstimate.mutate({ estimateId: estimate.id, delivered: !estimate.delivered });
   }
 
   function handleConvert(estimate: Estimate) {
+    closeSheet();
     setConfirmConvert(estimate);
   }
 
   function handleDelete(estimate: Estimate) {
+    closeSheet();
     setConfirmDelete(estimate);
   }
 
@@ -78,49 +96,27 @@ export default function EstimatesTab({ jobId }: Props) {
           </View>
         }
         renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <View style={[styles.badge, item.delivered ? styles.badgeGreen : styles.badgeGrey]}>
-                <Text style={[styles.badgeText, item.delivered ? styles.badgeTextGreen : styles.badgeTextGrey]}>
-                  {item.delivered ? "Delivered" : "Not delivered"}
-                </Text>
-              </View>
-            </View>
-
-            {/* Tax breakdown */}
-            <View style={styles.totalsBlock}>
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Subtotal</Text>
-                <Text style={styles.totalValue}>${parseFloat(item.subtotal || "0").toFixed(2)}</Text>
-              </View>
-              {item.tax_rate && parseFloat(item.tax_rate) > 0 && (
-                <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Tax ({item.tax_rate}% on materials)</Text>
-                  <Text style={styles.totalValue}>${parseFloat(item.tax_amount || "0").toFixed(2)}</Text>
+          <TouchableOpacity style={styles.card} onPress={() => openSheet(item)} activeOpacity={0.7}>
+            <View style={styles.cardMain}>
+              <View style={styles.cardLeft}>
+                <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+                <View style={[styles.badge, item.delivered ? styles.badgeGreen : styles.badgeGrey]}>
+                  <Text style={[styles.badgeText, item.delivered ? styles.badgeTextGreen : styles.badgeTextGrey]}>
+                    {item.delivered ? "Delivered" : "Draft"}
+                  </Text>
                 </View>
-              )}
-              <View style={[styles.totalRow, styles.grandRow]}>
-                <Text style={styles.grandLabel}>Total</Text>
-                <Text style={styles.grandValue}>${parseFloat(item.total || "0").toFixed(2)}</Text>
+              </View>
+              <View style={styles.cardRight}>
+                <Text style={styles.cardTotal}>${parseFloat(item.total || "0").toFixed(2)}</Text>
+                <Text style={styles.chevron}>›</Text>
               </View>
             </View>
-
-            <View style={styles.actions}>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate("EstimateEditor", { estimateId: item.id, jobId })}>
-                <Text style={styles.actionBtnText}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => handleToggleDelivered(item)}>
-                <Text style={styles.actionBtnText}>{item.delivered ? "Mark Undelivered" : "Mark Delivered"}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => handleConvert(item)}>
-                <Text style={styles.actionBtnText}>→ Invoice</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item)}>
-                <Text style={styles.deleteBtnText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+            {item.tax_rate && parseFloat(item.tax_rate) > 0 && (
+              <Text style={styles.cardSub}>
+                Subtotal ${parseFloat(item.subtotal || "0").toFixed(2)} + tax ${parseFloat(item.tax_amount || "0").toFixed(2)}
+              </Text>
+            )}
+          </TouchableOpacity>
         )}
       />
 
@@ -128,7 +124,84 @@ export default function EstimatesTab({ jobId }: Props) {
         <Text style={styles.addBtnText}>+ New Estimate</Text>
       </TouchableOpacity>
 
-      <Modal visible={showModal} transparent animationType="fade" onRequestClose={() => setShowModal(false)}>
+      {/* ── Detail bottom sheet ── */}
+      <Modal
+        visible={!!selectedEstimate}
+        transparent
+        animationType="slide"
+        onRequestClose={closeSheet}
+      >
+        <TouchableOpacity style={styles.sheetOverlay} activeOpacity={1} onPress={closeSheet} />
+        {selectedEstimate && (
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+
+            <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+              {/* Title + badge */}
+              <Text style={styles.sheetTitle}>{selectedEstimate.title}</Text>
+              <View style={styles.sheetBadgeRow}>
+                <View style={[styles.badge, selectedEstimate.delivered ? styles.badgeGreen : styles.badgeGrey]}>
+                  <Text style={[styles.badgeText, selectedEstimate.delivered ? styles.badgeTextGreen : styles.badgeTextGrey]}>
+                    {selectedEstimate.delivered ? "Delivered" : "Draft"}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Totals breakdown */}
+              <View style={styles.totalsBlock}>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Subtotal</Text>
+                  <Text style={styles.totalValue}>${parseFloat(selectedEstimate.subtotal || "0").toFixed(2)}</Text>
+                </View>
+                {selectedEstimate.tax_rate && parseFloat(selectedEstimate.tax_rate) > 0 && (
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>Tax ({selectedEstimate.tax_rate}% on materials)</Text>
+                    <Text style={styles.totalValue}>${parseFloat(selectedEstimate.tax_amount || "0").toFixed(2)}</Text>
+                  </View>
+                )}
+                <View style={[styles.totalRow, styles.grandRow]}>
+                  <Text style={styles.grandLabel}>Total</Text>
+                  <Text style={styles.grandValue}>${parseFloat(selectedEstimate.total || "0").toFixed(2)}</Text>
+                </View>
+              </View>
+
+              {/* Actions menu */}
+              <View style={styles.menuSection}>
+                <TouchableOpacity style={styles.menuItem} onPress={() => handleEdit(selectedEstimate)}>
+                  <Text style={styles.menuItemText}>✏️  Edit Line Items</Text>
+                </TouchableOpacity>
+
+                <View style={styles.menuDivider} />
+
+                <TouchableOpacity style={styles.menuItem} onPress={() => handleToggleDelivered(selectedEstimate)}>
+                  <Text style={styles.menuItemText}>
+                    {selectedEstimate.delivered ? "↩️  Mark as Draft" : "✅  Mark Delivered"}
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={styles.menuDivider} />
+
+                <TouchableOpacity style={styles.menuItem} onPress={() => handleConvert(selectedEstimate)}>
+                  <Text style={styles.menuItemText}>🧾  Convert to Invoice</Text>
+                </TouchableOpacity>
+
+                <View style={styles.menuDivider} />
+
+                <TouchableOpacity style={styles.menuItem} onPress={() => handleDelete(selectedEstimate)}>
+                  <Text style={[styles.menuItemText, styles.menuItemDanger]}>🗑️  Delete Estimate</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity style={styles.cancelBtn} onPress={closeSheet}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        )}
+      </Modal>
+
+      {/* ── Create modal ── */}
+      <Modal visible={showCreateModal} transparent animationType="fade" onRequestClose={() => setShowCreateModal(false)}>
         <View style={styles.overlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>New Estimate</Text>
@@ -151,8 +224,8 @@ export default function EstimatesTab({ jobId }: Props) {
             />
             <Text style={styles.taxHint}>Applies to material items only, not labour hours.</Text>
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowModal(false)}>
-                <Text style={styles.cancelText}>Cancel</Text>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowCreateModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.confirmBtn, createEstimate.isPending && styles.btnDisabled]}
@@ -168,17 +241,15 @@ export default function EstimatesTab({ jobId }: Props) {
         </View>
       </Modal>
 
-      {/* Convert to invoice confirmation */}
+      {/* ── Convert confirmation ── */}
       <Modal visible={!!confirmConvert} transparent animationType="fade" onRequestClose={() => setConfirmConvert(null)}>
         <View style={styles.overlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Convert to Invoice</Text>
-            <Text style={styles.confirmBody}>
-              Convert "{confirmConvert?.title}" to an invoice?
-            </Text>
+            <Text style={styles.confirmBody}>Convert "{confirmConvert?.title}" to an invoice?</Text>
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setConfirmConvert(null)}>
-                <Text style={styles.cancelText}>Cancel</Text>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setConfirmConvert(null)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.confirmBtn, convertEstimate.isPending && styles.btnDisabled]}
@@ -200,17 +271,15 @@ export default function EstimatesTab({ jobId }: Props) {
         </View>
       </Modal>
 
-      {/* Delete confirmation */}
+      {/* ── Delete confirmation ── */}
       <Modal visible={!!confirmDelete} transparent animationType="fade" onRequestClose={() => setConfirmDelete(null)}>
         <View style={styles.overlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Delete Estimate</Text>
-            <Text style={styles.confirmBody}>
-              Delete "{confirmDelete?.title}"? This cannot be undone.
-            </Text>
+            <Text style={styles.confirmBody}>Delete "{confirmDelete?.title}"? This cannot be undone.</Text>
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setConfirmDelete(null)}>
-                <Text style={styles.cancelText}>Cancel</Text>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setConfirmDelete(null)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.confirmBtn, styles.confirmBtnDanger, deleteEstimate.isPending && styles.btnDisabled]}
@@ -239,34 +308,72 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   errorText: { color: "#dc2626", fontSize: 15 },
-  listContent: { padding: 16, gap: 12 },
+  listContent: { padding: 16, gap: 10 },
   emptyContainer: { flex: 1, padding: 16 },
   emptyState: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 60 },
   emptyTitle: { fontSize: 17, fontWeight: "600", color: "#374151", marginBottom: 6 },
   emptySubtitle: { fontSize: 14, color: "#9ca3af", textAlign: "center" },
-  card: { backgroundColor: "#fff", borderRadius: 10, padding: 14, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
-  cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
-  cardTitle: { fontSize: 15, fontWeight: "600", color: "#1a1a1a", flex: 1, marginRight: 8 },
-  badge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+
+  // Card (list row)
+  card: {
+    backgroundColor: "#fff", borderRadius: 10, padding: 14,
+    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 }, elevation: 1,
+  },
+  cardMain: { flexDirection: "row", alignItems: "center" },
+  cardLeft: { flex: 1, gap: 5 },
+  cardRight: { flexDirection: "row", alignItems: "center", gap: 6 },
+  cardTitle: { fontSize: 15, fontWeight: "600", color: "#1a1a1a" },
+  cardTotal: { fontSize: 16, fontWeight: "700", color: "#2563eb" },
+  cardSub: { fontSize: 12, color: "#9ca3af", marginTop: 6 },
+  chevron: { fontSize: 22, color: "#d1d5db" },
+  badge: { alignSelf: "flex-start", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   badgeGreen: { backgroundColor: "#d1fae5" },
   badgeGrey: { backgroundColor: "#f3f4f6" },
   badgeText: { fontSize: 11, fontWeight: "600" },
   badgeTextGreen: { color: "#065f46" },
   badgeTextGrey: { color: "#6b7280" },
-  totalsBlock: { backgroundColor: "#f9fafb", borderRadius: 8, padding: 10, marginBottom: 10 },
-  totalRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 3 },
-  totalLabel: { fontSize: 13, color: "#6b7280" },
-  totalValue: { fontSize: 13, color: "#374151" },
-  grandRow: { borderTopWidth: 1, borderTopColor: "#e5e7eb", marginTop: 4, paddingTop: 4, marginBottom: 0 },
-  grandLabel: { fontSize: 14, fontWeight: "700", color: "#1a1a1a" },
-  grandValue: { fontSize: 14, fontWeight: "700", color: "#2563eb" },
-  actions: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  actionBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, backgroundColor: "#eff6ff" },
-  actionBtnText: { fontSize: 12, color: "#2563eb", fontWeight: "500" },
-  deleteBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, backgroundColor: "#fef2f2" },
-  deleteBtnText: { fontSize: 12, color: "#dc2626", fontWeight: "500" },
+
+  // Add button
   addBtn: { margin: 16, backgroundColor: "#2563eb", borderRadius: 8, paddingVertical: 12, alignItems: "center" },
   addBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+
+  // Bottom sheet
+  sheetOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === "ios" ? 36 : 24,
+    paddingTop: 12,
+    maxHeight: "80%",
+  },
+  sheetHandle: {
+    width: 40, height: 4, backgroundColor: "#d1d5db",
+    borderRadius: 2, alignSelf: "center", marginBottom: 16,
+  },
+  sheetTitle: { fontSize: 20, fontWeight: "700", color: "#1a1a1a", marginBottom: 8 },
+  sheetBadgeRow: { marginBottom: 16 },
+
+  // Totals
+  totalsBlock: { backgroundColor: "#f9fafb", borderRadius: 10, padding: 14, marginBottom: 16 },
+  totalRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
+  totalLabel: { fontSize: 14, color: "#6b7280" },
+  totalValue: { fontSize: 14, color: "#374151" },
+  grandRow: { borderTopWidth: 1, borderTopColor: "#e5e7eb", marginTop: 6, paddingTop: 6, marginBottom: 0 },
+  grandLabel: { fontSize: 15, fontWeight: "700", color: "#1a1a1a" },
+  grandValue: { fontSize: 15, fontWeight: "700", color: "#2563eb" },
+
+  // Menu
+  menuSection: { backgroundColor: "#f9fafb", borderRadius: 12, marginBottom: 12, overflow: "hidden" },
+  menuItem: { paddingVertical: 14, paddingHorizontal: 16 },
+  menuItemText: { fontSize: 15, color: "#1a1a1a" },
+  menuItemDanger: { color: "#dc2626" },
+  menuDivider: { height: 1, backgroundColor: "#e5e7eb", marginHorizontal: 16 },
+  cancelBtn: { backgroundColor: "#f3f4f6", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 8 },
+  cancelBtnText: { fontSize: 15, fontWeight: "600", color: "#374151" },
+
+  // Create / confirm modals
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: 24 },
   modalCard: { backgroundColor: "#fff", borderRadius: 12, padding: 24, width: "100%", maxWidth: 400 },
   modalTitle: { fontSize: 18, fontWeight: "700", color: "#1a1a1a", marginBottom: 12 },
@@ -276,11 +383,11 @@ const styles = StyleSheet.create({
   modalInput: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, color: "#1a1a1a", backgroundColor: "#f9fafb" },
   taxHint: { fontSize: 12, color: "#9ca3af", marginTop: 4, marginBottom: 4 },
   modalActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end", marginTop: 16 },
-  cancelBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: "#d1d5db" },
-  cancelText: { fontSize: 14, color: "#374151" },
+  modalCancelBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: "#d1d5db" },
+  modalCancelText: { fontSize: 14, color: "#374151" },
   confirmBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: "#2563eb", minWidth: 80, alignItems: "center" },
   confirmText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  confirmBtnDanger: { backgroundColor: "#dc2626" },
   btnDisabled: { opacity: 0.6 },
   confirmBody: { fontSize: 14, color: "#374151", marginBottom: 16, lineHeight: 20 },
-  confirmBtnDanger: { backgroundColor: "#dc2626" },
 });

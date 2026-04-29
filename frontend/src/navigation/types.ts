@@ -20,6 +20,13 @@ export type RootStackParamList = {
     contactId?: string;
     parentId: string;
     parentType: "job_site" | "job";
+    initialValues?: {
+      name?: string;
+      phone?: string | null;
+      email?: string | null;
+      mailing_address?: string | null;
+      notes?: string | null;
+    };
   };
   SavedItems: { pickerMode?: boolean; onSelect?: (item: SavedItemPickerResult) => void };
   SavedItemEditor: { itemId?: string };

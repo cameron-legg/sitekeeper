@@ -140,3 +140,29 @@ export function useSetPrimaryForJob() {
     },
   });
 }
+
+// ── Contact update ────────────────────────────────────────────────────────────
+
+export function useUpdateContact() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      contactId,
+      ...data
+    }: {
+      contactId: string;
+      name?: string;
+      phone?: string;
+      email?: string;
+      mailing_address?: string;
+      notes?: string;
+    }) =>
+      apiClient
+        .patch<Contact>(`/api/v1/contacts/${contactId}`, data)
+        .then((r) => r.data),
+    onSuccess: () => {
+      // Invalidate all contact queries — the contact may appear in multiple lists
+      qc.invalidateQueries({ queryKey: ["contacts"] });
+    },
+  });
+}

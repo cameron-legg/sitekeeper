@@ -15,6 +15,7 @@ import type { RootStackParamList } from "../../navigation/types";
 import {
   useAddContactToJobSite,
   useAddContactToJob,
+  useUpdateContact,
 } from "../../api/hooks/useContacts";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ContactEditor">;
@@ -36,16 +37,29 @@ const EMPTY: FormValues = {
 };
 
 export default function ContactEditorScreen({ route, navigation }: Props) {
-  const { parentId, parentType } = route.params;
+  const { parentId, parentType, contactId, initialValues } = route.params;
+  const isEditing = !!contactId;
 
-  const [values, setValues] = useState<FormValues>(EMPTY);
+  const [values, setValues] = useState<FormValues>(
+    initialValues
+      ? {
+          name: initialValues.name ?? "",
+          phone: initialValues.phone ?? "",
+          email: initialValues.email ?? "",
+          mailing_address: initialValues.mailing_address ?? "",
+          notes: initialValues.notes ?? "",
+        }
+      : EMPTY
+  );
   const [nameError, setNameError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const addToSite = useAddContactToJobSite();
   const addToJob = useAddContactToJob();
+  const updateContact = useUpdateContact();
 
-  const isSaving = addToSite.isPending || addToJob.isPending;
+  const isSaving =
+    addToSite.isPending || addToJob.isPending || updateContact.isPending;
 
   function set(field: keyof FormValues, value: string) {
     setValues((v) => ({ ...v, [field]: value }));
@@ -69,12 +83,25 @@ export default function ContactEditorScreen({ route, navigation }: Props) {
       notes: values.notes.trim() || undefined,
     };
 
+    if (isEditing) {
+      updateContact.mutate(
+        { contactId: contactId!, ...payload },
+        {
+          onSuccess: () => navigation.goBack(),
+          onError: () =>
+            setSaveError("Failed to save contact. Please try again."),
+        }
+      );
+      return;
+    }
+
     if (parentType === "job_site") {
       addToSite.mutate(
         { siteId: parentId, ...payload },
         {
           onSuccess: () => navigation.goBack(),
-          onError: () => setSaveError("Failed to save contact. Please try again."),
+          onError: () =>
+            setSaveError("Failed to save contact. Please try again."),
         }
       );
     } else {
@@ -82,7 +109,8 @@ export default function ContactEditorScreen({ route, navigation }: Props) {
         { jobId: parentId, ...payload },
         {
           onSuccess: () => navigation.goBack(),
-          onError: () => setSaveError("Failed to save contact. Please try again."),
+          onError: () =>
+            setSaveError("Failed to save contact. Please try again."),
         }
       );
     }
@@ -164,7 +192,9 @@ export default function ContactEditorScreen({ route, navigation }: Props) {
           {isSaving ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.saveBtnText}>Save Contact</Text>
+            <Text style={styles.saveBtnText}>
+              {isEditing ? "Save Changes" : "Save Contact"}
+            </Text>
           )}
         </TouchableOpacity>
       </ScrollView>

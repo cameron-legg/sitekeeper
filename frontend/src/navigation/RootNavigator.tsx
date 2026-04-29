@@ -108,7 +108,10 @@ export default function RootNavigator() {
             <Stack.Screen
               name="ContactEditor"
               component={ContactEditorScreen}
-              options={{ headerShown: true, title: "Contact" }}
+              options={({ route }) => ({
+                headerShown: true,
+                title: route.params?.contactId ? "Edit Contact" : "New Contact",
+              })}
             />
             <Stack.Screen
               name="SavedItems"
