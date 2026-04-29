@@ -48,6 +48,7 @@ def create_app(config=None):
     from .blueprints.invoices_bp import invoices_bp
     from .blueprints.conversion_bp import conversion_bp
     from .blueprints.saved_items_bp import saved_items_bp
+    from .blueprints.profile_bp import profile_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/v1")
     app.register_blueprint(job_sites_bp, url_prefix="/api/v1")
@@ -58,5 +59,6 @@ def create_app(config=None):
     app.register_blueprint(invoices_bp, url_prefix="/api/v1")
     app.register_blueprint(conversion_bp, url_prefix="/api/v1")
     app.register_blueprint(saved_items_bp, url_prefix="/api/v1")
+    app.register_blueprint(profile_bp, url_prefix="/api/v1")
 
     return app

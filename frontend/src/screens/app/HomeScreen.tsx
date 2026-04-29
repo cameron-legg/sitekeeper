@@ -99,6 +99,12 @@ export default function HomeScreen({ navigation }: Props) {
         <Text style={styles.headerTitle}>SiteKeeper</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
+            style={styles.profileBtn}
+            onPress={() => navigation.navigate("ProfileSettings")}
+          >
+            <Text style={styles.profileBtnText}>⚙️ Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.libraryBtn}
             onPress={() => navigation.navigate("SavedItems", {})}
           >
@@ -289,6 +295,19 @@ const styles = StyleSheet.create({
   libraryBtnText: {
     fontSize: 13,
     color: "#15803d",
+    fontWeight: "600",
+  },
+  profileBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: "#eff6ff",
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  profileBtnText: {
+    fontSize: 13,
+    color: "#2563eb",
     fontWeight: "600",
   },
   logoutBtn: {

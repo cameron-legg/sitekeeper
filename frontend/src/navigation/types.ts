@@ -12,6 +12,7 @@ export type RootStackParamList = {
 
   // App screens (authenticated)
   Home: undefined;
+  ProfileSettings: undefined;
   JobSiteDetail: { siteId: string; siteName: string };
   JobDetail: { jobId: string; jobName: string; siteId: string };
   EstimateEditor: { estimateId?: string; jobId: string };

@@ -30,6 +30,7 @@ import InvoiceEditorScreen from "../screens/app/InvoiceEditorScreen";
 import ContactEditorScreen from "../screens/app/ContactEditorScreen";
 import SavedItemsScreen from "../screens/app/SavedItemsScreen";
 import SavedItemEditorScreen from "../screens/app/SavedItemEditorScreen";
+import ProfileSettingsScreen from "../screens/app/ProfileSettingsScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -46,6 +47,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       Login: "login",
       Register: "register",
       Home: "",
+      ProfileSettings: "profile",
       JobSiteDetail: "sites/:siteId",
       JobDetail: "jobs/:jobId",
       EstimateEditor: "estimates/:estimateId?",
@@ -85,6 +87,11 @@ export default function RootNavigator() {
           // ── Authenticated ────────────────────────────────────────────
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen
+              name="ProfileSettings"
+              component={ProfileSettingsScreen}
+              options={{ headerShown: true, title: "Profile Settings" }}
+            />
             <Stack.Screen
               name="JobSiteDetail"
               component={JobSiteDetailScreen}

@@ -140,6 +140,16 @@ export interface SavedItem {
   updated_at: string;
 }
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string | null;
+  state: string | null;
+  company_name: string | null;
+  phone: string | null;
+  payment_method: string | null;
+}
+
 export interface ApiError {
   error: {
     code: string;
