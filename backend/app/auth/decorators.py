@@ -24,8 +24,8 @@ _auth_service = EmailPasswordAuthService()
 def auth_required(f):
     """Decorator that validates the Bearer JWT and injects current_user_id.
 
-    On success: sets ``flask.g.current_user_id`` to the authenticated user's
-    UUID string and calls the wrapped view function.
+    On success: sets ``flask.g.current_user_id``, ``flask.g.current_user_role``,
+    and ``flask.g.current_user_is_approved`` then calls the wrapped view function.
 
     On failure: returns a 401 JSON response without calling the view.
     """
@@ -55,7 +55,24 @@ def auth_required(f):
                 401,
             )
 
+        # Load user to check role and approval status
+        from ..models import User
+        user = User.query.filter_by(id=user_id).first()
+        if user is None:
+            return (
+                jsonify({"error": {"code": "USER_NOT_FOUND", "message": "User no longer exists."}}),
+                401,
+            )
+
+        if not user.is_approved:
+            return (
+                jsonify({"error": {"code": "NOT_APPROVED", "message": "Your account is pending approval by the admin."}}),
+                403,
+            )
+
         g.current_user_id = user_id
+        g.current_user_role = user.role
+        g.current_user_is_approved = user.is_approved
         return f(*args, **kwargs)
 
     return decorated

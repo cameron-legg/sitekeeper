@@ -86,6 +86,9 @@ class User(db.Model):
     company_name = Column(String(255), nullable=True)
     phone = Column(String(50), nullable=True)
     payment_method = Column(String(255), nullable=True)
+    # Tenant access control
+    role = Column(String(20), nullable=False, default="member")  # 'admin' or 'member'
+    is_approved = Column(Boolean, nullable=False, default=False)
     created_at = Column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )

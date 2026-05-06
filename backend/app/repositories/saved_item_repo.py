@@ -42,14 +42,16 @@ class ISavedItemRepository(ABC):
 class SQLAlchemySavedItemRepository(ISavedItemRepository):
 
     def get_all_for_user(self, user_id: str) -> list[SavedItem]:
+        # All approved users in a tenant share saved items
         return (
-            SavedItem.query.filter_by(user_id=user_id)
+            SavedItem.query
             .order_by(SavedItem.created_at.desc())
             .all()
         )
 
     def get_by_id(self, item_id: str, user_id: str) -> SavedItem | None:
-        return SavedItem.query.filter_by(id=item_id, user_id=user_id).first()
+        # Any approved user can access any saved item in the tenant
+        return SavedItem.query.filter_by(id=item_id).first()
 
     def create(self, item: SavedItem) -> SavedItem:
         db.session.add(item)
@@ -63,7 +65,8 @@ class SQLAlchemySavedItemRepository(ISavedItemRepository):
         return item
 
     def delete(self, item_id: str, user_id: str) -> None:
-        item = SavedItem.query.filter_by(id=item_id, user_id=user_id).first()
+        # Any approved user can delete any saved item in the tenant
+        item = SavedItem.query.filter_by(id=item_id).first()
         if item:
             db.session.delete(item)
             db.session.commit()

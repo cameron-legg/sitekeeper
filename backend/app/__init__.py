@@ -84,6 +84,7 @@ def create_app(config=None):
     from .blueprints.saved_items_bp import saved_items_bp
     from .blueprints.profile_bp import profile_bp
     from .blueprints.pdf_bp import pdf_bp
+    from .blueprints.admin_bp import admin_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/v1")
     app.register_blueprint(job_sites_bp, url_prefix="/api/v1")
@@ -96,6 +97,7 @@ def create_app(config=None):
     app.register_blueprint(saved_items_bp, url_prefix="/api/v1")
     app.register_blueprint(profile_bp, url_prefix="/api/v1")
     app.register_blueprint(pdf_bp, url_prefix="/api/v1")
+    app.register_blueprint(admin_bp, url_prefix="/api/v1")
 
     # Health check endpoint (used by deploy scripts and load balancers)
     @app.route("/api/v1/health")

@@ -24,6 +24,8 @@ class AuthResult:
 
     user_id: str
     token: str
+    role: str = "member"
+    is_approved: bool = False
 
 
 class IAuthService(ABC):

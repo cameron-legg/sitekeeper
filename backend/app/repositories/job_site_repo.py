@@ -51,14 +51,16 @@ class SQLAlchemyJobSiteRepository(IJobSiteRepository):
     """SQLAlchemy-backed implementation of IJobSiteRepository."""
 
     def get_all_for_user(self, user_id: str) -> list[JobSite]:
+        # Approved users see ALL job sites in the tenant database
         return (
-            JobSite.query.filter_by(user_id=user_id)
+            JobSite.query
             .order_by(JobSite.created_at.desc())
             .all()
         )
 
     def get_by_id(self, site_id: str, user_id: str) -> JobSite | None:
-        return JobSite.query.filter_by(id=site_id, user_id=user_id).first()
+        # Approved users can access any job site in the tenant
+        return JobSite.query.filter_by(id=site_id).first()
 
     def create(self, site: JobSite) -> JobSite:
         db.session.add(site)
@@ -72,7 +74,8 @@ class SQLAlchemyJobSiteRepository(IJobSiteRepository):
         return site
 
     def delete(self, site_id: str, user_id: str) -> None:
-        site = JobSite.query.filter_by(id=site_id, user_id=user_id).first()
+        # Any approved user can delete any site in the tenant
+        site = JobSite.query.filter_by(id=site_id).first()
         if site:
             db.session.delete(site)
             db.session.commit()

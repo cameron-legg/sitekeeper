@@ -50,7 +50,7 @@ def register():
         field = "email" if exc.code in ("EMAIL_IN_USE", "INVALID_EMAIL") else None
         return _error(exc.code, exc.message, field=field, status=status)
 
-    return jsonify({"user_id": result.user_id, "token": result.token}), 201
+    return jsonify({"user_id": result.user_id, "token": result.token, "role": result.role, "is_approved": result.is_approved}), 201
 
 
 @auth_bp.post("/auth/login")
@@ -62,7 +62,7 @@ def login():
         password (str, required)
 
     Responses:
-        200  { user_id, token }
+        200  { user_id, token, role, is_approved }
         401  invalid credentials (generic — does not reveal which field is wrong)
     """
     data = request.get_json(silent=True) or {}
@@ -74,4 +74,4 @@ def login():
     except AuthError as exc:
         return _error(exc.code, exc.message, status=401)
 
-    return jsonify({"user_id": result.user_id, "token": result.token}), 200
+    return jsonify({"user_id": result.user_id, "token": result.token, "role": result.role, "is_approved": result.is_approved}), 200

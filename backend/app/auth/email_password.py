@@ -51,11 +51,27 @@ class EmailPasswordAuthService(IAuthService):
 
         password_hash = bcrypt.generate_password_hash(password).decode("utf-8")
         user = User(email=email, password_hash=password_hash)
+
+        # First user in the database becomes admin and is auto-approved.
+        # Subsequent users are members and must be approved by the admin.
+        existing_user_count = User.query.count()
+        if existing_user_count == 0:
+            user.role = "admin"
+            user.is_approved = True
+        else:
+            user.role = "member"
+            user.is_approved = False
+
         db.session.add(user)
         db.session.commit()
 
         token = self._issue_token(str(user.id))
-        return AuthResult(user_id=str(user.id), token=token)
+        return AuthResult(
+            user_id=str(user.id),
+            token=token,
+            role=user.role,
+            is_approved=user.is_approved,
+        )
 
     def login(self, email: str, password: str) -> AuthResult:
         """Authenticate an existing user.
@@ -75,7 +91,12 @@ class EmailPasswordAuthService(IAuthService):
             raise AuthError(_INVALID_CREDENTIALS_MSG, code="INVALID_CREDENTIALS")
 
         token = self._issue_token(str(user.id))
-        return AuthResult(user_id=str(user.id), token=token)
+        return AuthResult(
+            user_id=str(user.id),
+            token=token,
+            role=user.role,
+            is_approved=user.is_approved,
+        )
 
     def validate_token(self, token: str) -> str:
         """Decode and validate a JWT, returning the user_id.
