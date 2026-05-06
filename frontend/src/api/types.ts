@@ -163,3 +163,12 @@ export interface ApiError {
     field?: string;
   };
 }
+
+export interface TenantUser {
+  id: string;
+  email: string;
+  name: string | null;
+  role: "admin" | "member";
+  is_approved: boolean;
+  created_at: string;
+}

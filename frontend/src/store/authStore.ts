@@ -14,10 +14,12 @@ import { createJSONStorage, persist } from "zustand/middleware";
 export interface AuthStore {
   token: string | null;
   userId: string | null;
+  role: string | null;
+  isApproved: boolean | null;
   // True once the store has finished rehydrating from storage.
   // Use this to gate rendering until the token state is known.
   _hydrated: boolean;
-  setAuth: (token: string, userId: string) => void;
+  setAuth: (token: string, userId: string, role?: string, isApproved?: boolean) => void;
   clearAuth: () => void;
   setHydrated: () => void;
 }
@@ -34,16 +36,24 @@ export const useAuthStore = create<AuthStore>()(
     (set) => ({
       token: null,
       userId: null,
+      role: null,
+      isApproved: null,
       _hydrated: false,
-      setAuth: (token, userId) => set({ token, userId }),
-      clearAuth: () => set({ token: null, userId: null }),
+      setAuth: (token, userId, role?, isApproved?) =>
+        set({ token, userId, role: role ?? null, isApproved: isApproved ?? null }),
+      clearAuth: () => set({ token: null, userId: null, role: null, isApproved: null }),
       setHydrated: () => set({ _hydrated: true }),
     }),
     {
       name: "sitekeeper-auth",
       storage: createJSONStorage(() => storage),
       // Only persist the auth fields, not internal state
-      partialize: (state) => ({ token: state.token, userId: state.userId }),
+      partialize: (state) => ({
+        token: state.token,
+        userId: state.userId,
+        role: state.role,
+        isApproved: state.isApproved,
+      }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated();
       },

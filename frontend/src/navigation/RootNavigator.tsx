@@ -32,6 +32,7 @@ import SavedItemsScreen from "../screens/app/SavedItemsScreen";
 import SavedItemEditorScreen from "../screens/app/SavedItemEditorScreen";
 import ProfileSettingsScreen from "../screens/app/ProfileSettingsScreen";
 import MaterialsLibraryScreen from "../screens/app/MaterialsLibraryScreen";
+import AdminUsersScreen from "../screens/app/AdminUsersScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -57,6 +58,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       SavedItems: "saved-items",
       SavedItemEditor: "saved-items/:itemId?",
       MaterialsLibrary: "materials",
+      AdminUsers: "admin/users",
     },
   },
 };
@@ -136,6 +138,11 @@ export default function RootNavigator() {
               name="MaterialsLibrary"
               component={MaterialsLibraryScreen}
               options={{ headerShown: true, title: "Materials Library" }}
+            />
+            <Stack.Screen
+              name="AdminUsers"
+              component={AdminUsersScreen}
+              options={{ headerShown: false }}
             />
           </>
         )}

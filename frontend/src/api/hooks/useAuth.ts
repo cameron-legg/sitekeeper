@@ -19,6 +19,8 @@ interface AuthPayload {
 interface AuthResponse {
   user_id: string;
   token: string;
+  role: string;
+  is_approved: boolean;
 }
 
 export function useRegister() {
@@ -30,8 +32,7 @@ export function useRegister() {
         .post<AuthResponse>("/api/v1/auth/register", payload)
         .then((r) => r.data),
     onSuccess: (data) => {
-      // Setting the token causes RootNavigator to re-render and mount AppStack.
-      setAuth(data.token, data.user_id);
+      setAuth(data.token, data.user_id, data.role, data.is_approved);
     },
   });
 }
@@ -45,7 +46,7 @@ export function useLogin() {
         .post<AuthResponse>("/api/v1/auth/login", payload)
         .then((r) => r.data),
     onSuccess: (data) => {
-      setAuth(data.token, data.user_id);
+      setAuth(data.token, data.user_id, data.role, data.is_approved);
     },
   });
 }

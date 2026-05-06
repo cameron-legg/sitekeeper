@@ -32,6 +32,7 @@ export type RootStackParamList = {
   SavedItems: { pickerMode?: boolean; onSelect?: (item: SavedItemPickerResult) => void };
   SavedItemEditor: { itemId?: string };
   MaterialsLibrary: undefined;
+  AdminUsers: undefined;
 };
 
 export type SavedItemPickerResult = {

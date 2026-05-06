@@ -24,6 +24,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
 export default function HomeScreen({ navigation }: Props) {
   const clearAuth = useAuthStore((s) => s.clearAuth);
+  const role = useAuthStore((s) => s.role);
   const { data: sites, isLoading, isError } = useJobSites();
   const createSite = useCreateJobSite();
   const deleteSite = useDeleteJobSite();
@@ -275,6 +276,17 @@ export default function HomeScreen({ navigation }: Props) {
             >
               <Text style={styles.menuItemText}>🧱  Materials</Text>
             </TouchableOpacity>
+            {role === "admin" && (
+              <>
+                <View style={styles.menuDivider} />
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => { setShowMenu(false); navigation.navigate("AdminUsers"); }}
+                >
+                  <Text style={styles.menuItemText}>👥  Manage Users</Text>
+                </TouchableOpacity>
+              </>
+            )}
             <View style={styles.menuDivider} />
             <TouchableOpacity
               style={styles.menuItem}
