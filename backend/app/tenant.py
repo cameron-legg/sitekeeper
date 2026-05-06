@@ -5,7 +5,8 @@ Each tenant is identified by their subdomain (e.g. 'nocoresources' from
 dedicated database and MinIO bucket.
 
 On each request, middleware extracts the tenant from the Host header and
-binds SQLAlchemy to the correct database for that request.
+swaps the SQLAlchemy engine so all queries (db.session and Model.query)
+hit the correct tenant database.
 """
 
 import json
@@ -15,7 +16,6 @@ from pathlib import Path
 
 from flask import g, request
 from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +131,15 @@ def init_tenant_middleware(app):
     This sets up per-request tenant context:
     - g.tenant_slug: the resolved tenant identifier
     - g.tenant_config: the tenant's configuration dict
-    - Binds the SQLAlchemy session to the tenant's database engine
+
+    The key mechanism: we swap Flask-SQLAlchemy's default engine
+    (db.engines[None]) before each request so that all queries —
+    both db.session.execute() and Model.query — route to the
+    correct tenant database.
+
+    This is safe with gunicorn sync workers (one request per worker
+    at a time). For async/threaded workers, a more sophisticated
+    approach would be needed.
     """
     from .extensions import db
 
@@ -141,16 +149,17 @@ def init_tenant_middleware(app):
         config = get_tenant_config(slug)
 
         if config is None and slug != DEFAULT_TENANT:
-            # Unknown tenant — could return 404, but for now fall through
-            # to default so the health endpoint still works
             logger.warning("Unknown tenant slug: '%s'", slug)
 
         g.tenant_slug = slug
         g.tenant_config = config or {}
 
-        # Bind SQLAlchemy session to the tenant's engine
+        # Swap the default engine to the tenant's engine.
+        # db.session.remove() clears any cached connections from the
+        # previous request, then we point the engine dict at the new DB.
         engine = get_engine_for_tenant(slug)
-        db.session.bind = engine
+        db.session.remove()
+        db.engines[None] = engine
 
     @app.teardown_appcontext
     def remove_session(exception=None):
