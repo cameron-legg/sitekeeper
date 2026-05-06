@@ -65,13 +65,21 @@ deploy_backend() {
             -r $APP_DIR/backend/requirements.txt gunicorn 2>&1 | tail -3
     "
 
-    info "  Running database migrations..."
+    info "  Running database migrations (all tenants)..."
     ssh "$SSH_HOST" "
         sudo -u sitekeeper bash -c '
             cd $APP_DIR/backend &&
             set -a && source .env && set +a &&
-            DATABASE_URL=postgresql://sitekeeper:sitekeeper@localhost:5435/sitekeeper \
-            $APP_DIR/backend/venv/bin/alembic upgrade head 2>&1
+            for db_url in \$(python3 -c \"
+import json
+with open(\\\"tenants.json\\\") as f:
+    tenants = json.load(f)
+for t in tenants.values():
+    print(t[\\\"database_url\\\"])
+\"); do
+                echo \"  Migrating: \$db_url\"
+                DATABASE_URL=\"\$db_url\" $APP_DIR/backend/venv/bin/alembic upgrade head 2>&1
+            done
         '
     "
 
