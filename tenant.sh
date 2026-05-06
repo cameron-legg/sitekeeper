@@ -130,8 +130,8 @@ print(\\\"yes\\\" if \\\"$SLUG\\\" in tenants else \\\"no\\\")
     info "Creating MinIO bucket '$bucket'..."
     ssh "$SSH_HOST" "sudo -u sitekeeper bash -c '
         cd $APP_DIR/backend &&
-        source .env &&
-        $APP_DIR/backend/venv/bin/python -c \"
+        set -a && source .env && set +a &&
+        timeout 15 $APP_DIR/backend/venv/bin/python -c \"
 from minio import Minio
 import os
 client = Minio(
@@ -147,7 +147,7 @@ if not client.bucket_exists(bucket):
 else:
     print(f\\\"Bucket already exists: {bucket}\\\")
 \"
-    '"
+    '" || warn "MinIO bucket creation failed — you can create it manually later."
 
     # 5. Update tenants.json
     info "Registering tenant in tenants.json..."
@@ -291,7 +291,7 @@ print(\\\"Tenant removed from registry.\\\")
     ssh "$SSH_HOST" "sudo -u sitekeeper bash -c '
         cd $APP_DIR/backend &&
         set -a && source .env && set +a &&
-        $APP_DIR/backend/venv/bin/python -c \"
+        timeout 15 $APP_DIR/backend/venv/bin/python -c \"
 from minio import Minio
 from minio.deleteobjects import DeleteObject
 import os
