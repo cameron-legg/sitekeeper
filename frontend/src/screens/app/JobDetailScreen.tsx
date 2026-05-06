@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
@@ -53,13 +54,39 @@ export default function JobDetailScreen({ route, navigation }: Props) {
   const { jobId, jobName } = route.params;
   const [activeTab, setActiveTab] = useState<TabKey>("notes");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
 
   const { data: job, isLoading, isError } = useJob(jobId);
   const updateJob = useUpdateJob();
 
+  const displayName = job?.name ?? jobName;
+
   React.useLayoutEffect(() => {
-    navigation.setOptions({ title: jobName });
-  }, [navigation, jobName]);
+    navigation.setOptions({ title: displayName });
+  }, [navigation, displayName]);
+
+  function openRenameModal() {
+    setRenameValue(job?.name ?? jobName);
+    setRenameError(null);
+    setShowRenameModal(true);
+  }
+
+  function handleRename() {
+    const trimmed = renameValue.trim();
+    if (!trimmed) {
+      setRenameError("Name cannot be empty.");
+      return;
+    }
+    updateJob.mutate(
+      { jobId, name: trimmed },
+      {
+        onSuccess: () => setShowRenameModal(false),
+        onError: () => setRenameError("Failed to rename job. Please try again."),
+      }
+    );
+  }
 
   function handleStatusChange(status: Job["status"]) {
     updateJob.mutate({ jobId, status });
@@ -104,7 +131,10 @@ export default function JobDetailScreen({ route, navigation }: Props) {
     <View style={styles.flex}>
       {/* Job header section */}
       <View style={styles.jobHeader}>
-        <Text style={styles.jobName}>{job.name}</Text>
+        <TouchableOpacity style={styles.jobNameRow} onPress={openRenameModal} accessibilityRole="button" accessibilityLabel="Rename job">
+          <Text style={styles.jobName}>{job.name}</Text>
+          <Text style={styles.editIcon}>✎</Text>
+        </TouchableOpacity>
 
         {/* Status picker */}
         <Text style={styles.sectionLabel}>Status</Text>
@@ -218,6 +248,39 @@ export default function JobDetailScreen({ route, navigation }: Props) {
           </View>
         </View>
       </Modal>
+
+      {/* Rename job modal */}
+      <Modal visible={showRenameModal} transparent animationType="fade" onRequestClose={() => setShowRenameModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Rename Job</Text>
+            <TextInput
+              style={styles.renameInput}
+              value={renameValue}
+              onChangeText={(t) => { setRenameValue(t); setRenameError(null); }}
+              placeholder="Job name"
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleRename}
+            />
+            {renameError && <Text style={styles.renameError}>{renameError}</Text>}
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowRenameModal(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.clearBtn, updateJob.isPending && styles.btnDisabled]}
+                onPress={handleRename}
+                disabled={updateJob.isPending}
+              >
+                {updateJob.isPending
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.clearBtnText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -237,6 +300,17 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1a1a1a",
     marginBottom: 14,
+    flex: 1,
+  },
+  jobNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 14,
+    gap: 8,
+  },
+  editIcon: {
+    fontSize: 18,
+    color: "#9ca3af",
   },
   sectionLabel: {
     fontSize: 11,
@@ -328,4 +402,19 @@ const styles = StyleSheet.create({
   clearBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: "#2563eb", minWidth: 72, alignItems: "center" },
   clearBtnText: { color: "#fff", fontSize: 14, fontWeight: "600" },
   btnDisabled: { opacity: 0.6 },
+  renameInput: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: "#1a1a1a",
+    marginBottom: 12,
+  },
+  renameError: {
+    color: "#dc2626",
+    fontSize: 13,
+    marginBottom: 12,
+  },
 });
