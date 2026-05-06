@@ -33,6 +33,7 @@ export default function HomeScreen({ navigation }: Props) {
   const [createError, setCreateError] = useState<string | null>(null);
   const [confirmDeleteSite, setConfirmDeleteSite] = useState<JobSite | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   // Sort sites: those with active jobs first, then by creation date (newest first)
   const sortedSites = useMemo(() => {
@@ -119,23 +120,13 @@ export default function HomeScreen({ navigation }: Props) {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>SiteKeeper</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.profileBtn}
-            onPress={() => navigation.navigate("ProfileSettings")}
-          >
-            <Text style={styles.profileBtnText}>⚙️ Profile</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.libraryBtn}
-            onPress={() => navigation.navigate("SavedItems", {})}
-          >
-            <Text style={styles.libraryBtnText}>📚 Library</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-            <Text style={styles.logoutText}>Log out</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.menuBtn}
+          onPress={() => setShowMenu(true)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text style={styles.menuIcon}>☰</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
@@ -260,6 +251,41 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
       </Modal>
 
+      {/* Hamburger menu */}
+      <Modal visible={showMenu} transparent animationType="fade" onRequestClose={() => setShowMenu(false)}>
+        <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={() => setShowMenu(false)}>
+          <View style={styles.menuCard}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { setShowMenu(false); navigation.navigate("ProfileSettings"); }}
+            >
+              <Text style={styles.menuItemText}>⚙️  Profile</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { setShowMenu(false); navigation.navigate("SavedItems", {}); }}
+            >
+              <Text style={styles.menuItemText}>📚  Item Library</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { setShowMenu(false); navigation.navigate("MaterialsLibrary"); }}
+            >
+              <Text style={styles.menuItemText}>🧱  Materials</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { setShowMenu(false); handleLogout(); }}
+            >
+              <Text style={[styles.menuItemText, styles.menuItemDanger]}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Logout confirmation */}
       <Modal visible={showLogoutConfirm} transparent animationType="fade" onRequestClose={() => setShowLogoutConfirm(false)}>
         <View style={styles.modalOverlay}>
@@ -301,47 +327,48 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1a1a1a",
   },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  libraryBtn: {
-    paddingHorizontal: 12,
+  menuBtn: {
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: "#f0fdf4",
-    borderWidth: 1,
-    borderColor: "#bbf7d0",
   },
-  libraryBtnText: {
-    fontSize: 13,
-    color: "#15803d",
-    fontWeight: "600",
-  },
-  profileBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: "#eff6ff",
-    borderWidth: 1,
-    borderColor: "#bfdbfe",
-  },
-  profileBtnText: {
-    fontSize: 13,
-    color: "#2563eb",
-    fontWeight: "600",
-  },
-  logoutBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-  },
-  logoutText: {
-    fontSize: 14,
+  menuIcon: {
+    fontSize: 22,
     color: "#374151",
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    paddingTop: 70,
+    paddingRight: 16,
+  },
+  menuCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingVertical: 6,
+    minWidth: 180,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  menuItem: {
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  menuItemText: {
+    fontSize: 15,
+    color: "#1a1a1a",
+  },
+  menuItemDanger: {
+    color: "#dc2626",
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: "#f3f4f6",
+    marginHorizontal: 12,
   },
   centered: {
     flex: 1,

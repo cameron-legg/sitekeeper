@@ -31,6 +31,7 @@ import ContactEditorScreen from "../screens/app/ContactEditorScreen";
 import SavedItemsScreen from "../screens/app/SavedItemsScreen";
 import SavedItemEditorScreen from "../screens/app/SavedItemEditorScreen";
 import ProfileSettingsScreen from "../screens/app/ProfileSettingsScreen";
+import MaterialsLibraryScreen from "../screens/app/MaterialsLibraryScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -55,6 +56,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       ContactEditor: "contacts/:contactId?",
       SavedItems: "saved-items",
       SavedItemEditor: "saved-items/:itemId?",
+      MaterialsLibrary: "materials",
     },
   },
 };
@@ -129,6 +131,11 @@ export default function RootNavigator() {
               name="SavedItemEditor"
               component={SavedItemEditorScreen}
               options={{ headerShown: true, title: "Saved Item" }}
+            />
+            <Stack.Screen
+              name="MaterialsLibrary"
+              component={MaterialsLibraryScreen}
+              options={{ headerShown: true, title: "Materials Library" }}
             />
           </>
         )}

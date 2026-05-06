@@ -70,6 +70,10 @@ class SavedItemService:
     # SavedItemEntry CRUD
     # ------------------------------------------------------------------
 
+    def list_all_entries_for_user(self, user_id: str) -> list:
+        """Return all saved item entries for the user as a flat list."""
+        return self._saved_item_repo.get_all_entries_for_user(user_id)
+
     def add_entry(self, item_id: str, user_id: str, entry_type: str, name: str,
                   notes: str | None = None, url: str | None = None,
                   unit_price: Decimal | None = None, quantity: Decimal | None = None,
@@ -169,3 +173,77 @@ class SavedItemService:
             repo.add_entry(entry)
 
         return line_item
+
+    # ------------------------------------------------------------------
+    # Save a single LineItemEntry to the library as a new SavedItem
+    # ------------------------------------------------------------------
+
+    def save_entry_to_library(self, user_id: str, entry_type: str, name: str,
+                              notes: str | None = None, url: str | None = None,
+                              unit_price: Decimal | None = None,
+                              quantity: Decimal | None = None,
+                              hours: Decimal | None = None) -> SavedItem:
+        """Create a new SavedItem with a single entry from the provided data."""
+        saved = SavedItem(user_id=user_id, name=name, notes=None, hourly_rate=None)
+        saved = self._saved_item_repo.create(saved)
+        entry = SavedItemEntry(
+            saved_item_id=str(saved.id),
+            entry_type=entry_type,
+            name=name,
+            notes=notes,
+            url=url,
+            unit_price=unit_price,
+            quantity=quantity,
+            hours=hours,
+            sort_order=0,
+        )
+        self._saved_item_repo.add_entry(entry)
+        # Refresh to include the entry in the relationship
+        from ..extensions import db
+        db.session.refresh(saved)
+        return saved
+
+    # ------------------------------------------------------------------
+    # Copy a SavedItemEntry into an existing LineItem
+    # ------------------------------------------------------------------
+
+    def populate_entry(self, saved_entry_id: str, user_id: str,
+                       line_item_id: str, parent_id: str,
+                       parent_type: str) -> LineItemEntry:
+        """Copy a single SavedItemEntry into an existing LineItem as a new LineItemEntry."""
+        if parent_type not in ("estimate", "invoice"):
+            raise ValidationError("parent_type must be 'estimate' or 'invoice'.")
+
+        # Verify the saved entry exists and belongs to the user
+        saved_entry = self._saved_item_repo.get_entry_by_id(saved_entry_id)
+        if saved_entry is None:
+            raise NotFoundError(f"Saved entry {saved_entry_id} not found.")
+        # Verify ownership via the parent saved item
+        saved_item = self._saved_item_repo.get_by_id(str(saved_entry.saved_item_id), user_id)
+        if saved_item is None:
+            raise NotFoundError(f"Saved entry {saved_entry_id} not found.")
+
+        # Verify the target line item exists and belongs to the user
+        if parent_type == "estimate":
+            parent = self._estimate_repo.get_by_id(parent_id)
+            if parent is None:
+                raise NotFoundError(f"Estimate {parent_id} not found.")
+            repo = self._estimate_repo
+        else:
+            parent = self._invoice_repo.get_by_id(parent_id)
+            if parent is None:
+                raise NotFoundError(f"Invoice {parent_id} not found.")
+            repo = self._invoice_repo
+
+        new_entry = LineItemEntry(
+            line_item_id=line_item_id,
+            entry_type=saved_entry.entry_type,
+            name=saved_entry.name,
+            notes=saved_entry.notes,
+            url=saved_entry.url,
+            unit_price=saved_entry.unit_price,
+            quantity=saved_entry.quantity,
+            hours=saved_entry.hours,
+            sort_order=0,
+        )
+        return repo.add_entry(new_entry)

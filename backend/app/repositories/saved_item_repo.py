@@ -35,6 +35,9 @@ class ISavedItemRepository(ABC):
     @abstractmethod
     def get_entry_by_id(self, entry_id: str) -> SavedItemEntry | None: ...
 
+    @abstractmethod
+    def get_all_entries_for_user(self, user_id: str) -> list[SavedItemEntry]: ...
+
 
 class SQLAlchemySavedItemRepository(ISavedItemRepository):
 
@@ -84,3 +87,12 @@ class SQLAlchemySavedItemRepository(ISavedItemRepository):
 
     def get_entry_by_id(self, entry_id: str) -> SavedItemEntry | None:
         return SavedItemEntry.query.filter_by(id=entry_id).first()
+
+    def get_all_entries_for_user(self, user_id: str) -> list[SavedItemEntry]:
+        return (
+            SavedItemEntry.query
+            .join(SavedItem, SavedItemEntry.saved_item_id == SavedItem.id)
+            .filter(SavedItem.user_id == user_id)
+            .order_by(SavedItemEntry.name.asc())
+            .all()
+        )

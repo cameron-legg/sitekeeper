@@ -18,6 +18,13 @@ export function useSavedItems() {
   });
 }
 
+export function useAllSavedEntries() {
+  return useQuery({
+    queryKey: ["saved-entries"] as const,
+    queryFn: () => apiClient.get<SavedItemEntry[]>("/api/v1/saved-items/entries").then((r) => r.data),
+  });
+}
+
 export function useSavedItem(itemId: string) {
   return useQuery({
     queryKey: KEYS.detail(itemId),
@@ -67,6 +74,7 @@ export function useAddSavedItemEntry() {
     onSuccess: (_, { itemId }) => {
       qc.invalidateQueries({ queryKey: KEYS.all });
       qc.invalidateQueries({ queryKey: KEYS.detail(itemId) });
+      qc.invalidateQueries({ queryKey: ["saved-entries"] });
     },
   });
 }
@@ -82,6 +90,7 @@ export function useUpdateSavedItemEntry() {
     onSuccess: (_, { itemId }) => {
       qc.invalidateQueries({ queryKey: KEYS.all });
       qc.invalidateQueries({ queryKey: KEYS.detail(itemId) });
+      qc.invalidateQueries({ queryKey: ["saved-entries"] });
     },
   });
 }
@@ -94,6 +103,7 @@ export function useDeleteSavedItemEntry() {
     onSuccess: (_, { itemId }) => {
       qc.invalidateQueries({ queryKey: KEYS.all });
       qc.invalidateQueries({ queryKey: KEYS.detail(itemId) });
+      qc.invalidateQueries({ queryKey: ["saved-entries"] });
     },
   });
 }
@@ -109,6 +119,54 @@ export function usePopulateSavedItem() {
     }) =>
       apiClient
         .post(`/api/v1/saved-items/${itemId}/populate`, { parent_id: parentId, parent_type: parentType })
+        .then((r) => r.data),
+    onSuccess: (_, { parentId, parentType }) => {
+      if (parentType === "estimate") {
+        qc.invalidateQueries({ queryKey: ["estimates", parentId, "line-items"] });
+      } else {
+        qc.invalidateQueries({ queryKey: ["invoices", parentId, "line-items"] });
+      }
+    },
+  });
+}
+
+/** Save a single entry (material or hours) to the library as a new SavedItem. */
+export function useSaveEntryToLibrary() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      entry_type: "material" | "hours";
+      name: string;
+      notes?: string;
+      url?: string;
+      unit_price?: string;
+      quantity?: string;
+      hours?: string;
+    }) =>
+      apiClient.post<SavedItem>("/api/v1/saved-items/save-entry", data).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+      qc.invalidateQueries({ queryKey: ["saved-entries"] });
+    },
+  });
+}
+
+/** Copy a single saved item entry into an existing line item. */
+export function usePopulateSavedEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ entryId, lineItemId, parentId, parentType }: {
+      entryId: string;
+      lineItemId: string;
+      parentId: string;
+      parentType: "estimate" | "invoice";
+    }) =>
+      apiClient
+        .post(`/api/v1/saved-items/entries/${entryId}/populate`, {
+          line_item_id: lineItemId,
+          parent_id: parentId,
+          parent_type: parentType,
+        })
         .then((r) => r.data),
     onSuccess: (_, { parentId, parentType }) => {
       if (parentType === "estimate") {

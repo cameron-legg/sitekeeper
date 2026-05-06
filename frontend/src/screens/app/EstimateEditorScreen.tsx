@@ -11,9 +11,9 @@ import {
   useDeleteEstimateLineItem, useAddEstimateEntry, useUpdateEstimateEntry,
   useDeleteEstimateEntry, useSaveEstimateLineItemToLibrary,
 } from "../../api/hooks/useEstimates";
-import { useSavedItems, usePopulateSavedItem } from "../../api/hooks/useSavedItems";
+import { useSavedItems, usePopulateSavedItem, useSaveEntryToLibrary, usePopulateSavedEntry } from "../../api/hooks/useSavedItems";
 import LineItemEditor from "../../components/LineItemEditor";
-import type { SavedItem } from "../../api/types";
+import type { LineItemEntry, SavedItem, SavedItemEntry } from "../../api/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "EstimateEditor">;
 
@@ -40,6 +40,8 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
 
   const saveToLibrary = useSaveEstimateLineItemToLibrary();
   const populateSaved = usePopulateSavedItem();
+  const saveEntryToLib = useSaveEntryToLibrary();
+  const populateSavedEntry = usePopulateSavedEntry();
   const { data: savedItems } = useSavedItems();
 
   const [showAddItem, setShowAddItem] = useState(false);
@@ -153,6 +155,22 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
                 onUpdateEntry={(entryId, values) => updateEntry.mutate({ estimateId, itemId: item.id, entryId, ...values })}
                 onDeleteEntry={(entryId) => deleteEntry.mutate({ estimateId, itemId: item.id, entryId })}
                 onSaveToLibrary={() => saveToLibrary.mutate({ estimateId, itemId: item.id })}
+                onSaveEntryToLibrary={(entry: LineItemEntry) => saveEntryToLib.mutate({
+                  entry_type: entry.entry_type,
+                  name: entry.name,
+                  notes: entry.notes ?? undefined,
+                  url: entry.url ?? undefined,
+                  unit_price: entry.unit_price ?? undefined,
+                  quantity: entry.quantity ?? undefined,
+                  hours: entry.hours ?? undefined,
+                })}
+                savedItems={savedItems}
+                onPickSavedEntry={(savedEntry: SavedItemEntry) => populateSavedEntry.mutate({
+                  entryId: savedEntry.id,
+                  lineItemId: item.id,
+                  parentId: estimateId,
+                  parentType: "estimate",
+                })}
                 isSavingEntry={addEntry.isPending || updateEntry.isPending}
               />
             ))}

@@ -16,12 +16,13 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
+  FlatList,
   StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import type { LineItem, LineItemEntry } from "../api/types";
+import type { LineItem, LineItemEntry, SavedItem, SavedItemEntry } from "../api/types";
 
 // ── Entry form modal ──────────────────────────────────────────────────────────
 
@@ -213,6 +214,10 @@ interface LineItemEditorProps {
   onUpdateEntry: (entryId: string, values: Partial<EntryFormValues>) => void;
   onDeleteEntry: (entryId: string) => void;
   onSaveToLibrary?: () => void;
+  onSaveEntryToLibrary?: (entry: LineItemEntry) => void;
+  onAddEntryFromLibrary?: () => void;
+  savedItems?: SavedItem[];
+  onPickSavedEntry?: (entry: SavedItemEntry) => void;
   isSavingEntry?: boolean;
 }
 
@@ -224,6 +229,10 @@ export default function LineItemEditor({
   onUpdateEntry,
   onDeleteEntry,
   onSaveToLibrary,
+  onSaveEntryToLibrary,
+  onAddEntryFromLibrary,
+  savedItems,
+  onPickSavedEntry,
   isSavingEntry,
 }: LineItemEditorProps) {
   const [expanded, setExpanded] = useState(true);
@@ -232,11 +241,13 @@ export default function LineItemEditor({
   const [hourlyRateVal, setHourlyRateVal] = useState(item.hourly_rate ?? "");
   const [entryModalVisible, setEntryModalVisible] = useState(false);
   const [editingEntry, setEditingEntry] = useState<LineItemEntry | null>(null);
+  const [showLibraryPicker, setShowLibraryPicker] = useState(false);
 
   // Confirm modals
   const [confirmDeleteEntry, setConfirmDeleteEntry] = useState<LineItemEntry | null>(null);
   const [confirmDeleteItem, setConfirmDeleteItem] = useState(false);
   const [confirmSaveToLibrary, setConfirmSaveToLibrary] = useState(false);
+  const [confirmSaveEntry, setConfirmSaveEntry] = useState<LineItemEntry | null>(null);
 
   function handleSaveName() {
     if (nameVal.trim()) {
@@ -378,6 +389,11 @@ export default function LineItemEditor({
                 </View>
               </View>
               <Text style={styles.entryTotal}>{entryTotal(entry)}</Text>
+              {onSaveEntryToLibrary && (
+                <TouchableOpacity style={styles.entrySaveBtn} onPress={() => setConfirmSaveEntry(entry)}>
+                  <Text style={styles.entrySaveText}>📚</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity style={styles.entryEditBtn} onPress={() => openEditEntry(entry)}>
                 <Text style={styles.entryEditText}>Edit</Text>
               </TouchableOpacity>
@@ -387,9 +403,16 @@ export default function LineItemEditor({
             </View>
           ))}
 
-          <TouchableOpacity style={styles.addEntryBtn} onPress={openAddEntry}>
-            <Text style={styles.addEntryText}>+ Add Material or Hours</Text>
-          </TouchableOpacity>
+          <View style={styles.addEntryRow}>
+            <TouchableOpacity style={styles.addEntryBtn} onPress={openAddEntry}>
+              <Text style={styles.addEntryText}>+ Add Material or Hours</Text>
+            </TouchableOpacity>
+            {onPickSavedEntry && savedItems && savedItems.length > 0 && (
+              <TouchableOpacity style={styles.addFromLibBtn} onPress={() => setShowLibraryPicker(true)}>
+                <Text style={styles.addFromLibText}>📚 From Library</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       )}
 
@@ -463,6 +486,72 @@ export default function LineItemEditor({
           </View>
         </View>
       </Modal>
+
+      {/* Save entry to library confirmation */}
+      <Modal visible={!!confirmSaveEntry} transparent animationType="fade" onRequestClose={() => setConfirmSaveEntry(null)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Save Entry to Library</Text>
+            <Text style={styles.confirmBody}>Save "{confirmSaveEntry?.name}" to your library for reuse in other line items?</Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setConfirmSaveEntry(null)}>
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmOkBtn}
+                onPress={() => { if (confirmSaveEntry) { onSaveEntryToLibrary?.(confirmSaveEntry); } setConfirmSaveEntry(null); }}
+              >
+                <Text style={styles.confirmOkText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Library entry picker */}
+      <Modal visible={showLibraryPicker} transparent animationType="fade" onRequestClose={() => setShowLibraryPicker(false)}>
+        <View style={styles.confirmOverlay}>
+          <View style={[styles.confirmCard, styles.pickerCard]}>
+            <Text style={styles.confirmTitle}>Add Entry from Library</Text>
+            <ScrollView style={styles.pickerScroll}>
+              {(savedItems ?? []).map((savedItem) =>
+                savedItem.entries.map((entry) => (
+                  <TouchableOpacity
+                    key={entry.id}
+                    style={styles.pickerRow}
+                    onPress={() => { onPickSavedEntry?.(entry); setShowLibraryPicker(false); }}
+                  >
+                    <View style={styles.pickerEntryInfo}>
+                      <View style={styles.entryTypeTag}>
+                        <Text style={styles.entryTypeText}>
+                          {entry.entry_type === "material" ? "MAT" : "HRS"}
+                        </Text>
+                      </View>
+                      <View style={styles.pickerEntryDetails}>
+                        <Text style={styles.entryName}>{entry.name}</Text>
+                        {entry.entry_type === "material" ? (
+                          <Text style={styles.entrySub}>
+                            {entry.quantity ?? "1"} × ${entry.unit_price ?? "0"}
+                          </Text>
+                        ) : (
+                          <Text style={styles.entrySub}>{entry.hours}h</Text>
+                        )}
+                      </View>
+                    </View>
+                    <Text style={styles.pickerAddText}>Add →</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+              {(savedItems ?? []).every((si) => si.entries.length === 0) && (
+                <Text style={styles.pickerEmptyText}>No saved entries in your library yet.</Text>
+              )}
+            </ScrollView>
+            <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setShowLibraryPicker(false)}>
+              <Text style={styles.confirmCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -532,7 +621,7 @@ const styles = StyleSheet.create({
   entryDeleteBtn: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 5, backgroundColor: "#fef2f2" },
   entryDeleteText: { fontSize: 11, color: "#dc2626" },
   addEntryBtn: {
-    marginTop: 8,
+    flex: 1,
     borderWidth: 1,
     borderColor: "#d1d5db",
     borderStyle: "dashed",
@@ -541,6 +630,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   addEntryText: { fontSize: 13, color: "#6b7280", fontWeight: "500" },
+  addEntryRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+  },
+  addFromLibBtn: {
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    backgroundColor: "#f0fdf4",
+  },
+  addFromLibText: { fontSize: 13, color: "#15803d", fontWeight: "600" },
+  entrySaveBtn: { paddingHorizontal: 5, paddingVertical: 4, borderRadius: 5, backgroundColor: "#f0fdf4" },
+  entrySaveText: { fontSize: 11 },
+  pickerCard: { maxHeight: "70%" },
+  pickerScroll: { maxHeight: 300, marginBottom: 12 },
+  pickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
+  },
+  pickerEntryInfo: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
+  pickerEntryDetails: { flex: 1 },
+  pickerAddText: { fontSize: 14, color: "#2563eb", fontWeight: "600" },
+  pickerEmptyText: { fontSize: 14, color: "#9ca3af", textAlign: "center", paddingVertical: 16 },
   // Entry modal styles
   overlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
   fullScreenOverlay: { flex: 1, backgroundColor: "#fff" },

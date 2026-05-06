@@ -63,6 +63,18 @@ def list_saved_items():
         return server_error()
 
 
+@saved_items_bp.get("/saved-items/entries")
+@auth_required
+def list_all_entries():
+    """Return all saved item entries for the user as a flat list."""
+    user_id = g.current_user_id
+    try:
+        entries = _service.list_all_entries_for_user(user_id)
+        return jsonify([_serialize_entry(e) for e in entries]), 200
+    except Exception:
+        return server_error()
+
+
 @saved_items_bp.post("/saved-items")
 @auth_required
 def create_saved_item():
@@ -251,6 +263,109 @@ def populate_line_item(item_id: str):
             "total_cost": str(totals["total_cost"]),
             "total_hours": str(totals["total_hours"]),
             "entries": [],
+        }), 201
+    except (NotFoundError, ValidationError) as exc:
+        return not_found(str(exc))
+    except Exception:
+        return server_error()
+
+
+# ---------------------------------------------------------------------------
+# Save a single entry to the library
+# ---------------------------------------------------------------------------
+
+@saved_items_bp.post("/saved-items/save-entry")
+@auth_required
+def save_entry_to_library():
+    """Save a single entry (material or hours) to the library as a new SavedItem.
+
+    Request body:
+        entry_type  (str) — 'material' or 'hours'
+        name        (str) — entry name
+        notes       (str, optional)
+        url         (str, optional)
+        unit_price  (str, optional) — for material entries
+        quantity    (str, optional) — for material entries
+        hours       (str, optional) — for hours entries
+    """
+    user_id = g.current_user_id
+    data = request.get_json(silent=True) or {}
+
+    name = data.get("name", "").strip()
+    if not name:
+        return error_response("VALIDATION_ERROR", "Name is required.", field="name")
+    entry_type = data.get("entry_type", "")
+    if entry_type not in ("material", "hours"):
+        return error_response("VALIDATION_ERROR", "entry_type must be 'material' or 'hours'.", field="entry_type")
+
+    unit_price, err = _parse_decimal_optional(data.get("unit_price"), "unit_price")
+    if err:
+        return err
+    quantity, err = _parse_decimal_optional(data.get("quantity"), "quantity")
+    if err:
+        return err
+    hours, err = _parse_decimal_optional(data.get("hours"), "hours")
+    if err:
+        return err
+
+    try:
+        saved = _service.save_entry_to_library(
+            user_id=user_id, entry_type=entry_type, name=name,
+            notes=data.get("notes"), url=data.get("url"),
+            unit_price=unit_price, quantity=quantity, hours=hours,
+        )
+        return jsonify(_serialize_saved_item(saved)), 201
+    except Exception:
+        return server_error()
+
+
+# ---------------------------------------------------------------------------
+# Populate: copy a single saved entry into an existing line item
+# ---------------------------------------------------------------------------
+
+@saved_items_bp.post("/saved-items/entries/<entry_id>/populate")
+@auth_required
+def populate_entry(entry_id: str):
+    """Copy a single saved item entry into an existing LineItem.
+
+    Request body:
+        line_item_id (str) — target line item id
+        parent_id    (str) — estimate or invoice id
+        parent_type  (str) — 'estimate' or 'invoice'
+    """
+    user_id = g.current_user_id
+    data = request.get_json(silent=True) or {}
+
+    line_item_id = data.get("line_item_id", "").strip()
+    parent_id = data.get("parent_id", "").strip()
+    parent_type = data.get("parent_type", "").strip()
+
+    if not line_item_id:
+        return error_response("VALIDATION_ERROR", "line_item_id is required.", field="line_item_id")
+    if not parent_id:
+        return error_response("VALIDATION_ERROR", "parent_id is required.", field="parent_id")
+    if parent_type not in ("estimate", "invoice"):
+        return error_response("VALIDATION_ERROR", "parent_type must be 'estimate' or 'invoice'.", field="parent_type")
+
+    try:
+        entry = _service.populate_entry(
+            saved_entry_id=entry_id,
+            user_id=user_id,
+            line_item_id=line_item_id,
+            parent_id=parent_id,
+            parent_type=parent_type,
+        )
+        return jsonify({
+            "id": str(entry.id),
+            "line_item_id": str(entry.line_item_id),
+            "entry_type": entry.entry_type,
+            "name": entry.name,
+            "notes": entry.notes,
+            "url": entry.url,
+            "unit_price": str(entry.unit_price) if entry.unit_price is not None else None,
+            "quantity": str(entry.quantity) if entry.quantity is not None else None,
+            "hours": str(entry.hours) if entry.hours is not None else None,
+            "sort_order": entry.sort_order,
         }), 201
     except (NotFoundError, ValidationError) as exc:
         return not_found(str(exc))
