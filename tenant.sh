@@ -290,7 +290,7 @@ print(\\\"Tenant removed from registry.\\\")
     info "Removing MinIO bucket '$bucket'..."
     ssh "$SSH_HOST" "sudo -u sitekeeper bash -c '
         cd $APP_DIR/backend &&
-        source .env &&
+        set -a && source .env && set +a &&
         $APP_DIR/backend/venv/bin/python -c \"
 from minio import Minio
 from minio.deleteobjects import DeleteObject
