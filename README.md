@@ -1,8 +1,8 @@
 # SiteKeeper — Contractor Management App
 
-A mobile-first app for small contractors to manage job sites, jobs, contacts, estimates, and invoices.
+A multi-tenant, mobile-first app for small contractors to manage job sites, jobs, contacts, estimates, and invoices. Each client business gets their own isolated environment at `<client>.entouch.org`.
 
-**Stack:** Expo (React Native) · Python Flask · PostgreSQL 16 · Docker Compose
+**Stack:** Expo (React Native) · Python Flask · PostgreSQL 16 · MinIO · Docker Compose
 
 ---
 
@@ -18,31 +18,25 @@ A mobile-first app for small contractors to manage job sites, jobs, contacts, es
 
 ## Quick start
 
-### 1. Start the databases
+### 1. Start the databases and MinIO
 
 ```bash
 docker compose up -d
 ```
 
-Two PostgreSQL 16 containers start:
+Services started:
 
-| Service | Host port | Database | Purpose |
-|---------|-----------|----------|---------|
-| `db` | **5434** | `sitekeeper` | Development |
-| `db_test` | **5433** | `sitekeeper_test` | Integration tests |
-
-> Port 5434 is used for the dev database to avoid conflicts with any local PostgreSQL installation on the default port 5432.
+| Service | Host port | Purpose |
+|---------|-----------|---------|
+| `db` | **5434** | Development PostgreSQL |
+| `db_test` | **5433** | Integration test PostgreSQL |
+| `minio` | **9000** (API), **9001** (console) | PDF blob storage |
 
 ### 2. Set up and run the backend
 
-See **[backend/README.md](backend/README.md)** for the full guide, including:
-- Virtual environment setup
-- Environment variable configuration
-- Running migrations
-- Starting the Flask server
-- Running tests
+See **[backend/README.md](backend/README.md)** for the full guide.
 
-Short version (Linux / macOS):
+Short version:
 
 ```bash
 python3 -m venv backend/venv
@@ -60,14 +54,7 @@ npm install --prefix frontend
 npx expo start --prefix frontend
 ```
 
-Or from inside the `frontend/` directory:
-
-```bash
-npm install
-npx expo start
-```
-
-Press `a` for Android emulator, `i` for iOS simulator, or `w` for web.
+Press `w` for web, `a` for Android, `i` for iOS.
 
 ---
 
@@ -76,98 +63,124 @@ Press `a` for Android emulator, `i` for iOS simulator, or `w` for web.
 ```
 .
 ├── backend/
-│   ├── app/                # Flask application (factory, models, blueprints, services)
+│   ├── app/
+│   │   ├── auth/           # IAuthService, EmailPasswordAuthService, auth_required
+│   │   ├── blueprints/     # Flask route blueprints (one per resource + admin_bp)
+│   │   ├── repositories/   # Repository interfaces + SQLAlchemy implementations
+│   │   ├── services/       # Business logic layer
+│   │   ├── tenant.py       # Multi-tenant middleware (Host header → DB routing)
+│   │   ├── minio_client.py # MinIO storage with per-tenant bucket support
+│   │   ├── models.py       # SQLAlchemy ORM models (User has role + is_approved)
+│   │   ├── extensions.py   # db, bcrypt instances
+│   │   └── __init__.py     # create_app factory
 │   ├── migrations/         # Alembic migration scripts
+│   ├── manage_tenant.py    # CLI for creating tenants (server-side)
+│   ├── tenants.json        # Tenant registry (slug → database URL + bucket)
 │   ├── tests/              # Pytest test suite
-│   ├── alembic.ini         # Alembic configuration
-│   ├── requirements.txt    # Pinned Python dependencies
-│   ├── .env.example        # Dev environment template
-│   ├── .env.test.example   # Test environment template
-│   └── README.md           # Backend-specific documentation ← start here
+│   ├── alembic.ini
+│   ├── requirements.txt
+│   └── .env.example
 ├── frontend/
 │   ├── src/
-│   │   ├── api/            # Axios client and TanStack Query hooks
-│   │   ├── components/     # Shared React Native components
-│   │   ├── navigation/     # React Navigation structure
-│   │   ├── screens/        # Screen components
-│   │   └── store/          # Zustand client state
-│   ├── App.tsx             # Expo entry point
-│   └── package.json
-├── docker-compose.yml      # PostgreSQL dev and test containers
-└── README.md               # This file
+│   │   ├── api/
+│   │   │   ├── client.ts       # Axios (relative URLs on web for multi-tenant)
+│   │   │   ├── hooks/          # TanStack Query hooks (including useAdmin)
+│   │   │   └── types.ts        # Shared API response types
+│   │   ├── components/         # Shared components
+│   │   ├── navigation/         # RootNavigator, types, navigationRef
+│   │   ├── screens/
+│   │   │   ├── auth/           # LoginScreen, RegisterScreen
+│   │   │   └── app/            # All authenticated screens (including AdminUsersScreen)
+│   │   └── store/              # Zustand auth store (token, userId, role, isApproved)
+│   ├── App.tsx
+│   └── .env
+├── infra/
+│   └── add-tenant-nginx.sh    # Helper to add nginx config for a tenant
+├── docker-compose.yml          # Dev: PostgreSQL + MinIO
+├── docker-compose.prod.yml     # Prod: PostgreSQL + MinIO
+├── deploy.sh                   # Deploy backend + frontend (migrates all tenants)
+├── tenant.sh                   # Create / delete / list tenants
+├── TENANTS.md                  # Full tenant management documentation
+└── README.md                   # This file
 ```
 
 ---
 
-## Spec and design documents
+## Multi-Tenant Architecture
 
-The full requirements, system design, and implementation task list live in:
+Each client business gets a fully isolated environment:
 
+| Component | Isolation |
+|-----------|-----------|
+| Subdomain | `<slug>.entouch.org` |
+| Database | `sk_<slug>` on shared PostgreSQL |
+| File storage | `<slug>-pdfs` bucket on shared MinIO |
+| Users | Completely separate per tenant |
+
+The backend resolves the tenant from the `Host` header and routes all queries to the correct database. See **[TENANTS.md](TENANTS.md)** for full documentation.
+
+### Tenant management
+
+```bash
+./tenant.sh create mycompany --name "My Company"   # Create a new tenant
+./tenant.sh delete mycompany                        # Delete (destructive!)
+./tenant.sh list                                    # List all tenants
 ```
-.kiro/specs/contractor-management-app/
-├── requirements.md   # Functional requirements and acceptance criteria
-├── design.md         # Architecture, data models, API design, correctness properties
-└── tasks.md          # Ordered implementation task list
-```
+
+### User access model
+
+| Role | Auto-approved | Can access data | Can manage users |
+|------|--------------|-----------------|-----------------|
+| Admin (first user to register) | Yes | Yes | Yes (☰ → Manage Users) |
+| Member (approved by admin) | No | Yes | No |
+| Member (pending) | No | No (403) | No |
 
 ---
 
 ## Production deployment
 
-The app is live at **https://entouch.org**.
-
-### Prerequisites
-
-- SSH access via the `awspantrypix` alias (`~/.ssh/config` entry pointing at the server)
-- `rsync` installed locally
-- `npx` / Node available locally (for the Expo web build)
+The app is live at **https://entouch.org** with tenant subdomains (e.g. `nocoresources.entouch.org`).
 
 ### Deploy
 
 ```bash
-# Full deploy — pull code, migrate DB, rebuild + upload frontend
-./deploy.sh
-
-# Frontend only (no backend changes)
-./deploy.sh frontend
-
-# Backend only (new code or migrations, skip frontend rebuild)
-./deploy.sh backend
+./deploy.sh            # Full deploy (backend + frontend, migrates ALL tenant DBs)
+./deploy.sh backend    # Backend only
+./deploy.sh frontend   # Frontend only
 ```
 
-The script handles everything: `git pull` on the server, `pip install`, Alembic migrations, gunicorn restart, Expo web build, and `rsync` to the web root.
-
-### What lives where on the server
+### Server overview
 
 | Component | Location |
 |---|---|
-| Code | `/home/sitekeeper/app` (git clone) |
-| Python venv | `/home/sitekeeper/app/backend/venv` |
+| Code | `/home/sitekeeper/app` |
+| Tenant registry | `/home/sitekeeper/app/backend/tenants.json` |
 | Backend `.env` | `/home/sitekeeper/app/backend/.env` |
 | Web root | `/var/www/sitekeeper/html` |
 | API service | `sitekeeperapi` (systemd, gunicorn on port 5002) |
-| Database | Docker container `app-db-1` (PostgreSQL 16, port 5435) |
-| nginx config | `/etc/nginx/sites-available/entouch.org` |
-| SSL cert | `/etc/letsencrypt/live/entouch.org/` (auto-renews) |
+| Database | Docker `app-db-1` (PostgreSQL 16, port 5435) |
+| MinIO | Docker `app-minio-1` (port 9000) |
+| nginx configs | `/etc/nginx/sites-available/<domain>` |
+| SSL cert | `/etc/letsencrypt/live/entouch.org/` (wildcard `*.entouch.org`) |
 
 ### Common operations
 
 ```bash
-# Tail API logs
-ssh awspantrypix "sudo journalctl -u sitekeeperapi -f"
-
-# Restart API
-ssh awspantrypix "sudo systemctl restart sitekeeperapi"
-
-# Run migrations manually
-ssh awspantrypix "sudo -u sitekeeper bash -c '
-  cd /home/sitekeeper/app/backend &&
-  DATABASE_URL=postgresql://sitekeeper:sitekeeper@localhost:5435/sitekeeper \
-  /home/sitekeeper/app/backend/venv/bin/alembic upgrade head
-'"
-
-# Restart DB container (if it goes down)
-ssh awspantrypix "sudo -u sitekeeper docker compose -f /home/sitekeeper/app/docker-compose.prod.yml up -d"
+ssh awspantrypix "sudo journalctl -u sitekeeperapi -f"          # Tail API logs
+ssh awspantrypix "sudo systemctl restart sitekeeperapi"          # Restart API
+ssh awspantrypix "sudo nginx -t && sudo systemctl reload nginx"  # Reload nginx
 ```
 
-> The server also hosts `pantrypix.app` and `matrix.pantrypix.app`. Don't touch their nginx configs, systemd services, or ports 5001/5433/5434.
+> The server also hosts `pantrypix.app` and `matrix.pantrypix.app`. Don't touch their configs, services, or ports (5001, 5433, 5434).
+
+---
+
+## Documentation
+
+| Document | Contents |
+|----------|----------|
+| [TENANTS.md](TENANTS.md) | Tenant creation, deletion, architecture details |
+| [backend/README.md](backend/README.md) | Backend setup, testing, API reference |
+| `.kiro/steering/deployment.md` | Full deployment procedures and server details |
+| `.kiro/steering/backend-conventions.md` | Code conventions for the Flask backend |
+| `.kiro/steering/frontend-conventions.md` | Code conventions for the Expo frontend |
