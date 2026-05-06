@@ -24,8 +24,13 @@ class MinioStorage:
         secret_key: str,
         bucket_name: str,
         use_ssl: bool = False,
+        _client=None,
     ):
         self.bucket_name = bucket_name
+        if _client is not None:
+            # Internal: reuse an existing Minio client (for with_bucket)
+            self.client = _client
+            return
         try:
             self.client = Minio(
                 endpoint,
@@ -37,6 +42,17 @@ class MinioStorage:
         except Exception:
             logger.exception("Failed to create MinIO client for endpoint %s", endpoint)
             raise
+
+    def with_bucket(self, bucket_name: str) -> "MinioStorage":
+        """Return a new MinioStorage instance sharing the same client but targeting a different bucket."""
+        clone = MinioStorage(
+            endpoint="",
+            access_key="",
+            secret_key="",
+            bucket_name=bucket_name,
+            _client=self.client,
+        )
+        return clone
 
     def ensure_bucket(self) -> None:
         """Create the storage bucket if it does not already exist."""

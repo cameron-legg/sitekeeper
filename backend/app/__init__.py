@@ -2,7 +2,7 @@
 
 import logging
 
-from flask import Flask
+from flask import Flask, g
 from flask_cors import CORS
 
 from .config import Config
@@ -38,9 +38,18 @@ def create_app(config=None):
 
     # CORS — allow origins from CORS_ORIGINS env var (comma-separated).
     # Defaults to all origins in development; restrict this in production.
+    # In production, set to "https://*.entouch.org" pattern or list all tenant domains.
     cors_origins = app.config.get("CORS_ORIGINS", "*")
-    origins = [o.strip() for o in cors_origins.split(",")] if cors_origins != "*" else "*"
-    CORS(app, origins=origins)
+    if cors_origins == "*":
+        origins = "*"
+    else:
+        origins = [o.strip() for o in cors_origins.split(",")]
+    CORS(app, origins=origins, supports_credentials=True)
+
+    # Multi-tenant middleware (skip in test mode for simplicity)
+    if not app.config.get("TESTING"):
+        from .tenant import init_tenant_middleware
+        init_tenant_middleware(app)
 
     # Initialise MinIO storage (skip in test mode to avoid requiring MinIO)
     if not app.config.get("TESTING"):
@@ -91,6 +100,7 @@ def create_app(config=None):
     # Health check endpoint (used by deploy scripts and load balancers)
     @app.route("/api/v1/health")
     def health():
-        return {"status": "ok"}
+        tenant = getattr(g, "tenant_slug", "unknown")
+        return {"status": "ok", "tenant": tenant}
 
     return app

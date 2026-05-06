@@ -47,10 +47,25 @@ class PdfService:
         self._minio_storage = minio_storage
 
     def _get_minio_storage(self) -> MinioStorage:
-        """Return the MinIO storage instance, falling back to current_app."""
+        """Return the MinIO storage instance, using the tenant's bucket.
+
+        Falls back to current_app.minio_storage. If a tenant is active,
+        the storage instance is scoped to the tenant's bucket.
+        """
+        from flask import g
+        from ..tenant import get_tenant_bucket
+
         storage = self._minio_storage or getattr(current_app, "minio_storage", None)
         if storage is None:
             raise RuntimeError("MinIO storage is not available.")
+
+        # If we have a tenant context, use their bucket
+        tenant_slug = getattr(g, "tenant_slug", None)
+        if tenant_slug:
+            bucket = get_tenant_bucket(tenant_slug)
+            if bucket != storage.bucket_name:
+                return storage.with_bucket(bucket)
+
         return storage
 
     # ------------------------------------------------------------------

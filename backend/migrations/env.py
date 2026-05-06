@@ -33,12 +33,15 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # ---------------------------------------------------------------------------
-# Build a minimal Flask app to extract the database URL from Flask config
+# Build a minimal Flask app to extract the database URL from Flask config.
+# If DATABASE_URL is set in the environment, use it directly (allows running
+# migrations against any tenant database).
 # ---------------------------------------------------------------------------
-flask_app = create_app()
-config.set_main_option(
-    "sqlalchemy.url", flask_app.config["SQLALCHEMY_DATABASE_URI"]
-)
+flask_app = create_app({"TESTING": True})  # TESTING=True skips MinIO + tenant middleware
+
+# Allow DATABASE_URL env var to override the Flask config
+db_url = os.environ.get("DATABASE_URL") or flask_app.config["SQLALCHEMY_DATABASE_URI"]
+config.set_main_option("sqlalchemy.url", db_url)
 
 target_metadata = db.metadata
 
