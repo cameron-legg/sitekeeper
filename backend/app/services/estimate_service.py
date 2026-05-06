@@ -1,5 +1,6 @@
 """Estimate service — CRUD with line item and entry management (v2)."""
 
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from ..models import Estimate, LineItem, LineItemEntry
@@ -123,6 +124,13 @@ class EstimateService:
             raise NotFoundError(f"Line item {item_id} not found.")
         return item
 
+    def _touch_estimate(self, estimate_id: str) -> None:
+        """Bump the estimate's updated_at so pdf_status becomes 'stale'."""
+        estimate = self._estimate_repo.get_by_id(estimate_id)
+        if estimate:
+            estimate.updated_at = datetime.now(tz=timezone.utc)
+            self._estimate_repo.update(estimate)
+
     # ------------------------------------------------------------------
     # Estimate CRUD
     # ------------------------------------------------------------------
@@ -175,7 +183,9 @@ class EstimateService:
             parent_id=estimate_id, parent_type="estimate",
             name=name, notes=notes, hourly_rate=hourly_rate, sort_order=sort_order,
         )
-        return self._estimate_repo.add_line_item(item)
+        result = self._estimate_repo.add_line_item(item)
+        self._touch_estimate(estimate_id)
+        return result
 
     def update_line_item(self, estimate_id: str, item_id: str, user_id: str,
                          name: str | None = None, notes: str | None = None,
@@ -191,12 +201,15 @@ class EstimateService:
             item.hourly_rate = hourly_rate
         if sort_order is not None:
             item.sort_order = sort_order
-        return self._estimate_repo.update_line_item(item)
+        result = self._estimate_repo.update_line_item(item)
+        self._touch_estimate(estimate_id)
+        return result
 
     def delete_line_item(self, estimate_id: str, item_id: str, user_id: str) -> None:
         self._verify_estimate_access(estimate_id, user_id)
         self._verify_line_item(estimate_id, item_id)
         self._estimate_repo.delete_line_item(item_id)
+        self._touch_estimate(estimate_id)
 
     # ------------------------------------------------------------------
     # Entry CRUD (sub-items)
@@ -216,7 +229,9 @@ class EstimateService:
             notes=notes, url=url, unit_price=unit_price, quantity=quantity,
             hours=hours, sort_order=sort_order,
         )
-        return self._estimate_repo.add_entry(entry)
+        result = self._estimate_repo.add_entry(entry)
+        self._touch_estimate(estimate_id)
+        return result
 
     def update_entry(self, estimate_id: str, item_id: str, entry_id: str,
                      user_id: str, name: str | None = None, notes: str | None = None,
@@ -242,7 +257,9 @@ class EstimateService:
             entry.hours = hours
         if sort_order is not None:
             entry.sort_order = sort_order
-        return self._estimate_repo.update_entry(entry)
+        result = self._estimate_repo.update_entry(entry)
+        self._touch_estimate(estimate_id)
+        return result
 
     def delete_entry(self, estimate_id: str, item_id: str, entry_id: str, user_id: str) -> None:
         self._verify_estimate_access(estimate_id, user_id)
@@ -251,6 +268,7 @@ class EstimateService:
         if entry is None or str(entry.line_item_id) != item_id:
             raise NotFoundError(f"Entry {entry_id} not found.")
         self._estimate_repo.delete_entry(entry_id)
+        self._touch_estimate(estimate_id)
 
     # ------------------------------------------------------------------
     # Totals

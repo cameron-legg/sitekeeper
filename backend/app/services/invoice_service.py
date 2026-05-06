@@ -1,5 +1,6 @@
 """Invoice service — CRUD with line item and entry management (v2)."""
 
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from ..models import Invoice, LineItem, LineItemEntry
@@ -50,6 +51,13 @@ class InvoiceService:
         if item is None or str(item.parent_id) != invoice_id:
             raise NotFoundError(f"Line item {item_id} not found.")
         return item
+
+    def _touch_invoice(self, invoice_id: str) -> None:
+        """Bump the invoice's updated_at so pdf_status becomes 'stale'."""
+        invoice = self._invoice_repo.get_by_id(invoice_id)
+        if invoice:
+            invoice.updated_at = datetime.now(tz=timezone.utc)
+            self._invoice_repo.update(invoice)
 
     # ------------------------------------------------------------------
     # Invoice CRUD
@@ -105,7 +113,9 @@ class InvoiceService:
             parent_id=invoice_id, parent_type="invoice",
             name=name, notes=notes, hourly_rate=hourly_rate, sort_order=sort_order,
         )
-        return self._invoice_repo.add_line_item(item)
+        result = self._invoice_repo.add_line_item(item)
+        self._touch_invoice(invoice_id)
+        return result
 
     def update_line_item(self, invoice_id: str, item_id: str, user_id: str,
                          name: str | None = None, notes: str | None = None,
@@ -121,12 +131,15 @@ class InvoiceService:
             item.hourly_rate = hourly_rate
         if sort_order is not None:
             item.sort_order = sort_order
-        return self._invoice_repo.update_line_item(item)
+        result = self._invoice_repo.update_line_item(item)
+        self._touch_invoice(invoice_id)
+        return result
 
     def delete_line_item(self, invoice_id: str, item_id: str, user_id: str) -> None:
         self._verify_invoice_access(invoice_id, user_id)
         self._verify_line_item(invoice_id, item_id)
         self._invoice_repo.delete_line_item(item_id)
+        self._touch_invoice(invoice_id)
 
     # ------------------------------------------------------------------
     # Entry CRUD
@@ -146,7 +159,9 @@ class InvoiceService:
             notes=notes, url=url, unit_price=unit_price, quantity=quantity,
             hours=hours, sort_order=sort_order,
         )
-        return self._invoice_repo.add_entry(entry)
+        result = self._invoice_repo.add_entry(entry)
+        self._touch_invoice(invoice_id)
+        return result
 
     def update_entry(self, invoice_id: str, item_id: str, entry_id: str,
                      user_id: str, name: str | None = None, notes: str | None = None,
@@ -172,7 +187,9 @@ class InvoiceService:
             entry.hours = hours
         if sort_order is not None:
             entry.sort_order = sort_order
-        return self._invoice_repo.update_entry(entry)
+        result = self._invoice_repo.update_entry(entry)
+        self._touch_invoice(invoice_id)
+        return result
 
     def delete_entry(self, invoice_id: str, item_id: str, entry_id: str, user_id: str) -> None:
         self._verify_invoice_access(invoice_id, user_id)
@@ -181,6 +198,7 @@ class InvoiceService:
         if entry is None or str(entry.line_item_id) != item_id:
             raise NotFoundError(f"Entry {entry_id} not found.")
         self._invoice_repo.delete_entry(entry_id)
+        self._touch_invoice(invoice_id)
 
     # ------------------------------------------------------------------
     # Totals

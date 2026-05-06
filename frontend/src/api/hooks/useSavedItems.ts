@@ -123,8 +123,12 @@ export function usePopulateSavedItem() {
     onSuccess: (_, { parentId, parentType }) => {
       if (parentType === "estimate") {
         qc.invalidateQueries({ queryKey: ["estimates", parentId, "line-items"] });
+        qc.invalidateQueries({ queryKey: ["estimates", parentId] });
+        qc.invalidateQueries({ queryKey: ["estimates"] });
       } else {
         qc.invalidateQueries({ queryKey: ["invoices", parentId, "line-items"] });
+        qc.invalidateQueries({ queryKey: ["invoices", parentId] });
+        qc.invalidateQueries({ queryKey: ["invoices"] });
       }
     },
   });
@@ -171,8 +175,12 @@ export function usePopulateSavedEntry() {
     onSuccess: (_, { parentId, parentType }) => {
       if (parentType === "estimate") {
         qc.invalidateQueries({ queryKey: ["estimates", parentId, "line-items"] });
+        qc.invalidateQueries({ queryKey: ["estimates", parentId] });
+        qc.invalidateQueries({ queryKey: ["estimates"] });
       } else {
         qc.invalidateQueries({ queryKey: ["invoices", parentId, "line-items"] });
+        qc.invalidateQueries({ queryKey: ["invoices", parentId] });
+        qc.invalidateQueries({ queryKey: ["invoices"] });
       }
     },
   });

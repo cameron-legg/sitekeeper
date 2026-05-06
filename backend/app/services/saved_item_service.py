@@ -172,6 +172,14 @@ class SavedItemService:
             )
             repo.add_entry(entry)
 
+        # Touch parent so pdf_status becomes stale
+        from datetime import datetime, timezone
+        parent.updated_at = datetime.now(tz=timezone.utc)
+        if parent_type == "estimate":
+            self._estimate_repo.update(parent)
+        else:
+            self._invoice_repo.update(parent)
+
         return line_item
 
     # ------------------------------------------------------------------
@@ -246,4 +254,14 @@ class SavedItemService:
             hours=saved_entry.hours,
             sort_order=0,
         )
-        return repo.add_entry(new_entry)
+        result = repo.add_entry(new_entry)
+
+        # Touch parent so pdf_status becomes stale
+        from datetime import datetime, timezone
+        parent.updated_at = datetime.now(tz=timezone.utc)
+        if parent_type == "estimate":
+            self._estimate_repo.update(parent)
+        else:
+            self._invoice_repo.update(parent)
+
+        return result

@@ -78,7 +78,11 @@ export function useAddEstimateLineItem() {
   return useMutation({
     mutationFn: ({ estimateId, ...data }: { estimateId: string; name: string; notes?: string; hourly_rate?: string; sort_order?: number }) =>
       apiClient.post<LineItem>(`/api/v1/estimates/${estimateId}/line-items`, data).then((r) => r.data),
-    onSuccess: (_, { estimateId }) => qc.invalidateQueries({ queryKey: KEYS.lineItems(estimateId) }),
+    onSuccess: (_, { estimateId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.lineItems(estimateId) });
+      qc.invalidateQueries({ queryKey: KEYS.detail(estimateId) });
+      qc.invalidateQueries({ queryKey: ["estimates"] });
+    },
   });
 }
 
@@ -87,7 +91,11 @@ export function useUpdateEstimateLineItem() {
   return useMutation({
     mutationFn: ({ estimateId, itemId, ...data }: { estimateId: string; itemId: string; name?: string; notes?: string; hourly_rate?: string }) =>
       apiClient.put<LineItem>(`/api/v1/estimates/${estimateId}/line-items/${itemId}`, data).then((r) => r.data),
-    onSuccess: (_, { estimateId }) => qc.invalidateQueries({ queryKey: KEYS.lineItems(estimateId) }),
+    onSuccess: (_, { estimateId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.lineItems(estimateId) });
+      qc.invalidateQueries({ queryKey: KEYS.detail(estimateId) });
+      qc.invalidateQueries({ queryKey: ["estimates"] });
+    },
   });
 }
 
@@ -96,7 +104,11 @@ export function useDeleteEstimateLineItem() {
   return useMutation({
     mutationFn: ({ estimateId, itemId }: { estimateId: string; itemId: string }) =>
       apiClient.delete(`/api/v1/estimates/${estimateId}/line-items/${itemId}`),
-    onSuccess: (_, { estimateId }) => qc.invalidateQueries({ queryKey: KEYS.lineItems(estimateId) }),
+    onSuccess: (_, { estimateId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.lineItems(estimateId) });
+      qc.invalidateQueries({ queryKey: KEYS.detail(estimateId) });
+      qc.invalidateQueries({ queryKey: ["estimates"] });
+    },
   });
 }
 
@@ -111,7 +123,11 @@ export function useAddEstimateEntry() {
       unit_price?: string; quantity?: string; hours?: string; sort_order?: number;
     }) =>
       apiClient.post<LineItemEntry>(`/api/v1/estimates/${estimateId}/line-items/${itemId}/entries`, data).then((r) => r.data),
-    onSuccess: (_, { estimateId }) => qc.invalidateQueries({ queryKey: KEYS.lineItems(estimateId) }),
+    onSuccess: (_, { estimateId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.lineItems(estimateId) });
+      qc.invalidateQueries({ queryKey: KEYS.detail(estimateId) });
+      qc.invalidateQueries({ queryKey: ["estimates"] });
+    },
   });
 }
 
@@ -124,7 +140,11 @@ export function useUpdateEstimateEntry() {
       unit_price?: string; quantity?: string; hours?: string;
     }) =>
       apiClient.put<LineItemEntry>(`/api/v1/estimates/${estimateId}/line-items/${itemId}/entries/${entryId}`, data).then((r) => r.data),
-    onSuccess: (_, { estimateId }) => qc.invalidateQueries({ queryKey: KEYS.lineItems(estimateId) }),
+    onSuccess: (_, { estimateId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.lineItems(estimateId) });
+      qc.invalidateQueries({ queryKey: KEYS.detail(estimateId) });
+      qc.invalidateQueries({ queryKey: ["estimates"] });
+    },
   });
 }
 
@@ -133,7 +153,11 @@ export function useDeleteEstimateEntry() {
   return useMutation({
     mutationFn: ({ estimateId, itemId, entryId }: { estimateId: string; itemId: string; entryId: string }) =>
       apiClient.delete(`/api/v1/estimates/${estimateId}/line-items/${itemId}/entries/${entryId}`),
-    onSuccess: (_, { estimateId }) => qc.invalidateQueries({ queryKey: KEYS.lineItems(estimateId) }),
+    onSuccess: (_, { estimateId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.lineItems(estimateId) });
+      qc.invalidateQueries({ queryKey: KEYS.detail(estimateId) });
+      qc.invalidateQueries({ queryKey: ["estimates"] });
+    },
   });
 }
 

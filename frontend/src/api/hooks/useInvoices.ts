@@ -74,7 +74,11 @@ export function useAddInvoiceLineItem() {
   return useMutation({
     mutationFn: ({ invoiceId, ...data }: { invoiceId: string; name: string; notes?: string; hourly_rate?: string; sort_order?: number }) =>
       apiClient.post<LineItem>(`/api/v1/invoices/${invoiceId}/line-items`, data).then((r) => r.data),
-    onSuccess: (_, { invoiceId }) => qc.invalidateQueries({ queryKey: KEYS.lineItems(invoiceId) }),
+    onSuccess: (_, { invoiceId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.lineItems(invoiceId) });
+      qc.invalidateQueries({ queryKey: KEYS.detail(invoiceId) });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+    },
   });
 }
 
@@ -83,7 +87,11 @@ export function useUpdateInvoiceLineItem() {
   return useMutation({
     mutationFn: ({ invoiceId, itemId, ...data }: { invoiceId: string; itemId: string; name?: string; notes?: string; hourly_rate?: string }) =>
       apiClient.put<LineItem>(`/api/v1/invoices/${invoiceId}/line-items/${itemId}`, data).then((r) => r.data),
-    onSuccess: (_, { invoiceId }) => qc.invalidateQueries({ queryKey: KEYS.lineItems(invoiceId) }),
+    onSuccess: (_, { invoiceId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.lineItems(invoiceId) });
+      qc.invalidateQueries({ queryKey: KEYS.detail(invoiceId) });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+    },
   });
 }
 
@@ -92,7 +100,11 @@ export function useDeleteInvoiceLineItem() {
   return useMutation({
     mutationFn: ({ invoiceId, itemId }: { invoiceId: string; itemId: string }) =>
       apiClient.delete(`/api/v1/invoices/${invoiceId}/line-items/${itemId}`),
-    onSuccess: (_, { invoiceId }) => qc.invalidateQueries({ queryKey: KEYS.lineItems(invoiceId) }),
+    onSuccess: (_, { invoiceId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.lineItems(invoiceId) });
+      qc.invalidateQueries({ queryKey: KEYS.detail(invoiceId) });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+    },
   });
 }
 
@@ -105,7 +117,11 @@ export function useAddInvoiceEntry() {
       unit_price?: string; quantity?: string; hours?: string; sort_order?: number;
     }) =>
       apiClient.post<LineItemEntry>(`/api/v1/invoices/${invoiceId}/line-items/${itemId}/entries`, data).then((r) => r.data),
-    onSuccess: (_, { invoiceId }) => qc.invalidateQueries({ queryKey: KEYS.lineItems(invoiceId) }),
+    onSuccess: (_, { invoiceId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.lineItems(invoiceId) });
+      qc.invalidateQueries({ queryKey: KEYS.detail(invoiceId) });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+    },
   });
 }
 
@@ -118,7 +134,11 @@ export function useUpdateInvoiceEntry() {
       unit_price?: string; quantity?: string; hours?: string;
     }) =>
       apiClient.put<LineItemEntry>(`/api/v1/invoices/${invoiceId}/line-items/${itemId}/entries/${entryId}`, data).then((r) => r.data),
-    onSuccess: (_, { invoiceId }) => qc.invalidateQueries({ queryKey: KEYS.lineItems(invoiceId) }),
+    onSuccess: (_, { invoiceId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.lineItems(invoiceId) });
+      qc.invalidateQueries({ queryKey: KEYS.detail(invoiceId) });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+    },
   });
 }
 
@@ -127,7 +147,11 @@ export function useDeleteInvoiceEntry() {
   return useMutation({
     mutationFn: ({ invoiceId, itemId, entryId }: { invoiceId: string; itemId: string; entryId: string }) =>
       apiClient.delete(`/api/v1/invoices/${invoiceId}/line-items/${itemId}/entries/${entryId}`),
-    onSuccess: (_, { invoiceId }) => qc.invalidateQueries({ queryKey: KEYS.lineItems(invoiceId) }),
+    onSuccess: (_, { invoiceId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.lineItems(invoiceId) });
+      qc.invalidateQueries({ queryKey: KEYS.detail(invoiceId) });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+    },
   });
 }
 
