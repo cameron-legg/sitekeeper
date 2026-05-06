@@ -14,7 +14,43 @@
 | DB container | `app-db-1` (postgres:16-alpine, `127.0.0.1:5435`) |
 | Compose file | `/home/sitekeeper/app/docker-compose.prod.yml` |
 | nginx config | `/etc/nginx/sites-available/entouch.org` |
-| SSL cert | Let's Encrypt, auto-renews via certbot |
+| SSL cert | Let's Encrypt (wildcard pending, per-domain for now) |
+
+## Multi-Tenant Architecture
+
+Each client (business) gets an isolated environment on the same server:
+- **Separate database**: `sk_<slug>` on the shared Postgres instance
+- **Separate MinIO bucket**: `<slug>-pdfs` on the shared MinIO instance
+- **Separate subdomain**: `<slug>.entouch.org` routed by nginx
+- **Shared backend**: single gunicorn process resolves tenant from Host header
+- **Shared frontend**: same SPA served to all tenants
+
+### Tenant registry
+File: `/home/sitekeeper/app/backend/tenants.json`
+
+### Adding a new tenant
+```bash
+# On the server:
+cd /home/sitekeeper/app/backend
+DATABASE_URL=... venv/bin/python manage_tenant.py create <slug> --name "Display Name"
+sudo /home/sitekeeper/app/infra/add-tenant-nginx.sh <slug>
+sudo systemctl restart sitekeeperapi
+```
+
+Or manually:
+1. Create database: `docker exec app-db-1 psql -U sitekeeper -c "CREATE DATABASE sk_<slug>;"`
+2. Run migrations: `DATABASE_URL=postgresql://sitekeeper:sitekeeper@localhost:5435/sk_<slug> venv/bin/alembic upgrade head`
+3. Create MinIO bucket (via Python or mc client)
+4. Add entry to `tenants.json`
+5. Add nginx config: `sudo /home/sitekeeper/app/infra/add-tenant-nginx.sh <slug>`
+6. Add subdomain to CORS_ORIGINS in `.env`
+7. Restart: `sudo systemctl restart sitekeeperapi`
+
+### Current tenants
+| Slug | Domain | Database |
+|------|--------|----------|
+| default | entouch.org | sitekeeper |
+| nocoresources | nocoresources.entouch.org | sk_nocoresources |
 
 ## Deploying changes
 
