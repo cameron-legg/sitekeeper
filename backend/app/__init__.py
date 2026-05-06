@@ -88,4 +88,9 @@ def create_app(config=None):
     app.register_blueprint(profile_bp, url_prefix="/api/v1")
     app.register_blueprint(pdf_bp, url_prefix="/api/v1")
 
+    # Health check endpoint (used by deploy scripts and load balancers)
+    @app.route("/api/v1/health")
+    def health():
+        return {"status": "ok"}
+
     return app
