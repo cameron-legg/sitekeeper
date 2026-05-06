@@ -49,8 +49,7 @@ server {
 }
 
 server {
-    listen 443 ssl;
-    http2 on;
+    listen 443 ssl http2;
     server_name $DOMAIN;
 
     # Uses the wildcard cert (*.entouch.org) or the main entouch.org cert
