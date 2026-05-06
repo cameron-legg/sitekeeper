@@ -6,7 +6,7 @@
 services:
   backend:
     build:
-      context: ../../backend
+      context: ../../app/backend
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
@@ -32,7 +32,7 @@ services:
 
   frontend:
     build:
-      context: ../../frontend
+      context: ../../app/frontend
       dockerfile: Dockerfile
       args:
         EXPO_PUBLIC_API_URL: https://${DOMAIN}
