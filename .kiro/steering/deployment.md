@@ -86,7 +86,7 @@ File: `/home/sitekeeper/app/backend/.env`
 |---|---|
 | `DATABASE_URL` | `postgresql://sitekeeper:sitekeeper@localhost:5435/sitekeeper` |
 | `JWT_SECRET` | (set at deploy time — do not commit) |
-| `JWT_EXPIRY_SECONDS` | `3600` |
+| `JWT_EXPIRY_SECONDS` | `8640000` |
 | `CORS_ORIGINS` | `https://entouch.org,https://www.entouch.org` |
 | `FLASK_APP` | `app` |
 

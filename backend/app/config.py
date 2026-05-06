@@ -20,7 +20,7 @@ class Config:
 
     # JWT
     JWT_SECRET: str = os.environ.get("JWT_SECRET", "change-me-in-production")
-    JWT_EXPIRY_SECONDS: int = int(os.environ.get("JWT_EXPIRY_SECONDS", "3600"))
+    JWT_EXPIRY_SECONDS: int = int(os.environ.get("JWT_EXPIRY_SECONDS", "8640000"))
 
     # CORS — comma-separated list of allowed origins, or "*" for all
     CORS_ORIGINS: str = os.environ.get("CORS_ORIGINS", "*")

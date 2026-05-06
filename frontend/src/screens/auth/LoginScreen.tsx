@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const passwordRef = useRef<TextInput>(null);
 
   const login = useLogin();
 
@@ -65,10 +66,14 @@ export default function LoginScreen({ navigation }: Props) {
           autoComplete="email"
           textContentType="emailAddress"
           editable={!login.isPending}
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          blurOnSubmit={false}
         />
 
         <Text style={styles.label}>Password</Text>
         <TextInput
+          ref={passwordRef}
           style={styles.input}
           value={password}
           onChangeText={setPassword}
@@ -77,6 +82,8 @@ export default function LoginScreen({ navigation }: Props) {
           autoComplete="password"
           textContentType="password"
           editable={!login.isPending}
+          returnKeyType="go"
+          onSubmitEditing={handleSubmit}
         />
 
         <TouchableOpacity
