@@ -8,10 +8,19 @@
  */
 
 import axios from "axios";
+import { Platform } from "react-native";
 import { useAuthStore } from "../store/authStore";
 
+// On web, use relative URLs so API calls go to the same origin the user
+// is visiting (important for multi-tenant subdomains). On native, use the
+// explicit API URL from the environment.
+const baseURL =
+  Platform.OS === "web"
+    ? ""
+    : process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:5000";
+
 const apiClient = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:5000",
+  baseURL,
   headers: {
     "Content-Type": "application/json",
   },
