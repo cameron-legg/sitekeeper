@@ -41,6 +41,11 @@ class IJobSiteRepository(ABC):
         """Return the number of jobs associated with the given job site."""
         ...
 
+    @abstractmethod
+    def count_active_jobs(self, site_id: str) -> int:
+        """Return the number of pending or in_progress jobs for the given site."""
+        ...
+
 
 class SQLAlchemyJobSiteRepository(IJobSiteRepository):
     """SQLAlchemy-backed implementation of IJobSiteRepository."""
@@ -74,3 +79,10 @@ class SQLAlchemyJobSiteRepository(IJobSiteRepository):
 
     def count_jobs(self, site_id: str) -> int:
         return Job.query.filter_by(job_site_id=site_id).count()
+
+    def count_active_jobs(self, site_id: str) -> int:
+        return (
+            Job.query.filter_by(job_site_id=site_id)
+            .filter(Job.status.in_(["pending", "in_progress"]))
+            .count()
+        )

@@ -20,12 +20,13 @@ class JobSiteService:
         self._repo = repo or SQLAlchemyJobSiteRepository()
 
     def list_for_user(self, user_id: str) -> list[dict]:
-        """Return all job sites for the user, each with a job_count field."""
+        """Return all job sites for the user, each with a job_count and active_job_count field."""
         sites = self._repo.get_all_for_user(user_id)
         result = []
         for site in sites:
             job_count = self._repo.count_jobs(str(site.id))
-            result.append({"site": site, "job_count": job_count})
+            active_job_count = self._repo.count_active_jobs(str(site.id))
+            result.append({"site": site, "job_count": job_count, "active_job_count": active_job_count})
         return result
 
     def get(self, site_id: str, user_id: str) -> JobSite:

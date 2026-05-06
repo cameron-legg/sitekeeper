@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -33,6 +33,19 @@ export default function HomeScreen({ navigation }: Props) {
   const [createError, setCreateError] = useState<string | null>(null);
   const [confirmDeleteSite, setConfirmDeleteSite] = useState<JobSite | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  // Sort sites: those with active jobs first, then by creation date (newest first)
+  const sortedSites = useMemo(() => {
+    if (!sites) return [];
+    return [...sites].sort((a, b) => {
+      // Sites with active jobs come first
+      const aActive = a.active_job_count > 0 ? 1 : 0;
+      const bActive = b.active_job_count > 0 ? 1 : 0;
+      if (bActive !== aActive) return bActive - aActive;
+      // Within same group, newest first
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [sites]);
 
   function handleLogout() {
     setShowLogoutConfirm(true);
@@ -77,9 +90,18 @@ export default function HomeScreen({ navigation }: Props) {
       >
         <View style={styles.siteInfo}>
           <Text style={styles.siteName}>{item.name}</Text>
-          <Text style={styles.jobCount}>
-            {item.job_count} {item.job_count === 1 ? "job" : "jobs"}
-          </Text>
+          <View style={styles.siteMetaRow}>
+            <Text style={styles.jobCount}>
+              {item.job_count} {item.job_count === 1 ? "job" : "jobs"}
+            </Text>
+            {item.active_job_count > 0 && (
+              <View style={styles.activeBadge}>
+                <Text style={styles.activeBadgeText}>
+                  {item.active_job_count} active
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
         <TouchableOpacity
           style={styles.deleteBtn}
@@ -127,11 +149,11 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
       ) : (
         <FlatList
-          data={sites}
+          data={sortedSites}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={
-            sites?.length === 0 ? styles.emptyContainer : styles.listContent
+            sortedSites.length === 0 ? styles.emptyContainer : styles.listContent
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>
@@ -379,6 +401,22 @@ const styles = StyleSheet.create({
   jobCount: {
     fontSize: 13,
     color: "#6b7280",
+  },
+  siteMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  activeBadge: {
+    backgroundColor: "#dbeafe",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  activeBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#2563eb",
   },
   deleteBtn: {
     paddingHorizontal: 10,

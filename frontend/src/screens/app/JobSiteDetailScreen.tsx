@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -54,6 +54,19 @@ export default function JobSiteDetailScreen({ route, navigation }: Props) {
 
   // Keep header title in sync with latest site data
   const displayName = site?.name ?? siteName;
+
+  // Sort jobs: in_progress first, then pending, completed, cancelled
+  const STATUS_ORDER: Record<Job["status"], number> = {
+    in_progress: 0,
+    pending: 1,
+    completed: 2,
+    cancelled: 3,
+  };
+
+  const sortedJobs = useMemo(() => {
+    if (!jobs) return [];
+    return [...jobs].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
+  }, [jobs]);
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
@@ -197,11 +210,11 @@ export default function JobSiteDetailScreen({ route, navigation }: Props) {
         </View>
       ) : (
         <FlatList
-          data={jobs}
+          data={sortedJobs}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={
-            jobs?.length === 0 ? styles.emptyContainer : styles.listContent
+            sortedJobs.length === 0 ? styles.emptyContainer : styles.listContent
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>

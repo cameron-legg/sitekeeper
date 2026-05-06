@@ -10,6 +10,7 @@ export interface JobSite {
   address: string | null;
   primary_contact_id: string | null;
   job_count: number;
+  active_job_count: number;
   created_at: string;
   updated_at: string;
 }
