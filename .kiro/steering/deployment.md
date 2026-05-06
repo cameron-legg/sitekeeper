@@ -1,28 +1,5 @@
 # Deployment — SiteKeeper on entouch.org
 
-## Architecture: Multi-Tenant Isolated Environments
-
-Each client (business) gets a fully isolated Docker Compose stack at `<client>.entouch.org`.
-Each stack contains: backend (Flask/gunicorn), frontend (Expo web/nginx), PostgreSQL, MinIO.
-Tenants share no data — each has its own database and storage.
-
-See `infra/README.md` for full details.
-
-### Tenant management
-```bash
-# Add a new client
-./infra/manage-tenant.sh create nocoresources   # → nocoresources.entouch.org
-
-# Deploy updates to one tenant
-./infra/deploy-tenant.sh nocoresources
-
-# Deploy updates to ALL tenants
-./infra/deploy-all.sh
-
-# Remove a client
-./infra/manage-tenant.sh destroy nocoresources
-```
-
 ## Server overview
 
 | Thing | Detail |
@@ -31,27 +8,38 @@ See `infra/README.md` for full details.
 | Domain | `https://entouch.org` |
 | App user | `sitekeeper` |
 | Code path | `/home/sitekeeper/app` |
-| Tenants path | `/home/sitekeeper/tenants/<name>/` |
-| Port range | `6000+` (each tenant gets 5 ports in blocks of 10) |
-| nginx configs | `/etc/nginx/sites-available/<name>.entouch.org` |
-| SSL certs | Let's Encrypt per subdomain, auto-renews via certbot |
+| Web root | `/var/www/sitekeeper/html` |
+| API service | `sitekeeperapi` (systemd) |
+| API port | `127.0.0.1:5002` (gunicorn, 3 workers) |
+| DB container | `app-db-1` (postgres:16-alpine, `127.0.0.1:5435`) |
+| Compose file | `/home/sitekeeper/app/docker-compose.prod.yml` |
+| nginx config | `/etc/nginx/sites-available/entouch.org` |
+| SSL cert | Let's Encrypt, auto-renews via certbot |
 
 ## Deploying changes
 
-### Deploy a single tenant
+### Full deploy (backend + frontend)
 ```bash
-./infra/deploy-tenant.sh <tenant-name>
-```
-This pulls latest code, rebuilds the Docker images, and restarts the tenant's containers.
-Migrations run automatically on container start via `backend/entrypoint.sh`.
-
-### Deploy all tenants
-```bash
-./infra/deploy-all.sh
+./deploy.sh
 ```
 
-### Legacy deploy (single-instance, deprecated)
-The old `./deploy.sh` still works for the original `entouch.org` monolith if needed during migration.
+### Frontend only (no backend changes)
+```bash
+./deploy.sh frontend
+```
+
+### Backend only (code + migrations, no frontend rebuild)
+```bash
+./deploy.sh backend
+```
+
+The script:
+1. `git pull` on the server as the `sitekeeper` user
+2. `pip install` any new dependencies
+3. Runs `alembic upgrade head` for any new migrations
+4. Restarts the `sitekeeperapi` systemd service
+5. Builds the Expo web bundle with `EXPO_PUBLIC_API_URL=https://entouch.org` baked in
+6. `rsync`s the `frontend/dist/` output to `/var/www/sitekeeper/html/`
 
 ## Manual steps (when needed)
 
