@@ -268,6 +268,15 @@ export default function AIChatBubble({ screenName, screenParams }: AIChatBubbleP
                   break;
                 case "create_estimate":
                 case "list_estimates":
+                case "update_estimate":
+                case "add_line_item_to_estimate":
+                case "update_line_item":
+                case "delete_line_item":
+                case "add_entry_to_line_item":
+                case "update_entry":
+                case "delete_entry":
+                case "get_estimate_details":
+                case "clear_all_line_items":
                   queryClient.invalidateQueries({ queryKey: ["estimates"] });
                   break;
                 case "create_invoice":
@@ -431,6 +440,17 @@ export default function AIChatBubble({ screenName, screenParams }: AIChatBubbleP
                   ◈ {screenName}
                 </Text>
               </View>
+              <TouchableOpacity
+                onPress={() => {
+                  setMessages([]);
+                  setInput("");
+                }}
+                style={styles.newChatButton}
+                accessibilityLabel="Start new chat"
+                accessibilityRole="button"
+              >
+                <Text style={styles.newChatIcon}>+</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setIsOpen(false)}
                 style={styles.closeButton}
@@ -733,6 +753,23 @@ const styles = StyleSheet.create({
   closeText: {
     fontSize: 16,
     color: "#94a3b8",
+    fontWeight: "600",
+  },
+  newChatButton: {
+    marginLeft: "auto",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#1e293b",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#334155",
+    marginRight: 8,
+  },
+  newChatIcon: {
+    fontSize: 18,
+    color: "#06b6d4",
     fontWeight: "600",
   },
 

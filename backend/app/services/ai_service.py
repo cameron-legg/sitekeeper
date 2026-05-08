@@ -185,6 +185,174 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "get_estimate_details",
+            "description": "Get full details of an estimate including all its line items and entries. Use this before editing to see what currently exists.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "estimate_id": {"type": "string", "description": "ID of the estimate to retrieve"},
+                },
+                "required": ["estimate_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_estimate",
+            "description": "Update an existing estimate's title or tax rate.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "estimate_id": {"type": "string", "description": "ID of the estimate to update"},
+                    "title": {"type": "string", "description": "New title for the estimate"},
+                    "tax_rate": {"type": "number", "description": "New tax rate as a percentage (e.g. 8.5). Set to 0 to clear tax."},
+                },
+                "required": ["estimate_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_line_item_to_estimate",
+            "description": "Add a new line item (with optional entries) to an existing estimate.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "estimate_id": {"type": "string", "description": "ID of the estimate to add the line item to"},
+                    "name": {"type": "string", "description": "Name of the line item group (e.g. 'Shower Replacement')"},
+                    "notes": {"type": "string", "description": "Optional notes"},
+                    "hourly_rate": {"type": "number", "description": "Hourly rate for labor entries in this group"},
+                    "entries": {
+                        "type": "array",
+                        "description": "Material and hours entries for this line item",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "entry_type": {"type": "string", "enum": ["material", "hours"]},
+                                "name": {"type": "string", "description": "Name of the material or labor task"},
+                                "unit_price": {"type": "number", "description": "Price per unit (materials only)"},
+                                "quantity": {"type": "number", "description": "Quantity (materials only)"},
+                                "hours": {"type": "number", "description": "Number of hours (hours entries only)"},
+                                "notes": {"type": "string", "description": "Optional notes"},
+                            },
+                            "required": ["entry_type", "name"],
+                        },
+                    },
+                },
+                "required": ["estimate_id", "name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_line_item",
+            "description": "Update an existing line item's name, notes, or hourly rate on an estimate.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "estimate_id": {"type": "string", "description": "ID of the estimate containing the line item"},
+                    "line_item_id": {"type": "string", "description": "ID of the line item to update"},
+                    "name": {"type": "string", "description": "New name for the line item"},
+                    "notes": {"type": "string", "description": "New notes"},
+                    "hourly_rate": {"type": "number", "description": "New hourly rate"},
+                },
+                "required": ["estimate_id", "line_item_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_line_item",
+            "description": "Remove a line item (and all its entries) from an estimate.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "estimate_id": {"type": "string", "description": "ID of the estimate"},
+                    "line_item_id": {"type": "string", "description": "ID of the line item to delete"},
+                },
+                "required": ["estimate_id", "line_item_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_entry_to_line_item",
+            "description": "Add a material or hours entry to an existing line item on an estimate.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "estimate_id": {"type": "string", "description": "ID of the estimate"},
+                    "line_item_id": {"type": "string", "description": "ID of the line item to add the entry to"},
+                    "entry_type": {"type": "string", "enum": ["material", "hours"], "description": "Type of entry"},
+                    "name": {"type": "string", "description": "Name of the material or labor task"},
+                    "unit_price": {"type": "number", "description": "Price per unit (materials only)"},
+                    "quantity": {"type": "number", "description": "Quantity (materials only)"},
+                    "hours": {"type": "number", "description": "Number of hours (hours entries only)"},
+                    "notes": {"type": "string", "description": "Optional notes"},
+                },
+                "required": ["estimate_id", "line_item_id", "entry_type", "name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_entry",
+            "description": "Update an existing entry (material or hours) on a line item in an estimate.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "estimate_id": {"type": "string", "description": "ID of the estimate"},
+                    "line_item_id": {"type": "string", "description": "ID of the line item containing the entry"},
+                    "entry_id": {"type": "string", "description": "ID of the entry to update"},
+                    "name": {"type": "string", "description": "New name"},
+                    "unit_price": {"type": "number", "description": "New unit price (materials only)"},
+                    "quantity": {"type": "number", "description": "New quantity (materials only)"},
+                    "hours": {"type": "number", "description": "New hours (hours entries only)"},
+                    "notes": {"type": "string", "description": "New notes"},
+                },
+                "required": ["estimate_id", "line_item_id", "entry_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_entry",
+            "description": "Remove an entry from a line item on an estimate.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "estimate_id": {"type": "string", "description": "ID of the estimate"},
+                    "line_item_id": {"type": "string", "description": "ID of the line item"},
+                    "entry_id": {"type": "string", "description": "ID of the entry to delete"},
+                },
+                "required": ["estimate_id", "line_item_id", "entry_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "clear_all_line_items",
+            "description": "Remove ALL line items (and their entries) from an estimate. Use when the user wants to start over or redo an estimate from scratch.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "estimate_id": {"type": "string", "description": "ID of the estimate to clear"},
+                },
+                "required": ["estimate_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "list_job_sites",
             "description": "List all job sites for the current user. Use this to find a job site ID.",
             "parameters": {
@@ -329,6 +497,18 @@ def _build_system_prompt(user: User, screen_context: dict, saved_items_summary: 
         "- Use realistic pricing for the user's state/region",
         "- Include both materials and labor hours where appropriate",
         "- Apply appropriate tax rates for the user's state (materials only, not labor)",
+        "",
+        "When editing estimates:",
+        "- If the user asks to edit, update, change, or modify an estimate, use the EDIT tools (update_estimate, update_line_item, update_entry, add_line_item_to_estimate, add_entry_to_line_item, delete_line_item, delete_entry) — do NOT create a new estimate",
+        "- If the user is on the EstimateEditor screen, use the estimateId from screen params",
+        "- ALWAYS call get_estimate_details FIRST before any edit or delete operation — you need the line_item IDs and entry IDs to modify or delete them",
+        "- To add more work to an existing estimate, use add_line_item_to_estimate",
+        "- To change prices, quantities, or hours, use update_entry with the entry's ID from get_estimate_details",
+        "- To rename a line item or change its hourly rate, use update_line_item with the line item's ID",
+        "- To remove a line item and all its entries, use delete_line_item with the line item's ID",
+        "- To remove a single entry from a line item, use delete_entry with both the line_item_id and entry_id",
+        "- If the user asks to remove/delete multiple items, call delete_line_item or delete_entry for EACH one individually",
+        "- If the user says 'remove the toilet replacement' or similar, first get_estimate_details to find the matching line_item_id, then call delete_line_item",
         "",
         "When working with contacts:",
         "- Contacts are associated with job sites or jobs (not standalone)",
@@ -534,6 +714,185 @@ class AIService:
                     "estimate_id": args["estimate_id"],
                     "title": invoice.title,
                     "message": f"Converted estimate to invoice '{invoice.title}'",
+                }
+
+            elif tool_name == "get_estimate_details":
+                estimate = self._estimate_service.get(args["estimate_id"], user_id)
+                line_items = self._estimate_service.get_line_items(args["estimate_id"], user_id)
+                from .estimate_service import compute_line_item_totals
+                items_data = []
+                for li in line_items:
+                    totals = compute_line_item_totals(li)
+                    items_data.append({
+                        "id": str(li.id),
+                        "name": li.name,
+                        "notes": li.notes,
+                        "hourly_rate": str(li.hourly_rate) if li.hourly_rate else None,
+                        "total_cost": str(totals["total_cost"]),
+                        "total_hours": str(totals["total_hours"]),
+                        "entries": [
+                            {
+                                "id": str(e.id),
+                                "entry_type": e.entry_type,
+                                "name": e.name,
+                                "notes": e.notes,
+                                "unit_price": str(e.unit_price) if e.unit_price else None,
+                                "quantity": str(e.quantity) if e.quantity else None,
+                                "hours": str(e.hours) if e.hours else None,
+                            }
+                            for e in (li.entries or [])
+                        ],
+                    })
+                return {
+                    "success": True,
+                    "estimate_id": str(estimate.id),
+                    "title": estimate.title,
+                    "tax_rate": str(estimate.tax_rate) if estimate.tax_rate else None,
+                    "delivered": estimate.delivered,
+                    "line_items": items_data,
+                }
+
+            elif tool_name == "update_estimate":
+                clear_tax = False
+                tax_rate = None
+                if "tax_rate" in args:
+                    if args["tax_rate"] == 0:
+                        clear_tax = True
+                    else:
+                        tax_rate = Decimal(str(args["tax_rate"]))
+                estimate = self._estimate_service.update(
+                    estimate_id=args["estimate_id"],
+                    user_id=user_id,
+                    title=args.get("title"),
+                    tax_rate=tax_rate,
+                    clear_tax=clear_tax,
+                )
+                return {
+                    "success": True,
+                    "estimate_id": str(estimate.id),
+                    "title": estimate.title,
+                    "message": f"Updated estimate '{estimate.title}'",
+                }
+
+            elif tool_name == "add_line_item_to_estimate":
+                li = self._estimate_service.add_line_item(
+                    estimate_id=args["estimate_id"],
+                    user_id=user_id,
+                    name=args["name"],
+                    notes=args.get("notes"),
+                    hourly_rate=Decimal(str(args["hourly_rate"])) if args.get("hourly_rate") else None,
+                )
+                # Add entries if provided
+                for entry_data in args.get("entries", []):
+                    self._estimate_service.add_entry(
+                        estimate_id=args["estimate_id"],
+                        item_id=str(li.id),
+                        user_id=user_id,
+                        entry_type=entry_data["entry_type"],
+                        name=entry_data["name"],
+                        notes=entry_data.get("notes"),
+                        unit_price=Decimal(str(entry_data["unit_price"])) if entry_data.get("unit_price") else None,
+                        quantity=Decimal(str(entry_data["quantity"])) if entry_data.get("quantity") else None,
+                        hours=Decimal(str(entry_data["hours"])) if entry_data.get("hours") else None,
+                    )
+                return {
+                    "success": True,
+                    "line_item_id": str(li.id),
+                    "estimate_id": args["estimate_id"],
+                    "name": li.name,
+                    "message": f"Added line item '{li.name}' to estimate",
+                }
+
+            elif tool_name == "update_line_item":
+                li = self._estimate_service.update_line_item(
+                    estimate_id=args["estimate_id"],
+                    item_id=args["line_item_id"],
+                    user_id=user_id,
+                    name=args.get("name"),
+                    notes=args.get("notes"),
+                    hourly_rate=Decimal(str(args["hourly_rate"])) if args.get("hourly_rate") else None,
+                )
+                return {
+                    "success": True,
+                    "line_item_id": str(li.id),
+                    "name": li.name,
+                    "message": f"Updated line item '{li.name}'",
+                }
+
+            elif tool_name == "delete_line_item":
+                self._estimate_service.delete_line_item(
+                    estimate_id=args["estimate_id"],
+                    item_id=args["line_item_id"],
+                    user_id=user_id,
+                )
+                return {
+                    "success": True,
+                    "message": "Deleted line item",
+                }
+
+            elif tool_name == "add_entry_to_line_item":
+                entry = self._estimate_service.add_entry(
+                    estimate_id=args["estimate_id"],
+                    item_id=args["line_item_id"],
+                    user_id=user_id,
+                    entry_type=args["entry_type"],
+                    name=args["name"],
+                    notes=args.get("notes"),
+                    unit_price=Decimal(str(args["unit_price"])) if args.get("unit_price") else None,
+                    quantity=Decimal(str(args["quantity"])) if args.get("quantity") else None,
+                    hours=Decimal(str(args["hours"])) if args.get("hours") else None,
+                )
+                return {
+                    "success": True,
+                    "entry_id": str(entry.id),
+                    "name": entry.name,
+                    "message": f"Added {entry.entry_type} entry '{entry.name}'",
+                }
+
+            elif tool_name == "update_entry":
+                entry = self._estimate_service.update_entry(
+                    estimate_id=args["estimate_id"],
+                    item_id=args["line_item_id"],
+                    entry_id=args["entry_id"],
+                    user_id=user_id,
+                    name=args.get("name"),
+                    notes=args.get("notes"),
+                    unit_price=Decimal(str(args["unit_price"])) if args.get("unit_price") else None,
+                    quantity=Decimal(str(args["quantity"])) if args.get("quantity") else None,
+                    hours=Decimal(str(args["hours"])) if args.get("hours") else None,
+                )
+                return {
+                    "success": True,
+                    "entry_id": str(entry.id),
+                    "name": entry.name,
+                    "message": f"Updated entry '{entry.name}'",
+                }
+
+            elif tool_name == "delete_entry":
+                self._estimate_service.delete_entry(
+                    estimate_id=args["estimate_id"],
+                    item_id=args["line_item_id"],
+                    entry_id=args["entry_id"],
+                    user_id=user_id,
+                )
+                return {
+                    "success": True,
+                    "message": "Deleted entry",
+                }
+
+            elif tool_name == "clear_all_line_items":
+                line_items = self._estimate_service.get_line_items(args["estimate_id"], user_id)
+                count = len(line_items)
+                for li in line_items:
+                    self._estimate_service.delete_line_item(
+                        estimate_id=args["estimate_id"],
+                        item_id=str(li.id),
+                        user_id=user_id,
+                    )
+                return {
+                    "success": True,
+                    "deleted_count": count,
+                    "message": f"Cleared all {count} line item(s) from estimate",
                 }
 
             elif tool_name == "list_job_sites":
