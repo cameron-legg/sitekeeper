@@ -41,6 +41,10 @@ class Config:
     TESTING: bool = False
     DEBUG: bool = os.environ.get("FLASK_DEBUG", "0") == "1"
 
+    # OpenAI (for AI assistant features)
+    OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "")
+    OPENAI_MODEL: str = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+
 
 class TestingConfig(Config):
     """Configuration used during automated tests."""

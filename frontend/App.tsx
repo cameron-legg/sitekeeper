@@ -3,6 +3,7 @@
  *
  * Wraps the app in:
  * - QueryClientProvider (TanStack Query server state)
+ * - AIProvider (floating AI chat bubble with screen awareness)
  * - RootNavigator (React Navigation + auth-gated routing)
  */
 
@@ -12,6 +13,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet } from "react-native";
 import RootNavigator from "./src/navigation/RootNavigator";
+import AIProvider from "./src/components/AIProvider";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,7 +28,9 @@ function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <QueryClientProvider client={queryClient}>
-        <RootNavigator />
+        <AIProvider>
+          <RootNavigator />
+        </AIProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
   );
