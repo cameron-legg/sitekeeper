@@ -80,6 +80,8 @@ def resolve_tenant_slug() -> str:
         nocoresources.entouch.org → 'nocoresources'
         localhost:5000 → DEFAULT_TENANT
         entouch.org → 'default'
+        10.0.0.5:5000 → DEFAULT_TENANT (IP address)
+        192.168.1.100:5000 → DEFAULT_TENANT (IP address)
     """
     host = request.host.split(":")[0]  # Strip port
 
@@ -87,18 +89,35 @@ def resolve_tenant_slug() -> str:
     if host in ("localhost", "127.0.0.1"):
         return DEFAULT_TENANT
 
+    # IP addresses (e.g. 10.0.0.5, 192.168.1.100) — treat as local dev
+    if host.replace(".", "").isdigit():
+        return DEFAULT_TENANT
+
     # Production: extract subdomain from *.entouch.org
     parts = host.split(".")
     if len(parts) >= 3:
-        # e.g. ['nocoresources', 'entouch', 'org']
-        return parts[0]
+        subdomain = parts[0]
+        # 'www' is not a tenant — treat as default
+        if subdomain == "www":
+            return DEFAULT_TENANT
+        return subdomain
 
     # Bare domain (entouch.org) — treat as default
     return DEFAULT_TENANT
 
 
 def get_tenant_database_url(slug: str) -> str:
-    """Build the database URL for a given tenant slug."""
+    """Build the database URL for a given tenant slug.
+
+    For the DEFAULT_TENANT, returns None to signal that the app's
+    SQLALCHEMY_DATABASE_URI should be used (supports local dev without
+    needing tenants.json to match the local DB port).
+    """
+    if slug == DEFAULT_TENANT:
+        # Use the app's configured DATABASE_URL (from .env / Config)
+        # This avoids tenants.json needing to match local dev ports
+        return None
+
     config = get_tenant_config(slug)
     if config and "database_url" in config:
         return config["database_url"]
@@ -117,9 +136,17 @@ def get_tenant_bucket(slug: str) -> str:
 
 
 def get_engine_for_tenant(slug: str):
-    """Get or create a SQLAlchemy engine for the given tenant."""
+    """Get or create a SQLAlchemy engine for the given tenant.
+
+    Returns None for the default tenant, signaling that the app's
+    built-in engine (from SQLALCHEMY_DATABASE_URI) should be used.
+    """
+    url = get_tenant_database_url(slug)
+    if url is None:
+        # Default tenant uses the app's configured engine
+        return None
+
     if slug not in _engines:
-        url = get_tenant_database_url(slug)
         _engines[slug] = create_engine(url, pool_size=5, max_overflow=10, pool_recycle=300)
         logger.info("Created database engine for tenant '%s'", slug)
     return _engines[slug]
@@ -155,11 +182,13 @@ def init_tenant_middleware(app):
         g.tenant_config = config or {}
 
         # Swap the default engine to the tenant's engine.
-        # db.session.remove() clears any cached connections from the
-        # previous request, then we point the engine dict at the new DB.
+        # For the default tenant, we leave the app's built-in engine in place
+        # (configured via SQLALCHEMY_DATABASE_URI in .env / Config).
         engine = get_engine_for_tenant(slug)
-        db.session.remove()
-        db.engines[None] = engine
+        if engine is not None:
+            db.session.remove()
+            db.engines[None] = engine
+        # If engine is None (default tenant), the app's original engine is already active
 
     @app.teardown_appcontext
     def remove_session(exception=None):
