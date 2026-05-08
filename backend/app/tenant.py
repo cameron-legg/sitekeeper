@@ -170,8 +170,13 @@ def init_tenant_middleware(app):
     """
     from .extensions import db
 
+    # Store the original app engine so we can restore it for default tenant requests
+    _original_engine = None
+
     @app.before_request
     def resolve_tenant():
+        nonlocal _original_engine
+
         slug = resolve_tenant_slug()
         config = get_tenant_config(slug)
 
@@ -181,14 +186,22 @@ def init_tenant_middleware(app):
         g.tenant_slug = slug
         g.tenant_config = config or {}
 
-        # Swap the default engine to the tenant's engine.
-        # For the default tenant, we leave the app's built-in engine in place
-        # (configured via SQLALCHEMY_DATABASE_URI in .env / Config).
+        # Capture the original engine on first request
+        if _original_engine is None:
+            _original_engine = db.engines.get(None)
+
+        # Swap the engine based on tenant
         engine = get_engine_for_tenant(slug)
         if engine is not None:
+            # Non-default tenant: swap to tenant's engine
             db.session.remove()
             db.engines[None] = engine
-        # If engine is None (default tenant), the app's original engine is already active
+        else:
+            # Default tenant: restore the app's original engine
+            # (in case a previous request swapped it to a different tenant)
+            if db.engines.get(None) is not _original_engine:
+                db.session.remove()
+                db.engines[None] = _original_engine
 
     @app.teardown_appcontext
     def remove_session(exception=None):
