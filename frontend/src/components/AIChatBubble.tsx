@@ -92,15 +92,36 @@ export default function AIChatBubble({ screenName, screenParams }: AIChatBubbleP
           };
           setMessages((prev) => [...prev, assistantMsg]);
 
-          // Invalidate relevant queries if actions were taken
+          // Invalidate relevant queries based on which tools were called
           if (data.actions && data.actions.length > 0) {
-            // Broad invalidation to refresh any affected data
-            queryClient.invalidateQueries({ queryKey: ["jobSites"] });
-            queryClient.invalidateQueries({ queryKey: ["jobs"] });
-            queryClient.invalidateQueries({ queryKey: ["estimates"] });
-            queryClient.invalidateQueries({ queryKey: ["invoices"] });
-            queryClient.invalidateQueries({ queryKey: ["notes"] });
-            queryClient.invalidateQueries({ queryKey: ["savedItems"] });
+            for (const action of data.actions) {
+              switch (action.tool) {
+                case "create_job_site":
+                case "list_job_sites":
+                  queryClient.invalidateQueries({ queryKey: ["job-sites"] });
+                  break;
+                case "create_job":
+                case "list_jobs":
+                  queryClient.invalidateQueries({ queryKey: ["job-sites"] });
+                  queryClient.invalidateQueries({ queryKey: ["jobs"] });
+                  break;
+                case "create_estimate":
+                case "list_estimates":
+                  queryClient.invalidateQueries({ queryKey: ["estimates"] });
+                  break;
+                case "create_invoice":
+                case "convert_estimate_to_invoice":
+                  queryClient.invalidateQueries({ queryKey: ["invoices"] });
+                  queryClient.invalidateQueries({ queryKey: ["estimates"] });
+                  break;
+                case "create_note":
+                  queryClient.invalidateQueries({ queryKey: ["notes"] });
+                  break;
+                case "list_saved_items":
+                  queryClient.invalidateQueries({ queryKey: ["saved-items"] });
+                  break;
+              }
+            }
           }
         },
         onError: (error: any) => {
