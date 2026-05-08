@@ -23,6 +23,7 @@ from ..services.invoice_service import InvoiceService
 from ..services.note_service import NoteService
 from ..services.conversion_service import ConversionService
 from ..services.saved_item_service import SavedItemService
+from ..services.contact_service import ContactService
 
 logger = logging.getLogger(__name__)
 
@@ -156,12 +157,12 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "create_note",
-            "description": "Create a note on a job.",
+            "description": "Create a note on a job. Notes support full markdown formatting (headings, lists, bold, links, code blocks, etc.).",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "job_id": {"type": "string", "description": "ID of the job to add the note to"},
-                    "body": {"type": "string", "description": "The note content (supports markdown)"},
+                    "body": {"type": "string", "description": "The note content in markdown format. Use headings, bullet lists, bold, etc. for well-structured notes."},
                 },
                 "required": ["job_id", "body"],
             },
@@ -231,6 +232,58 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_contact",
+            "description": "Create a new contact and associate it with a job site or job. Contacts have a name, phone, email, mailing address, and notes.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Full name of the contact"},
+                    "phone": {"type": "string", "description": "Phone number"},
+                    "email": {"type": "string", "description": "Email address"},
+                    "mailing_address": {"type": "string", "description": "Mailing/physical address"},
+                    "notes": {"type": "string", "description": "Any notes about this contact"},
+                    "parent_type": {"type": "string", "enum": ["job_site", "job"], "description": "Whether to attach this contact to a job site or a job"},
+                    "parent_id": {"type": "string", "description": "ID of the job site or job to attach the contact to"},
+                    "set_as_primary": {"type": "boolean", "description": "Whether to set this contact as the primary contact for the parent"},
+                },
+                "required": ["name", "parent_type", "parent_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_contacts",
+            "description": "List all contacts for a job site or job.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "parent_type": {"type": "string", "enum": ["job_site", "job"], "description": "Whether to list contacts for a job site or a job"},
+                    "parent_id": {"type": "string", "description": "ID of the job site or job"},
+                },
+                "required": ["parent_type", "parent_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "set_primary_contact",
+            "description": "Set an existing contact as the primary contact for a job site or job.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "contact_id": {"type": "string", "description": "ID of the contact to set as primary"},
+                    "parent_type": {"type": "string", "enum": ["job_site", "job"], "description": "Whether to set primary on a job site or a job"},
+                    "parent_id": {"type": "string", "description": "ID of the job site or job"},
+                },
+                "required": ["contact_id", "parent_type", "parent_id"],
+            },
+        },
+    },
 ]
 
 
@@ -260,6 +313,8 @@ def _build_system_prompt(user: User, screen_context: dict, saved_items_summary: 
         "",
         "You can help the user by:",
         "- Creating job sites, jobs, estimates, invoices, and notes",
+        "- Creating contacts and associating them with job sites or jobs",
+        "- Setting primary contacts on job sites and jobs",
         "- Adding line items with materials and labor to estimates/invoices",
         "- Converting estimates to invoices",
         "- Suggesting materials and pricing based on the user's state and the type of work",
@@ -271,9 +326,21 @@ def _build_system_prompt(user: User, screen_context: dict, saved_items_summary: 
         "- Group related work into logical line items",
         "- Apply appropriate tax rates for the user's state (materials only, not labor)",
         "",
+        "When working with contacts:",
+        "- Contacts are associated with job sites or jobs (not standalone)",
+        "- A contact has: name, phone, email, mailing_address, notes",
+        "- Each job site and job can have a primary contact",
+        "- If the user asks to add a contact, create it and attach it to the relevant job site or job",
+        "- Use the screen context to determine which job site or job to attach to",
+        "",
+        "When creating notes:",
+        "- Notes support full markdown: headings (#, ##), bold (**text**), bullet lists (- item), numbered lists, links, code blocks, etc.",
+        "- Use markdown formatting to make notes well-structured and readable",
+        "- For example, use headings for sections, bullet lists for action items, bold for emphasis",
+        "",
         "When the user is on a specific screen, use that context:",
-        "- On JobSiteDetail: the siteId is available, use it for creating jobs",
-        "- On JobDetail: the jobId and siteId are available, use them for estimates/notes",
+        "- On JobSiteDetail: the siteId is available, use it for creating jobs and contacts",
+        "- On JobDetail: the jobId and siteId are available, use them for estimates/notes/contacts",
         "- On EstimateEditor: the estimateId and jobId are available",
         "- On InvoiceEditor: the invoiceId and jobId are available",
         "",
@@ -308,6 +375,7 @@ class AIService:
         self._note_service = NoteService()
         self._conversion_service = ConversionService()
         self._saved_item_service = SavedItemService()
+        self._contact_service = ContactService()
 
     def _get_saved_items_summary(self, user_id: str) -> str:
         """Build a brief summary of the user's saved items for context."""
@@ -525,6 +593,80 @@ class AIService:
                         }
                         for item in items[:20]
                     ],
+                }
+
+            elif tool_name == "create_contact":
+                # Create the contact
+                contact = self._contact_service.create_contact(
+                    name=args["name"],
+                    phone=args.get("phone"),
+                    email=args.get("email"),
+                    mailing_address=args.get("mailing_address"),
+                    notes=args.get("notes"),
+                )
+                contact_id = str(contact.id)
+
+                # Associate with parent (job site or job)
+                parent_type = args["parent_type"]
+                parent_id = args["parent_id"]
+                if parent_type == "job_site":
+                    self._contact_service.add_contact_to_job_site(parent_id, user_id, contact_id)
+                else:
+                    self._contact_service.add_contact_to_job(parent_id, user_id, contact_id)
+
+                # Optionally set as primary
+                if args.get("set_as_primary"):
+                    if parent_type == "job_site":
+                        self._contact_service.set_primary_for_job_site(parent_id, user_id, contact_id)
+                    else:
+                        self._contact_service.set_primary_for_job(parent_id, user_id, contact_id)
+
+                return {
+                    "success": True,
+                    "contact_id": contact_id,
+                    "name": contact.name,
+                    "parent_type": parent_type,
+                    "parent_id": parent_id,
+                    "is_primary": bool(args.get("set_as_primary")),
+                    "message": f"Created contact '{contact.name}' and added to {parent_type.replace('_', ' ')}",
+                }
+
+            elif tool_name == "list_contacts":
+                parent_type = args["parent_type"]
+                parent_id = args["parent_id"]
+                if parent_type == "job_site":
+                    contacts = self._contact_service.get_contacts_for_job_site(parent_id, user_id)
+                else:
+                    contacts = self._contact_service.get_contacts_for_job(parent_id, user_id)
+                return {
+                    "success": True,
+                    "contacts": [
+                        {
+                            "id": str(c.id),
+                            "name": c.name,
+                            "phone": c.phone,
+                            "email": c.email,
+                            "mailing_address": c.mailing_address,
+                            "notes": c.notes,
+                        }
+                        for c in contacts
+                    ],
+                }
+
+            elif tool_name == "set_primary_contact":
+                contact_id = args["contact_id"]
+                parent_type = args["parent_type"]
+                parent_id = args["parent_id"]
+                if parent_type == "job_site":
+                    self._contact_service.set_primary_for_job_site(parent_id, user_id, contact_id)
+                else:
+                    self._contact_service.set_primary_for_job(parent_id, user_id, contact_id)
+                return {
+                    "success": True,
+                    "contact_id": contact_id,
+                    "parent_type": parent_type,
+                    "parent_id": parent_id,
+                    "message": f"Set contact as primary for {parent_type.replace('_', ' ')}",
                 }
 
             else:
