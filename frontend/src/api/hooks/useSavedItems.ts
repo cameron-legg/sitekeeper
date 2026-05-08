@@ -134,7 +134,7 @@ export function usePopulateSavedItem() {
   });
 }
 
-/** Save a single entry (material or hours) to the library as a new SavedItem. */
+/** Save a single entry (material or hours) to the Materials Library (standalone). */
 export function useSaveEntryToLibrary() {
   const qc = useQueryClient();
   return useMutation({
@@ -147,10 +147,52 @@ export function useSaveEntryToLibrary() {
       quantity?: string;
       hours?: string;
     }) =>
-      apiClient.post<SavedItem>("/api/v1/saved-items/save-entry", data).then((r) => r.data),
+      apiClient.post<SavedItemEntry>("/api/v1/saved-items/save-entry", data).then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.all });
       qc.invalidateQueries({ queryKey: ["saved-entries"] });
+    },
+  });
+}
+
+/** Update a standalone entry in the Materials Library. */
+export function useUpdateStandaloneEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ entryId, ...data }: {
+      entryId: string; name?: string; notes?: string; url?: string;
+      unit_price?: string; quantity?: string; hours?: string;
+    }) =>
+      apiClient.put<SavedItemEntry>(`/api/v1/saved-items/entries/${entryId}`, data).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["saved-entries"] });
+      qc.invalidateQueries({ queryKey: KEYS.all });
+    },
+  });
+}
+
+/** Assign an existing entry to a SavedItem (move it into an Item Library item). */
+export function useAssignEntryToItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ itemId, entryId }: { itemId: string; entryId: string }) =>
+      apiClient.post<SavedItemEntry>(`/api/v1/saved-items/${itemId}/entries/assign`, { entry_id: entryId }).then((r) => r.data),
+    onSuccess: (_, { itemId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+      qc.invalidateQueries({ queryKey: KEYS.detail(itemId) });
+      qc.invalidateQueries({ queryKey: ["saved-entries"] });
+    },
+  });
+}
+
+/** Delete an entry from the Materials Library (removes from Item Library too if grouped). */
+export function useDeleteStandaloneEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (entryId: string) =>
+      apiClient.delete(`/api/v1/saved-items/entries/${entryId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["saved-entries"] });
+      qc.invalidateQueries({ queryKey: KEYS.all });
     },
   });
 }

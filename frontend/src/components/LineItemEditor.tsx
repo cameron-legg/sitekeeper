@@ -24,6 +24,14 @@ import {
 } from "react-native";
 import type { LineItem, LineItemEntry, SavedItem, SavedItemEntry } from "../api/types";
 
+/**
+ * Generate a fingerprint string for an entry based on its key fields.
+ * Used to check if a line item entry already exists in the saved library.
+ */
+function entryFingerprint(e: { entry_type: string; name: string; unit_price?: string | null; quantity?: string | null; hours?: string | null }): string {
+  return `${e.entry_type}|${e.name}|${e.unit_price ?? ""}|${e.quantity ?? ""}|${e.hours ?? ""}`;
+}
+
 // ── Entry form modal ──────────────────────────────────────────────────────────
 
 interface EntryFormValues {
@@ -218,6 +226,7 @@ interface LineItemEditorProps {
   onAddEntryFromLibrary?: () => void;
   savedItems?: SavedItem[];
   onPickSavedEntry?: (entry: SavedItemEntry) => void;
+  allSavedEntries?: SavedItemEntry[];
   isSavingEntry?: boolean;
 }
 
@@ -233,6 +242,7 @@ export default function LineItemEditor({
   onAddEntryFromLibrary,
   savedItems,
   onPickSavedEntry,
+  allSavedEntries,
   isSavingEntry,
 }: LineItemEditorProps) {
   const [expanded, setExpanded] = useState(true);
@@ -248,6 +258,19 @@ export default function LineItemEditor({
   const [confirmDeleteItem, setConfirmDeleteItem] = useState(false);
   const [confirmSaveToLibrary, setConfirmSaveToLibrary] = useState(false);
   const [confirmSaveEntry, setConfirmSaveEntry] = useState<LineItemEntry | null>(null);
+
+  /** Check if a LineItemEntry already exists in the Materials Library (by fingerprint). */
+  function entryExistsInLibrary(entry: LineItemEntry): boolean {
+    if (!allSavedEntries) return false;
+    const fp = entryFingerprint(entry);
+    return allSavedEntries.some((saved) => entryFingerprint(saved) === fp);
+  }
+
+  /** Check if the whole LineItem already exists in the Item Library (by name). */
+  function itemExistsInLibrary(): boolean {
+    if (!savedItems) return false;
+    return savedItems.some((saved) => saved.name === item.name);
+  }
 
   function handleSaveName() {
     if (nameVal.trim()) {
@@ -354,7 +377,7 @@ export default function LineItemEditor({
                 </Text>
               </TouchableOpacity>
               <View style={styles.itemActions}>
-                {onSaveToLibrary && (
+                {onSaveToLibrary && !itemExistsInLibrary() && (
                   <TouchableOpacity style={styles.saveLibBtn} onPress={() => setConfirmSaveToLibrary(true)}>
                     <Text style={styles.saveLibText}>📚 Save</Text>
                   </TouchableOpacity>
@@ -389,7 +412,7 @@ export default function LineItemEditor({
                 </View>
               </View>
               <Text style={styles.entryTotal}>{entryTotal(entry)}</Text>
-              {onSaveEntryToLibrary && (
+              {onSaveEntryToLibrary && !entryExistsInLibrary(entry) && (
                 <TouchableOpacity style={styles.entrySaveBtn} onPress={() => setConfirmSaveEntry(entry)}>
                   <Text style={styles.entrySaveText}>📚</Text>
                 </TouchableOpacity>

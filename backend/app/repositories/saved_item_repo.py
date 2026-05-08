@@ -38,6 +38,9 @@ class ISavedItemRepository(ABC):
     @abstractmethod
     def get_all_entries_for_user(self, user_id: str) -> list[SavedItemEntry]: ...
 
+    @abstractmethod
+    def get_all_entries(self) -> list[SavedItemEntry]: ...
+
 
 class SQLAlchemySavedItemRepository(ISavedItemRepository):
 
@@ -96,6 +99,14 @@ class SQLAlchemySavedItemRepository(ISavedItemRepository):
             SavedItemEntry.query
             .join(SavedItem, SavedItemEntry.saved_item_id == SavedItem.id)
             .filter(SavedItem.user_id == user_id)
+            .order_by(SavedItemEntry.name.asc())
+            .all()
+        )
+
+    def get_all_entries(self) -> list[SavedItemEntry]:
+        """Return all entries in the tenant — both standalone and grouped."""
+        return (
+            SavedItemEntry.query
             .order_by(SavedItemEntry.name.asc())
             .all()
         )

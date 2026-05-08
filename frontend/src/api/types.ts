@@ -121,10 +121,10 @@ export interface Invoice {
   pdf_status: "none" | "current" | "stale";
 }
 
-/** A sub-entry under a SavedItem. */
+/** A sub-entry under a SavedItem, or a standalone entry in the Materials Library. */
 export interface SavedItemEntry {
   id: string;
-  saved_item_id: string;
+  saved_item_id: string | null;
   entry_type: "material" | "hours";
   name: string;
   notes: string | null;
@@ -133,6 +133,8 @@ export interface SavedItemEntry {
   quantity: string | null;
   hours: string | null;
   sort_order: number;
+  /** Name of the parent Item Library item, if this entry belongs to one. */
+  parent_item_name: string | null;
 }
 
 export interface SavedItem {

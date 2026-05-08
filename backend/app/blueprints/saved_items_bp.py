@@ -24,7 +24,7 @@ def _parse_decimal_optional(value, field_name: str):
 def _serialize_entry(entry) -> dict:
     return {
         "id": str(entry.id),
-        "saved_item_id": str(entry.saved_item_id),
+        "saved_item_id": str(entry.saved_item_id) if entry.saved_item_id is not None else None,
         "entry_type": entry.entry_type,
         "name": entry.name,
         "notes": entry.notes,
@@ -33,6 +33,7 @@ def _serialize_entry(entry) -> dict:
         "quantity": str(entry.quantity) if entry.quantity is not None else None,
         "hours": str(entry.hours) if entry.hours is not None else None,
         "sort_order": entry.sort_order,
+        "parent_item_name": entry.saved_item.name if entry.saved_item_id and entry.saved_item else None,
     }
 
 
@@ -220,6 +221,28 @@ def delete_entry(item_id: str, entry_id: str):
         return server_error()
 
 
+@saved_items_bp.post("/saved-items/<item_id>/entries/assign")
+@auth_required
+def assign_entry_to_item(item_id: str):
+    """Assign an existing entry to a SavedItem (move it from standalone or another item).
+
+    Request body:
+        entry_id (str) — the entry to assign
+    """
+    user_id = g.current_user_id
+    data = request.get_json(silent=True) or {}
+    entry_id = data.get("entry_id", "").strip()
+    if not entry_id:
+        return error_response("VALIDATION_ERROR", "entry_id is required.", field="entry_id")
+    try:
+        entry = _service.assign_entry_to_item(item_id=item_id, entry_id=entry_id, user_id=user_id)
+        return jsonify(_serialize_entry(entry)), 200
+    except NotFoundError as exc:
+        return not_found(str(exc))
+    except Exception:
+        return server_error()
+
+
 # ---------------------------------------------------------------------------
 # Populate: copy a saved item into a real line item (snapshot)
 # ---------------------------------------------------------------------------
@@ -277,7 +300,7 @@ def populate_line_item(item_id: str):
 @saved_items_bp.post("/saved-items/save-entry")
 @auth_required
 def save_entry_to_library():
-    """Save a single entry (material or hours) to the library as a new SavedItem.
+    """Save a single entry (material or hours) to the Materials Library as a standalone entry.
 
     Request body:
         entry_type  (str) — 'material' or 'hours'
@@ -309,12 +332,58 @@ def save_entry_to_library():
         return err
 
     try:
-        saved = _service.save_entry_to_library(
+        entry = _service.save_entry_to_library(
             user_id=user_id, entry_type=entry_type, name=name,
             notes=data.get("notes"), url=data.get("url"),
             unit_price=unit_price, quantity=quantity, hours=hours,
         )
-        return jsonify(_serialize_saved_item(saved)), 201
+        return jsonify(_serialize_entry(entry)), 201
+    except Exception:
+        return server_error()
+
+
+# ---------------------------------------------------------------------------
+# Standalone entry CRUD (Materials Library — no parent SavedItem)
+# ---------------------------------------------------------------------------
+
+@saved_items_bp.put("/saved-items/entries/<entry_id>")
+@auth_required
+def update_standalone_entry(entry_id: str):
+    """Update a standalone entry in the Materials Library."""
+    user_id = g.current_user_id
+    data = request.get_json(silent=True) or {}
+    unit_price, err = _parse_decimal_optional(data.get("unit_price"), "unit_price")
+    if err:
+        return err
+    quantity, err = _parse_decimal_optional(data.get("quantity"), "quantity")
+    if err:
+        return err
+    hours, err = _parse_decimal_optional(data.get("hours"), "hours")
+    if err:
+        return err
+    try:
+        entry = _service.update_standalone_entry(
+            entry_id=entry_id, user_id=user_id,
+            name=data.get("name"), notes=data.get("notes"), url=data.get("url"),
+            unit_price=unit_price, quantity=quantity, hours=hours,
+        )
+        return jsonify(_serialize_entry(entry)), 200
+    except NotFoundError:
+        return not_found("Entry")
+    except Exception:
+        return server_error()
+
+
+@saved_items_bp.delete("/saved-items/entries/<entry_id>")
+@auth_required
+def delete_standalone_entry(entry_id: str):
+    """Delete a standalone entry from the Materials Library."""
+    user_id = g.current_user_id
+    try:
+        _service.delete_standalone_entry(entry_id, user_id)
+        return "", 204
+    except NotFoundError:
+        return not_found("Entry")
     except Exception:
         return server_error()
 

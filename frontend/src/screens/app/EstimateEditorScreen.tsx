@@ -11,7 +11,7 @@ import {
   useDeleteEstimateLineItem, useAddEstimateEntry, useUpdateEstimateEntry,
   useDeleteEstimateEntry, useSaveEstimateLineItemToLibrary,
 } from "../../api/hooks/useEstimates";
-import { useSavedItems, usePopulateSavedItem, useSaveEntryToLibrary, usePopulateSavedEntry } from "../../api/hooks/useSavedItems";
+import { useSavedItems, usePopulateSavedItem, useSaveEntryToLibrary, usePopulateSavedEntry, useAllSavedEntries } from "../../api/hooks/useSavedItems";
 import LineItemEditor from "../../components/LineItemEditor";
 import type { LineItemEntry, SavedItem, SavedItemEntry } from "../../api/types";
 
@@ -43,6 +43,7 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
   const saveEntryToLib = useSaveEntryToLibrary();
   const populateSavedEntry = usePopulateSavedEntry();
   const { data: savedItems } = useSavedItems();
+  const { data: allSavedEntries } = useAllSavedEntries();
 
   const [showAddItem, setShowAddItem] = useState(false);
   const [addItemMode, setAddItemMode] = useState<"new" | "library">("new");
@@ -152,7 +153,13 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
                 onUpdateItem={(data) => updateLineItem.mutate({ estimateId, itemId: item.id, ...data })}
                 onDeleteItem={() => deleteLineItem.mutate({ estimateId, itemId: item.id })}
                 onAddEntry={(values) => addEntry.mutate({ estimateId, itemId: item.id, ...values })}
-                onUpdateEntry={(entryId, values) => updateEntry.mutate({ estimateId, itemId: item.id, entryId, ...values })}
+                onUpdateEntry={(entryId, values) => {
+                  const cleaned: Record<string, string | undefined> = {};
+                  for (const [k, v] of Object.entries(values)) {
+                    cleaned[k] = typeof v === "string" && v.trim() === "" ? undefined : v;
+                  }
+                  updateEntry.mutate({ estimateId, itemId: item.id, entryId, ...cleaned });
+                }}
                 onDeleteEntry={(entryId) => deleteEntry.mutate({ estimateId, itemId: item.id, entryId })}
                 onSaveToLibrary={() => saveToLibrary.mutate({ estimateId, itemId: item.id })}
                 onSaveEntryToLibrary={(entry: LineItemEntry) => saveEntryToLib.mutate({
@@ -171,6 +178,7 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
                   parentId: estimateId,
                   parentType: "estimate",
                 })}
+                allSavedEntries={allSavedEntries}
                 isSavingEntry={addEntry.isPending || updateEntry.isPending}
               />
             ))}

@@ -486,7 +486,12 @@ class SavedItemEntry(db.Model):
     saved_item_id = Column(
         UUID(as_uuid=True),
         ForeignKey("saved_items.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,  # NULL = standalone entry in Materials Library
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,  # Set for standalone entries; derived from parent for grouped entries
     )
     entry_type = Column(String(20), nullable=False)  # 'material' | 'hours'
     name = Column(String(255), nullable=False)

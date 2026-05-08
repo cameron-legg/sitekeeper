@@ -20,6 +20,8 @@ import {
   useAddSavedItemEntry,
   useUpdateSavedItemEntry,
   useDeleteSavedItemEntry,
+  useAllSavedEntries,
+  useAssignEntryToItem,
 } from "../../api/hooks/useSavedItems";
 import type { SavedItem, SavedItemEntry } from "../../api/types";
 
@@ -54,6 +56,7 @@ export default function SavedItemsScreen({ route, navigation }: Props) {
   const addEntry = useAddSavedItemEntry();
   const updateEntry = useUpdateSavedItemEntry();
   const deleteEntry = useDeleteSavedItemEntry();
+  const assignEntry = useAssignEntryToItem();
 
   const [confirmDelete, setConfirmDelete] = useState<SavedItem | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -64,6 +67,10 @@ export default function SavedItemsScreen({ route, navigation }: Props) {
   const [entryForm, setEntryForm] = useState<EntryForm>(EMPTY_ENTRY);
   const [entryErrors, setEntryErrors] = useState<Partial<Record<keyof EntryForm, string>>>({});
   const [confirmDeleteEntry, setConfirmDeleteEntry] = useState<{ itemId: string; entry: SavedItemEntry } | null>(null);
+  const [showMaterialsPicker, setShowMaterialsPicker] = useState<string | null>(null); // itemId to add to
+  const [materialsSearch, setMaterialsSearch] = useState("");
+
+  const { data: allEntries } = useAllSavedEntries();
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
@@ -80,6 +87,23 @@ export default function SavedItemsScreen({ route, navigation }: Props) {
   function handleDelete(item: SavedItem) {
     setConfirmDelete(item);
   }
+
+  function handlePickMaterial(entry: SavedItemEntry) {
+    if (!showMaterialsPicker) return;
+    assignEntry.mutate({
+      itemId: showMaterialsPicker,
+      entryId: entry.id,
+    }, {
+      onSuccess: () => setShowMaterialsPicker(null),
+    });
+  }
+
+  const filteredMaterials = (allEntries ?? []).filter((e) => {
+    // Exclude entries already belonging to the target item
+    if (showMaterialsPicker && e.saved_item_id === showMaterialsPicker) return false;
+    if (materialsSearch && !e.name.toLowerCase().includes(materialsSearch.toLowerCase())) return false;
+    return true;
+  });
 
   function toggleExpand(id: string) {
     setExpandedId((prev) => (prev === id ? null : id));
@@ -250,9 +274,14 @@ export default function SavedItemsScreen({ route, navigation }: Props) {
                   ))}
 
                   <View style={styles.itemFooter}>
-                    <TouchableOpacity style={styles.addEntryBtn} onPress={() => openAddEntry(item.id)}>
-                      <Text style={styles.addEntryText}>+ Add Entry</Text>
-                    </TouchableOpacity>
+                    <View style={styles.addEntryRow}>
+                      <TouchableOpacity style={styles.addEntryBtn} onPress={() => openAddEntry(item.id)}>
+                        <Text style={styles.addEntryText}>+ Add Entry</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.fromLibraryBtn} onPress={() => { setMaterialsSearch(""); setShowMaterialsPicker(item.id); }}>
+                        <Text style={styles.fromLibraryText}>📚 From Library</Text>
+                      </TouchableOpacity>
+                    </View>
                     <View style={styles.itemActions}>
                       <TouchableOpacity
                         style={styles.editItemBtn}
@@ -440,6 +469,63 @@ export default function SavedItemsScreen({ route, navigation }: Props) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Materials Library picker */}
+      <Modal visible={!!showMaterialsPicker} transparent animationType="slide" onRequestClose={() => setShowMaterialsPicker(null)}>
+        <View style={styles.pickerOverlay}>
+          <View style={styles.pickerSheet}>
+            <View style={styles.pickerHeader}>
+              <TouchableOpacity onPress={() => setShowMaterialsPicker(null)}>
+                <Text style={styles.pickerCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={styles.pickerTitle}>Pick from Materials</Text>
+              <View style={{ width: 50 }} />
+            </View>
+            <View style={styles.pickerSearchBar}>
+              <TextInput
+                style={styles.pickerSearchInput}
+                value={materialsSearch}
+                onChangeText={setMaterialsSearch}
+                placeholder="Search materials…"
+                clearButtonMode="while-editing"
+              />
+            </View>
+            <ScrollView style={styles.pickerScroll} keyboardShouldPersistTaps="handled">
+              {filteredMaterials.length === 0 && (
+                <Text style={styles.pickerEmpty}>
+                  {materialsSearch ? "No matching materials." : "No materials in your library yet."}
+                </Text>
+              )}
+              {filteredMaterials.map((entry) => (
+                <TouchableOpacity
+                  key={entry.id}
+                  style={styles.pickerRow}
+                  onPress={() => handlePickMaterial(entry)}
+                >
+                  <View style={styles.pickerEntryInfo}>
+                    <View style={styles.entryTypeTag}>
+                      <Text style={styles.entryTypeText}>
+                        {entry.entry_type === "material" ? "MAT" : "HRS"}
+                      </Text>
+                    </View>
+                    <View style={styles.pickerEntryDetails}>
+                      <Text style={styles.pickerEntryName}>{entry.name}</Text>
+                      {entry.entry_type === "material" ? (
+                        <Text style={styles.pickerEntrySub}>
+                          {entry.quantity ?? "1"} × ${entry.unit_price ?? "0"}
+                        </Text>
+                      ) : (
+                        <Text style={styles.pickerEntrySub}>{entry.hours}h</Text>
+                      )}
+                    </View>
+                  </View>
+                  <Text style={styles.pickerAddText}>Add →</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -532,11 +618,12 @@ const styles = StyleSheet.create({
   // Footer
   itemFooter: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     marginTop: 10,
     gap: 8,
   },
+  addEntryRow: { flexDirection: "column", gap: 6 },
   addEntryBtn: {
     borderWidth: 1,
     borderColor: "#d1d5db",
@@ -547,6 +634,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   addEntryText: { fontSize: 12, color: "#6b7280", fontWeight: "500" },
+  fromLibraryBtn: {
+    borderWidth: 1,
+    borderColor: "#2563eb",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    backgroundColor: "#eff6ff",
+  },
+  fromLibraryText: { fontSize: 12, color: "#2563eb", fontWeight: "500" },
   itemActions: { flexDirection: "row", gap: 6 },
   editItemBtn: {
     paddingHorizontal: 10,
@@ -627,4 +724,20 @@ const styles = StyleSheet.create({
   typeBtnActive: { borderColor: "#2563eb", backgroundColor: "#eff6ff" },
   typeBtnText: { fontSize: 14, color: "#6b7280", fontWeight: "500" },
   typeBtnTextActive: { color: "#2563eb", fontWeight: "700" },
+  // Materials picker
+  pickerOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
+  pickerSheet: { backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, minHeight: "60%", maxHeight: "92%" },
+  pickerHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#e5e7eb" },
+  pickerCancelText: { fontSize: 16, color: "#6b7280" },
+  pickerTitle: { fontSize: 17, fontWeight: "600", color: "#1a1a1a" },
+  pickerSearchBar: { paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#e5e7eb" },
+  pickerSearchInput: { backgroundColor: "#f3f4f6", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, fontSize: 15, color: "#1a1a1a" },
+  pickerScroll: { flex: 1, paddingHorizontal: 16 },
+  pickerEmpty: { fontSize: 14, color: "#9ca3af", textAlign: "center", paddingVertical: 32 },
+  pickerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
+  pickerEntryInfo: { flexDirection: "row", alignItems: "center", flex: 1, gap: 8 },
+  pickerEntryDetails: { flex: 1 },
+  pickerEntryName: { fontSize: 13, fontWeight: "600", color: "#1a1a1a" },
+  pickerEntrySub: { fontSize: 11, color: "#6b7280" },
+  pickerAddText: { fontSize: 13, color: "#2563eb", fontWeight: "600" },
 });

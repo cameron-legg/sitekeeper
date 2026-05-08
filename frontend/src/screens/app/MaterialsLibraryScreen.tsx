@@ -16,9 +16,9 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import {
   useAllSavedEntries,
-  useUpdateSavedItemEntry,
-  useDeleteSavedItemEntry,
   useSaveEntryToLibrary,
+  useUpdateStandaloneEntry,
+  useDeleteStandaloneEntry,
 } from "../../api/hooks/useSavedItems";
 import type { SavedItemEntry } from "../../api/types";
 
@@ -46,9 +46,9 @@ const EMPTY_ENTRY: EntryForm = {
 
 export default function MaterialsLibraryScreen({ navigation }: Props) {
   const { data: entries, isLoading, isError } = useAllSavedEntries();
-  const updateEntry = useUpdateSavedItemEntry();
-  const deleteEntry = useDeleteSavedItemEntry();
   const createEntry = useSaveEntryToLibrary();
+  const updateEntry = useUpdateStandaloneEntry();
+  const deleteEntry = useDeleteStandaloneEntry();
 
   const [search, setSearch] = useState("");
   const [editingEntry, setEditingEntry] = useState<SavedItemEntry | null>(null);
@@ -103,7 +103,6 @@ export default function MaterialsLibraryScreen({ navigation }: Props) {
     if (!validate() || !editingEntry) return;
     updateEntry.mutate(
       {
-        itemId: editingEntry.saved_item_id,
         entryId: editingEntry.id,
         name: entryForm.name.trim(),
         notes: entryForm.notes.trim() || undefined,
@@ -134,10 +133,9 @@ export default function MaterialsLibraryScreen({ navigation }: Props) {
 
   function handleDelete() {
     if (!confirmDelete) return;
-    deleteEntry.mutate(
-      { itemId: confirmDelete.saved_item_id, entryId: confirmDelete.id },
-      { onSuccess: () => setConfirmDelete(null) }
-    );
+    deleteEntry.mutate(confirmDelete.id, {
+      onSuccess: () => setConfirmDelete(null),
+    });
   }
 
   function renderEntry({ item }: { item: SavedItemEntry }) {
@@ -273,7 +271,12 @@ export default function MaterialsLibraryScreen({ navigation }: Props) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Delete Entry</Text>
-            <Text style={styles.modalBody}>Delete "{confirmDelete?.name}" from your library?</Text>
+            <Text style={styles.modalBody}>
+              Delete "{confirmDelete?.name}" from your materials library?
+              {confirmDelete?.parent_item_name
+                ? `\n\nThis will also remove it from the Item Library item "${confirmDelete.parent_item_name}".`
+                : ""}
+            </Text>
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setConfirmDelete(null)}>
                 <Text style={styles.cancelBtnText}>Cancel</Text>
@@ -386,39 +389,14 @@ const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: "#f3f4f6" },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   errorText: { color: "#dc2626", fontSize: 15 },
-  // Search
-  searchBar: {
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  searchInput: {
-    backgroundColor: "#f3f4f6",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    fontSize: 15,
-    color: "#1a1a1a",
-  },
-  // List
+  searchBar: { backgroundColor: "#fff", paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#e5e7eb" },
+  searchInput: { backgroundColor: "#f3f4f6", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, fontSize: 15, color: "#1a1a1a" },
   listContent: { padding: 16, gap: 10 },
   emptyContainer: { flex: 1, padding: 16 },
   emptyState: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80 },
   emptyTitle: { fontSize: 18, fontWeight: "600", color: "#374151", marginBottom: 8 },
   emptySubtitle: { fontSize: 14, color: "#9ca3af", textAlign: "center", paddingHorizontal: 24 },
-  // Entry card
-  entryCard: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 14,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
+  entryCard: { backgroundColor: "#fff", borderRadius: 10, padding: 14, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   entryMain: { flexDirection: "row", alignItems: "center", gap: 10 },
   entryTypeTag: { backgroundColor: "#eff6ff", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 3 },
   entryTypeText: { fontSize: 10, fontWeight: "700", color: "#2563eb" },
@@ -431,52 +409,19 @@ const styles = StyleSheet.create({
   editBtnText: { fontSize: 13, color: "#2563eb", fontWeight: "500" },
   deleteBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, backgroundColor: "#fef2f2" },
   deleteBtnText: { fontSize: 13, color: "#dc2626", fontWeight: "500" },
-  // FAB
-  fab: {
-    position: "absolute",
-    bottom: 24,
-    right: 20,
-    backgroundColor: "#2563eb",
-    borderRadius: 28,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    shadowColor: "#2563eb",
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
+  fab: { position: "absolute", bottom: 24, right: 20, backgroundColor: "#2563eb", borderRadius: 28, paddingHorizontal: 20, paddingVertical: 14, shadowColor: "#2563eb", shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
   fabText: { color: "#fff", fontSize: 15, fontWeight: "600" },
-  // Form modal
   formOverlay: { flex: 1, backgroundColor: "#fff" },
   formSheet: { flex: 1, backgroundColor: "#fff" },
-  formHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
+  formHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#e5e7eb" },
   formCancelText: { fontSize: 16, color: "#6b7280" },
   formTitle: { fontSize: 17, fontWeight: "600", color: "#1a1a1a" },
   formSaveText: { fontSize: 16, color: "#2563eb", fontWeight: "600" },
   formBody: { flex: 1, minHeight: 0 },
   formBodyContent: { padding: 16 },
-  // Form fields
   fieldLabel: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 4, marginTop: 12 },
   req: { color: "#dc2626" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: "#1a1a1a",
-    backgroundColor: "#f9fafb",
-  },
+  input: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: "#1a1a1a", backgroundColor: "#f9fafb" },
   inputError: { borderColor: "#dc2626" },
   multiline: { minHeight: 60 },
   fieldError: { color: "#dc2626", fontSize: 12, marginTop: 2 },
@@ -485,7 +430,6 @@ const styles = StyleSheet.create({
   typeBtnActive: { borderColor: "#2563eb", backgroundColor: "#eff6ff" },
   typeBtnText: { fontSize: 14, color: "#6b7280", fontWeight: "500" },
   typeBtnTextActive: { color: "#2563eb", fontWeight: "700" },
-  // Delete modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: 24 },
   modalCard: { backgroundColor: "#fff", borderRadius: 12, padding: 24, width: "100%", maxWidth: 360 },
   modalTitle: { fontSize: 17, fontWeight: "700", color: "#1a1a1a", marginBottom: 8 },

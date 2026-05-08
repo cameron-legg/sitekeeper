@@ -11,7 +11,7 @@ import {
   useDeleteInvoiceLineItem, useAddInvoiceEntry, useUpdateInvoiceEntry,
   useDeleteInvoiceEntry, useSaveInvoiceLineItemToLibrary,
 } from "../../api/hooks/useInvoices";
-import { useSavedItems, usePopulateSavedItem, useSaveEntryToLibrary, usePopulateSavedEntry } from "../../api/hooks/useSavedItems";
+import { useSavedItems, usePopulateSavedItem, useSaveEntryToLibrary, usePopulateSavedEntry, useAllSavedEntries } from "../../api/hooks/useSavedItems";
 import LineItemEditor from "../../components/LineItemEditor";
 import type { LineItemEntry, SavedItem, SavedItemEntry } from "../../api/types";
 
@@ -43,6 +43,7 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
   const saveEntryToLib = useSaveEntryToLibrary();
   const populateSavedEntry = usePopulateSavedEntry();
   const { data: savedItems } = useSavedItems();
+  const { data: allSavedEntries } = useAllSavedEntries();
 
   const [showAddItem, setShowAddItem] = useState(false);
   const [addItemMode, setAddItemMode] = useState<"new" | "library">("new");
@@ -156,7 +157,13 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
                 onUpdateItem={(data) => updateLineItem.mutate({ invoiceId, itemId: item.id, ...data })}
                 onDeleteItem={() => deleteLineItem.mutate({ invoiceId, itemId: item.id })}
                 onAddEntry={(values) => addEntry.mutate({ invoiceId, itemId: item.id, ...values })}
-                onUpdateEntry={(entryId, values) => updateEntry.mutate({ invoiceId, itemId: item.id, entryId, ...values })}
+                onUpdateEntry={(entryId, values) => {
+                  const cleaned: Record<string, string | undefined> = {};
+                  for (const [k, v] of Object.entries(values)) {
+                    cleaned[k] = typeof v === "string" && v.trim() === "" ? undefined : v;
+                  }
+                  updateEntry.mutate({ invoiceId, itemId: item.id, entryId, ...cleaned });
+                }}
                 onDeleteEntry={(entryId) => deleteEntry.mutate({ invoiceId, itemId: item.id, entryId })}
                 onSaveToLibrary={() => saveToLibrary.mutate({ invoiceId, itemId: item.id })}
                 onSaveEntryToLibrary={(entry: LineItemEntry) => saveEntryToLib.mutate({
@@ -175,6 +182,7 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
                   parentId: invoiceId,
                   parentType: "invoice",
                 })}
+                allSavedEntries={allSavedEntries}
                 isSavingEntry={addEntry.isPending || updateEntry.isPending}
               />
             ))}

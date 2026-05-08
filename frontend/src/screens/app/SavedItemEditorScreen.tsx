@@ -8,6 +8,7 @@ import type { RootStackParamList } from "../../navigation/types";
 import {
   useSavedItem, useCreateSavedItem, useUpdateSavedItem,
   useAddSavedItemEntry, useUpdateSavedItemEntry, useDeleteSavedItemEntry,
+  useAllSavedEntries, useAssignEntryToItem,
 } from "../../api/hooks/useSavedItems";
 import type { SavedItemEntry } from "../../api/types";
 
@@ -35,6 +36,7 @@ export default function SavedItemEditorScreen({ route, navigation }: Props) {
   const addEntry = useAddSavedItemEntry();
   const updateEntry = useUpdateSavedItemEntry();
   const deleteEntry = useDeleteSavedItemEntry();
+  const assignEntry = useAssignEntryToItem();
 
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
@@ -47,6 +49,10 @@ export default function SavedItemEditorScreen({ route, navigation }: Props) {
   const [entryForm, setEntryForm] = useState<EntryForm>(EMPTY_ENTRY);
   const [entryErrors, setEntryErrors] = useState<Partial<Record<keyof EntryForm, string>>>({});
   const [confirmDeleteEntryItem, setConfirmDeleteEntryItem] = useState<SavedItemEntry | null>(null);
+  const [showMaterialsPicker, setShowMaterialsPicker] = useState(false);
+  const [materialsSearch, setMaterialsSearch] = useState("");
+
+  const { data: allEntries } = useAllSavedEntries();
 
   useEffect(() => {
     if (existing) {
@@ -137,6 +143,24 @@ export default function SavedItemEditorScreen({ route, navigation }: Props) {
     setConfirmDeleteEntryItem(entry);
   }
 
+  function handlePickMaterial(entry: SavedItemEntry) {
+    if (!itemId) return;
+    assignEntry.mutate({
+      itemId,
+      entryId: entry.id,
+    }, {
+      onSuccess: () => setShowMaterialsPicker(false),
+    });
+  }
+
+  // Filter materials for the picker — only show entries not already in this item
+  const existingEntryIds = new Set(existing?.entries.map((e) => e.id) ?? []);
+  const filteredMaterials = (allEntries ?? []).filter((e) => {
+    if (existingEntryIds.has(e.id)) return false;
+    if (materialsSearch && !e.name.toLowerCase().includes(materialsSearch.toLowerCase())) return false;
+    return true;
+  });
+
   const isSaving = createItem.isPending || updateItem.isPending;
 
   if (!isNew && isLoading) {
@@ -188,6 +212,9 @@ export default function SavedItemEditorScreen({ route, navigation }: Props) {
             ))}
             <TouchableOpacity style={styles.addEntryBtn} onPress={openAddEntry}>
               <Text style={styles.addEntryText}>+ Add Entry</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.fromLibraryBtn} onPress={() => { setMaterialsSearch(""); setShowMaterialsPicker(true); }}>
+              <Text style={styles.fromLibraryText}>📚 From Materials Library</Text>
             </TouchableOpacity>
           </>
         )}
@@ -276,6 +303,63 @@ export default function SavedItemEditorScreen({ route, navigation }: Props) {
           </View>
         </View>
       </Modal>
+
+      {/* Materials Library picker */}
+      <Modal visible={showMaterialsPicker} transparent animationType="slide" onRequestClose={() => setShowMaterialsPicker(false)}>
+        <View style={styles.overlay}>
+          <View style={styles.pickerSheet}>
+            <View style={styles.sheetHeader}>
+              <TouchableOpacity onPress={() => setShowMaterialsPicker(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={styles.sheetTitle}>Pick from Materials</Text>
+              <View style={{ width: 50 }} />
+            </View>
+            <View style={styles.pickerSearchBar}>
+              <TextInput
+                style={styles.pickerSearchInput}
+                value={materialsSearch}
+                onChangeText={setMaterialsSearch}
+                placeholder="Search materials…"
+                clearButtonMode="while-editing"
+              />
+            </View>
+            <ScrollView style={styles.pickerScroll} keyboardShouldPersistTaps="handled">
+              {filteredMaterials.length === 0 && (
+                <Text style={styles.pickerEmpty}>
+                  {materialsSearch ? "No matching materials." : "No materials in your library yet."}
+                </Text>
+              )}
+              {filteredMaterials.map((entry) => (
+                <TouchableOpacity
+                  key={entry.id}
+                  style={styles.pickerRow}
+                  onPress={() => handlePickMaterial(entry)}
+                >
+                  <View style={styles.pickerEntryInfo}>
+                    <View style={styles.entryTypeTag}>
+                      <Text style={styles.entryTypeText}>
+                        {entry.entry_type === "material" ? "MAT" : "HRS"}
+                      </Text>
+                    </View>
+                    <View style={styles.pickerEntryDetails}>
+                      <Text style={styles.entryName}>{entry.name}</Text>
+                      {entry.entry_type === "material" ? (
+                        <Text style={styles.entrySub}>
+                          {entry.quantity ?? "1"} × ${entry.unit_price ?? "0"}
+                        </Text>
+                      ) : (
+                        <Text style={styles.entrySub}>{entry.hours}h</Text>
+                      )}
+                    </View>
+                  </View>
+                  <Text style={styles.pickerAddText}>Add →</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -308,6 +392,8 @@ const styles = StyleSheet.create({
   deleteBtnText: { fontSize: 11, color: "#dc2626" },
   addEntryBtn: { borderWidth: 1, borderColor: "#d1d5db", borderStyle: "dashed", borderRadius: 8, paddingVertical: 10, alignItems: "center", marginTop: 4 },
   addEntryText: { fontSize: 13, color: "#6b7280", fontWeight: "500" },
+  fromLibraryBtn: { borderWidth: 1, borderColor: "#2563eb", borderRadius: 8, paddingVertical: 10, alignItems: "center", marginTop: 8, backgroundColor: "#eff6ff" },
+  fromLibraryText: { fontSize: 13, color: "#2563eb", fontWeight: "500" },
   overlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
   sheet: { backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, minHeight: "60%", maxHeight: "92%" },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#e5e7eb" },
@@ -330,4 +416,14 @@ const styles = StyleSheet.create({
   confirmCancelText: { fontSize: 14, color: "#374151" },
   confirmDeleteBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: "#dc2626", minWidth: 72, alignItems: "center" },
   confirmDeleteText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  // Materials picker
+  pickerSheet: { backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, minHeight: "60%", maxHeight: "92%" },
+  pickerSearchBar: { paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#e5e7eb" },
+  pickerSearchInput: { backgroundColor: "#f3f4f6", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, fontSize: 15, color: "#1a1a1a" },
+  pickerScroll: { flex: 1, paddingHorizontal: 16 },
+  pickerEmpty: { fontSize: 14, color: "#9ca3af", textAlign: "center", paddingVertical: 32 },
+  pickerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
+  pickerEntryInfo: { flexDirection: "row", alignItems: "center", flex: 1, gap: 8 },
+  pickerEntryDetails: { flex: 1 },
+  pickerAddText: { fontSize: 13, color: "#2563eb", fontWeight: "600" },
 });

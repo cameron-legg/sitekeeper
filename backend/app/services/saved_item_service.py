@@ -71,8 +71,8 @@ class SavedItemService:
     # ------------------------------------------------------------------
 
     def list_all_entries_for_user(self, user_id: str) -> list:
-        """Return all saved item entries for the user as a flat list."""
-        return self._saved_item_repo.get_all_entries_for_user(user_id)
+        """Return all saved item entries in the tenant as a flat list (both standalone and grouped)."""
+        return self._saved_item_repo.get_all_entries()
 
     def add_entry(self, item_id: str, user_id: str, entry_type: str, name: str,
                   notes: str | None = None, url: str | None = None,
@@ -125,6 +125,55 @@ class SavedItemService:
         if entry is None or str(entry.saved_item_id) != item_id:
             raise NotFoundError(f"Entry {entry_id} not found.")
         self._saved_item_repo.delete_entry(entry_id)
+
+    # ------------------------------------------------------------------
+    # Standalone entry CRUD (Materials Library — no parent SavedItem)
+    # ------------------------------------------------------------------
+
+    def update_standalone_entry(self, entry_id: str, user_id: str,
+                                name: str | None = None, notes: str | None = None,
+                                url: str | None = None, unit_price: Decimal | None = None,
+                                quantity: Decimal | None = None, hours: Decimal | None = None) -> SavedItemEntry:
+        entry = self._saved_item_repo.get_entry_by_id(entry_id)
+        if entry is None:
+            raise NotFoundError(f"Entry {entry_id} not found.")
+        if name is not None:
+            entry.name = name
+        if notes is not None:
+            entry.notes = notes
+        if url is not None:
+            entry.url = url
+        if unit_price is not None:
+            entry.unit_price = unit_price
+        if quantity is not None:
+            entry.quantity = quantity
+        if hours is not None:
+            entry.hours = hours
+        return self._saved_item_repo.update_entry(entry)
+
+    def delete_standalone_entry(self, entry_id: str, user_id: str) -> dict:
+        """Delete an entry. Returns info about whether it was part of an item."""
+        entry = self._saved_item_repo.get_entry_by_id(entry_id)
+        if entry is None:
+            raise NotFoundError(f"Entry {entry_id} not found.")
+        parent_item_name = None
+        if entry.saved_item_id is not None:
+            parent = self._saved_item_repo.get_by_id(str(entry.saved_item_id), user_id)
+            if parent:
+                parent_item_name = parent.name
+        self._saved_item_repo.delete_entry(entry_id)
+        return {"deleted": True, "parent_item_name": parent_item_name}
+
+    def assign_entry_to_item(self, item_id: str, entry_id: str, user_id: str) -> SavedItemEntry:
+        """Assign an existing entry to a SavedItem (set its saved_item_id)."""
+        item = self._saved_item_repo.get_by_id(item_id, user_id)
+        if item is None:
+            raise NotFoundError(f"Saved item {item_id} not found.")
+        entry = self._saved_item_repo.get_entry_by_id(entry_id)
+        if entry is None:
+            raise NotFoundError(f"Entry {entry_id} not found.")
+        entry.saved_item_id = item_id
+        return self._saved_item_repo.update_entry(entry)
 
     # ------------------------------------------------------------------
     # Snapshot: copy saved item into a real LineItem
@@ -183,19 +232,20 @@ class SavedItemService:
         return line_item
 
     # ------------------------------------------------------------------
-    # Save a single LineItemEntry to the library as a new SavedItem
+    # Save a single entry to the Materials Library (standalone, no SavedItem)
     # ------------------------------------------------------------------
 
     def save_entry_to_library(self, user_id: str, entry_type: str, name: str,
                               notes: str | None = None, url: str | None = None,
                               unit_price: Decimal | None = None,
                               quantity: Decimal | None = None,
-                              hours: Decimal | None = None) -> SavedItem:
-        """Create a new SavedItem with a single entry from the provided data."""
-        saved = SavedItem(user_id=user_id, name=name, notes=None, hourly_rate=None)
-        saved = self._saved_item_repo.create(saved)
+                              hours: Decimal | None = None) -> SavedItemEntry:
+        """Create a standalone SavedItemEntry (no parent SavedItem)."""
+        if entry_type not in ("material", "hours"):
+            raise ValidationError("entry_type must be 'material' or 'hours'.")
         entry = SavedItemEntry(
-            saved_item_id=str(saved.id),
+            saved_item_id=None,
+            user_id=user_id,
             entry_type=entry_type,
             name=name,
             notes=notes,
@@ -205,11 +255,7 @@ class SavedItemService:
             hours=hours,
             sort_order=0,
         )
-        self._saved_item_repo.add_entry(entry)
-        # Refresh to include the entry in the relationship
-        from ..extensions import db
-        db.session.refresh(saved)
-        return saved
+        return self._saved_item_repo.add_entry(entry)
 
     # ------------------------------------------------------------------
     # Copy a SavedItemEntry into an existing LineItem
