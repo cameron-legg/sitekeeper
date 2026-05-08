@@ -24,8 +24,8 @@ Each client (business) gets an isolated environment on the same server:
 - **Separate database**: `sk_<slug>` on the shared Postgres instance
 - **Separate MinIO bucket**: `<slug>-pdfs` on the shared MinIO instance
 - **Separate subdomain**: `<slug>.entouch.org` routed by nginx
-- **Shared backend**: single gunicorn process resolves tenant from Host header
-- **Shared frontend**: same SPA served to all tenants (uses relative API URLs)
+- **Shared backend**: single gunicorn process resolves tenant from Host header, swaps DB engine per-request, restores default engine between requests
+- **Shared frontend**: same SPA served to all tenants (uses relative API URLs in production, explicit URL in local dev)
 
 ### Tenant management (from local machine)
 ```bash

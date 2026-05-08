@@ -14,9 +14,12 @@ Never put business logic in blueprints. Never put HTTP concerns in services.
 ## Multi-Tenant Awareness
 - The tenant is resolved from the `Host` header by middleware in `app/tenant.py`
 - `db.engines[None]` is swapped per-request to the tenant's database engine
+- The original app engine is restored for default-tenant requests (prevents cross-contamination between workers handling mixed tenant traffic)
 - All queries automatically hit the correct tenant database — no manual filtering needed
 - MinIO operations use the tenant's bucket via `storage.with_bucket(tenant_bucket)`
 - Tenant config lives in `backend/tenants.json`
+- IP addresses and `localhost` always resolve to the default tenant (local dev)
+- `www` subdomain is treated as the default tenant
 
 ## Adding a new resource
 1. Add SQLAlchemy model to `backend/app/models.py`

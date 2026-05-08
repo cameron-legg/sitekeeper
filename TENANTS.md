@@ -126,8 +126,9 @@ The deploy script automatically runs migrations against every database listed in
 5. Swaps the SQLAlchemy engine to point at `sk_nocoresources`
 6. All queries for that request hit the tenant's database
 7. MinIO operations use the tenant's bucket (`nocoresources-pdfs`)
+8. On the next request, if it's for the default tenant (`entouch.org`), the original engine is restored
 
-Each tenant's database is completely independent. Users, data, and files never cross tenant boundaries.
+Each tenant's database is completely independent. Users, data, and files never cross tenant boundaries. The engine swap happens on every request, so even when a single gunicorn worker handles requests for different tenants in sequence, each request is correctly routed.
 
 ---
 
