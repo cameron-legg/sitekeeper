@@ -184,7 +184,7 @@ export default function EstimatesTab({ jobId }: Props) {
               {/* Actions menu */}
               <View style={styles.menuSection}>
                 <TouchableOpacity style={styles.menuItem} onPress={() => handleEdit(selectedEstimate)}>
-                  <Text style={styles.menuItemText}>✏️  Edit Line Items</Text>
+                  <Text style={styles.menuItemText}>✏️  Edit Estimate</Text>
                 </TouchableOpacity>
 
                 <View style={styles.menuDivider} />

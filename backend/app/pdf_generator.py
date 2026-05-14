@@ -196,11 +196,15 @@ def build_pdf(data: PdfData) -> bytes:
     elements.append(Spacer(1, 8))
 
     # ------------------------------------------------------------------
-    # 2. Document type heading + number + date
+    # 2. Document type heading + title + number + date
     # ------------------------------------------------------------------
     elements.append(
         Paragraph(data.document_type.upper(), style_heading)
     )
+
+    # Title comes right before document number
+    elements.append(Paragraph(data.title, style_title))
+
     if data.document_number and data.show_document_number:
         elements.append(
             Paragraph(f"{data.document_type} #: {data.document_number}", style_section)
@@ -211,12 +215,7 @@ def build_pdf(data: PdfData) -> bytes:
         )
 
     # ------------------------------------------------------------------
-    # 3. Title
-    # ------------------------------------------------------------------
-    elements.append(Paragraph(data.title, style_title))
-
-    # ------------------------------------------------------------------
-    # 4. Bill To section
+    # 3. Bill To section
     # ------------------------------------------------------------------
     if data.bill_to_name is not None and data.show_bill_to:
         elements.append(
