@@ -110,7 +110,7 @@ export default function ContactsTab({ jobId }: Props) {
             <View
               style={[
                 styles.sourceBadge,
-                source === "inherited"
+                source === "inherited" || source === "auto"
                   ? styles.sourceBadgeInherited
                   : styles.sourceBadgeDirect,
               ]}
@@ -118,13 +118,15 @@ export default function ContactsTab({ jobId }: Props) {
               <Text
                 style={[
                   styles.sourceBadgeText,
-                  source === "inherited"
+                  source === "inherited" || source === "auto"
                     ? styles.sourceBadgeTextInherited
                     : styles.sourceBadgeTextDirect,
                 ]}
               >
                 {source === "inherited"
                   ? "Inherited from job site"
+                  : source === "auto"
+                  ? "Only contact"
                   : "Directly assigned"}
               </Text>
             </View>
@@ -170,7 +172,14 @@ export default function ContactsTab({ jobId }: Props) {
             activeOpacity={0.7}
           >
             <View style={styles.contactInfo}>
-              <Text style={styles.contactName}>{item.name}</Text>
+              <View style={styles.contactNameRow}>
+                <Text style={styles.contactName}>{item.name}</Text>
+                {item.inherited && (
+                  <View style={styles.inheritedBadge}>
+                    <Text style={styles.inheritedBadgeText}>Site</Text>
+                  </View>
+                )}
+              </View>
               {item.phone && (
                 <Text style={styles.contactDetail}>📞 {item.phone}</Text>
               )}
@@ -286,16 +295,20 @@ export default function ContactsTab({ jobId }: Props) {
                 <Text style={styles.menuItemText}>⭐  Set as Primary</Text>
               </TouchableOpacity>
 
-              <View style={styles.menuDivider} />
+              {!selectedContact.inherited && (
+                <>
+                  <View style={styles.menuDivider} />
 
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => handleRemove(selectedContact)}
-              >
-                <Text style={[styles.menuItemText, styles.menuItemDanger]}>
-                  🗑️  Remove from Job
-                </Text>
-              </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => handleRemove(selectedContact)}
+                  >
+                    <Text style={[styles.menuItemText, styles.menuItemDanger]}>
+                      🗑️  Remove from Job
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
 
             <TouchableOpacity style={styles.cancelBtn} onPress={closeSheet}>
@@ -401,7 +414,15 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   contactInfo: { flex: 1 },
+  contactNameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   contactName: { fontSize: 15, fontWeight: "600", color: "#1a1a1a", marginBottom: 2 },
+  inheritedBadge: {
+    backgroundColor: "#e5e7eb",
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  inheritedBadgeText: { fontSize: 10, fontWeight: "600", color: "#6b7280" },
   contactDetail: { fontSize: 13, color: "#6b7280", marginTop: 2 },
   chevron: { fontSize: 22, color: "#d1d5db", marginLeft: 8 },
 

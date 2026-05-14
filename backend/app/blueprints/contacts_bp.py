@@ -114,8 +114,11 @@ def set_primary_for_job_site(site_id: str, contact_id: str):
 def list_job_contacts(job_id: str):
     user_id = g.current_user_id
     try:
-        contacts = _service.get_contacts_for_job(job_id, user_id)
-        return jsonify([_serialize_contact(c) for c in contacts]), 200
+        items = _service.get_contacts_for_job(job_id, user_id)
+        return jsonify([
+            {**_serialize_contact(item["contact"]), "inherited": item["inherited"]}
+            for item in items
+        ]), 200
     except NotFoundError:
         return not_found("Job")
     except Exception:

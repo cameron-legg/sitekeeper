@@ -35,11 +35,13 @@ export interface Contact {
   mailing_address: string | null;
   notes: string | null;
   created_at: string;
+  /** Present on job contacts — true if inherited from the parent job site. */
+  inherited?: boolean;
 }
 
 export interface EffectivePrimaryContact {
   contact: Contact | null;
-  source: "direct" | "inherited" | null;
+  source: "direct" | "inherited" | "auto" | null;
 }
 
 export interface Note {

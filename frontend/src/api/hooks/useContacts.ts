@@ -42,8 +42,12 @@ export function useAddContactToJobSite() {
       apiClient
         .post<Contact>(`/api/v1/job-sites/${siteId}/contacts`, data)
         .then((r) => r.data),
-    onSuccess: (_, { siteId }) =>
-      qc.invalidateQueries({ queryKey: KEYS.forSite(siteId) }),
+    onSuccess: (_, { siteId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.forSite(siteId) });
+      // Job contacts inherit from site, so invalidate job contact lists too
+      qc.invalidateQueries({ queryKey: ["contacts", "job"] });
+      qc.invalidateQueries({ queryKey: ["contacts", "effective-primary"] });
+    },
   });
 }
 
@@ -52,8 +56,12 @@ export function useRemoveContactFromJobSite() {
   return useMutation({
     mutationFn: ({ siteId, contactId }: { siteId: string; contactId: string }) =>
       apiClient.delete(`/api/v1/job-sites/${siteId}/contacts/${contactId}`),
-    onSuccess: (_, { siteId }) =>
-      qc.invalidateQueries({ queryKey: KEYS.forSite(siteId) }),
+    onSuccess: (_, { siteId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.forSite(siteId) });
+      // Job contacts inherit from site, so invalidate job contact lists too
+      qc.invalidateQueries({ queryKey: ["contacts", "job"] });
+      qc.invalidateQueries({ queryKey: ["contacts", "effective-primary"] });
+    },
   });
 }
 
@@ -62,8 +70,11 @@ export function useSetPrimaryForJobSite() {
   return useMutation({
     mutationFn: ({ siteId, contactId }: { siteId: string; contactId: string }) =>
       apiClient.post(`/api/v1/job-sites/${siteId}/contacts/${contactId}/set-primary`),
-    onSuccess: (_, { siteId }) =>
-      qc.invalidateQueries({ queryKey: KEYS.forSite(siteId) }),
+    onSuccess: (_, { siteId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.forSite(siteId) });
+      // Primary contact inheritance affects jobs
+      qc.invalidateQueries({ queryKey: ["contacts", "effective-primary"] });
+    },
   });
 }
 
