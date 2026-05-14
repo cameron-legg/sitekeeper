@@ -1,6 +1,8 @@
 """Conversion service — converts an Estimate into a new Invoice (v2)."""
 
-from ..models import Invoice, LineItem, LineItemEntry
+from datetime import date
+
+from ..models import DocumentNumber, Invoice, LineItem, LineItemEntry
 from ..repositories.estimate_repo import IEstimateRepository, SQLAlchemyEstimateRepository
 from ..repositories.invoice_repo import IInvoiceRepository, SQLAlchemyInvoiceRepository
 from ..repositories.job_repo import IJobRepository, SQLAlchemyJobRepository
@@ -37,6 +39,13 @@ class ConversionService:
         if site is None:
             raise NotFoundError(f"Estimate {estimate_id} not found.")
 
+        # Assign a new invoice document number
+        doc_num_row = DocumentNumber.query.filter_by(document_type="invoice").first()
+        invoice_number = None
+        if doc_num_row:
+            invoice_number = str(doc_num_row.next_number)
+            doc_num_row.next_number += 1
+
         # Create the new invoice — copy tax_rate from the source estimate
         invoice = self._invoice_repo.create(Invoice(
             job_id=str(estimate.job_id),
@@ -44,6 +53,30 @@ class ConversionService:
             delivered=False,
             source_estimate_id=estimate_id,
             tax_rate=estimate.tax_rate,
+            document_number=invoice_number,
+            document_date=date.today(),
+            # Copy document metadata from estimate
+            bill_to=estimate.bill_to,
+            company_name=estimate.company_name,
+            user_name=estimate.user_name,
+            user_phone=estimate.user_phone,
+            user_email=estimate.user_email,
+            payment_method=estimate.payment_method,
+            business_address=estimate.business_address,
+            worksite_address=estimate.worksite_address,
+            notes=estimate.notes,
+            # Copy visibility flags
+            show_document_number=estimate.show_document_number,
+            show_document_date=estimate.show_document_date,
+            show_bill_to=estimate.show_bill_to,
+            show_company_name=estimate.show_company_name,
+            show_user_name=estimate.show_user_name,
+            show_user_phone=estimate.show_user_phone,
+            show_user_email=estimate.show_user_email,
+            show_payment_method=estimate.show_payment_method,
+            show_business_address=estimate.show_business_address,
+            show_worksite_address=estimate.show_worksite_address,
+            show_notes=estimate.show_notes,
         ))
 
         # Deep copy: line items + their entries

@@ -1,9 +1,10 @@
 """Invoice service — CRUD with line item and entry management (v2)."""
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from ..models import Invoice, LineItem, LineItemEntry
+from ..extensions import db
+from ..models import DocumentNumber, Invoice, LineItem, LineItemEntry
 from ..repositories.invoice_repo import IInvoiceRepository, SQLAlchemyInvoiceRepository
 from ..repositories.job_repo import IJobRepository, SQLAlchemyJobRepository
 from ..repositories.job_site_repo import IJobSiteRepository, SQLAlchemyJobSiteRepository
@@ -72,16 +73,27 @@ class InvoiceService:
 
     def create(self, job_id: str, user_id: str, title: str, delivered: bool = False,
                source_estimate_id: str | None = None,
-               tax_rate: Decimal | None = None) -> Invoice:
+               tax_rate: Decimal | None = None, metadata: dict | None = None) -> Invoice:
         self._verify_job_access(job_id, user_id)
-        return self._invoice_repo.create(Invoice(
+        invoice = Invoice(
             job_id=job_id, title=title, delivered=delivered,
             source_estimate_id=source_estimate_id, tax_rate=tax_rate,
-        ))
+        )
+        # Auto-assign document number
+        doc_num_row = DocumentNumber.query.filter_by(document_type="invoice").first()
+        if doc_num_row:
+            invoice.document_number = str(doc_num_row.next_number)
+            doc_num_row.next_number += 1
+        # Auto-set document date to today
+        invoice.document_date = date.today()
+        # Apply metadata overrides
+        if metadata:
+            self._apply_metadata(invoice, metadata)
+        return self._invoice_repo.create(invoice)
 
     def update(self, invoice_id: str, user_id: str, title: str | None = None,
                delivered: bool | None = None, tax_rate: Decimal | None = None,
-               clear_tax: bool = False) -> Invoice:
+               clear_tax: bool = False, metadata: dict | None = None) -> Invoice:
         invoice = self._verify_invoice_access(invoice_id, user_id)
         if title is not None:
             invoice.title = title
@@ -91,7 +103,31 @@ class InvoiceService:
             invoice.tax_rate = None
         elif tax_rate is not None:
             invoice.tax_rate = tax_rate
+        if metadata:
+            self._apply_metadata(invoice, metadata)
         return self._invoice_repo.update(invoice)
+
+    @staticmethod
+    def _apply_metadata(doc, metadata: dict) -> None:
+        """Apply metadata fields to an invoice document."""
+        META_FIELDS = (
+            "document_number", "document_date", "bill_to", "company_name",
+            "user_name", "user_phone", "user_email", "payment_method",
+            "business_address", "worksite_address", "notes",
+            "show_document_number", "show_document_date", "show_bill_to",
+            "show_company_name", "show_user_name", "show_user_phone",
+            "show_user_email", "show_payment_method", "show_business_address",
+            "show_worksite_address", "show_notes",
+        )
+        for key in META_FIELDS:
+            if key in metadata:
+                value = metadata[key]
+                if key == "document_date" and isinstance(value, str):
+                    try:
+                        value = date.fromisoformat(value)
+                    except ValueError:
+                        continue
+                setattr(doc, key, value)
 
     def delete(self, invoice_id: str, user_id: str) -> None:
         self._verify_invoice_access(invoice_id, user_id)

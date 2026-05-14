@@ -44,7 +44,7 @@ export function useCreateEstimate() {
 export function useUpdateEstimate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ estimateId, ...data }: { estimateId: string; title?: string; delivered?: boolean; tax_rate?: string | null }) =>
+    mutationFn: ({ estimateId, ...data }: { estimateId: string; [key: string]: any }) =>
       apiClient.patch<Estimate>(`/api/v1/estimates/${estimateId}`, data).then((r) => r.data),
     onSuccess: (est) => {
       qc.invalidateQueries({ queryKey: KEYS.detail(est.id) });

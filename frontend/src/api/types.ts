@@ -99,6 +99,30 @@ export interface Estimate {
   updated_at: string;
   /** Computed PDF status: "none" if never generated, "current" if up-to-date, "stale" if document changed since last generation */
   pdf_status: "none" | "current" | "stale";
+  // Document metadata
+  document_number: string | null;
+  document_date: string | null;
+  bill_to: string | null;
+  company_name: string | null;
+  user_name: string | null;
+  user_phone: string | null;
+  user_email: string | null;
+  payment_method: string | null;
+  business_address: string | null;
+  worksite_address: string | null;
+  notes: string | null;
+  // Visibility flags
+  show_document_number: boolean;
+  show_document_date: boolean;
+  show_bill_to: boolean;
+  show_company_name: boolean;
+  show_user_name: boolean;
+  show_user_phone: boolean;
+  show_user_email: boolean;
+  show_payment_method: boolean;
+  show_business_address: boolean;
+  show_worksite_address: boolean;
+  show_notes: boolean;
 }
 
 export interface Invoice {
@@ -119,6 +143,30 @@ export interface Invoice {
   updated_at: string;
   /** Computed PDF status: "none" if never generated, "current" if up-to-date, "stale" if document changed since last generation */
   pdf_status: "none" | "current" | "stale";
+  // Document metadata
+  document_number: string | null;
+  document_date: string | null;
+  bill_to: string | null;
+  company_name: string | null;
+  user_name: string | null;
+  user_phone: string | null;
+  user_email: string | null;
+  payment_method: string | null;
+  business_address: string | null;
+  worksite_address: string | null;
+  notes: string | null;
+  // Visibility flags
+  show_document_number: boolean;
+  show_document_date: boolean;
+  show_bill_to: boolean;
+  show_company_name: boolean;
+  show_user_name: boolean;
+  show_user_phone: boolean;
+  show_user_email: boolean;
+  show_payment_method: boolean;
+  show_business_address: boolean;
+  show_worksite_address: boolean;
+  show_notes: boolean;
 }
 
 /** A sub-entry under a SavedItem, or a standalone entry in the Materials Library. */
@@ -156,6 +204,7 @@ export interface UserProfile {
   company_name: string | null;
   phone: string | null;
   payment_method: string | null;
+  address: string | null;
 }
 
 export interface ApiError {

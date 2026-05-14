@@ -66,6 +66,23 @@ class PdfData:
     subtotal: Decimal
     tax_amount: Decimal
     total: Decimal
+    # New fields
+    document_number: str | None = None
+    document_date: str | None = None
+    business_address: str | None = None
+    notes: str | None = None
+    # Visibility flags (all default True for backward compat)
+    show_document_number: bool = True
+    show_document_date: bool = True
+    show_bill_to: bool = True
+    show_company_name: bool = True
+    show_user_name: bool = True
+    show_user_phone: bool = True
+    show_user_email: bool = True
+    show_payment_method: bool = True
+    show_business_address: bool = True
+    show_worksite_address: bool = True
+    show_notes: bool = True
 
 
 # ---------------------------------------------------------------------------
@@ -166,21 +183,32 @@ def build_pdf(data: PdfData) -> bytes:
     # ------------------------------------------------------------------
     # 1. Header area — company name, user info
     # ------------------------------------------------------------------
-    if data.company_name:
+    if data.company_name and data.show_company_name:
         elements.append(Paragraph(data.company_name, style_company))
-    if data.user_name:
+    if data.user_name and data.show_user_name:
         elements.append(Paragraph(data.user_name, style_contact))
-    if data.user_phone:
+    if data.business_address and data.show_business_address:
+        elements.append(Paragraph(data.business_address, style_contact))
+    if data.user_phone and data.show_user_phone:
         elements.append(Paragraph(data.user_phone, style_contact))
-    elements.append(Paragraph(data.user_email, style_contact))
+    if data.user_email and data.show_user_email:
+        elements.append(Paragraph(data.user_email, style_contact))
     elements.append(Spacer(1, 8))
 
     # ------------------------------------------------------------------
-    # 2. Document type heading
+    # 2. Document type heading + number + date
     # ------------------------------------------------------------------
     elements.append(
         Paragraph(data.document_type.upper(), style_heading)
     )
+    if data.document_number and data.show_document_number:
+        elements.append(
+            Paragraph(f"{data.document_type} #: {data.document_number}", style_section)
+        )
+    if data.document_date and data.show_document_date:
+        elements.append(
+            Paragraph(f"Date: {data.document_date}", style_section)
+        )
 
     # ------------------------------------------------------------------
     # 3. Title
@@ -190,7 +218,7 @@ def build_pdf(data: PdfData) -> bytes:
     # ------------------------------------------------------------------
     # 4. Bill To section
     # ------------------------------------------------------------------
-    if data.bill_to_name is not None:
+    if data.bill_to_name is not None and data.show_bill_to:
         elements.append(
             Paragraph(f"Bill To: {data.bill_to_name}", style_section)
         )
@@ -199,7 +227,7 @@ def build_pdf(data: PdfData) -> bytes:
     # ------------------------------------------------------------------
     # 5. Job Site Address
     # ------------------------------------------------------------------
-    if data.job_site_address is not None:
+    if data.job_site_address is not None and data.show_worksite_address:
         elements.append(
             Paragraph(f"Job Site: {data.job_site_address}", style_section)
         )
@@ -421,11 +449,27 @@ def build_pdf(data: PdfData) -> bytes:
     # ------------------------------------------------------------------
     # 9. Payment method
     # ------------------------------------------------------------------
-    if data.payment_method is not None:
+    if data.payment_method is not None and data.show_payment_method:
         elements.append(Spacer(1, 12))
         elements.append(
             Paragraph(f"Payment: {data.payment_method}", style_section)
         )
+
+    # ------------------------------------------------------------------
+    # 9b. Additional Notes (markdown rendered as plain text paragraphs)
+    # ------------------------------------------------------------------
+    if data.notes and data.show_notes:
+        elements.append(Spacer(1, 16))
+        elements.append(
+            Paragraph("<b>Notes</b>", style_bold)
+        )
+        elements.append(Spacer(1, 4))
+        # Render notes as simple paragraphs (split by newlines)
+        for line in data.notes.strip().split("\n"):
+            if line.strip():
+                elements.append(Paragraph(line, style_contact))
+            else:
+                elements.append(Spacer(1, 6))
 
     # ------------------------------------------------------------------
     # 10. Footer

@@ -30,7 +30,7 @@ class ProfileService:
         if user is None:
             raise NotFoundError("User not found.")
 
-        allowed = ("name", "state", "company_name", "phone", "payment_method")
+        allowed = ("name", "state", "company_name", "phone", "payment_method", "address")
         for key in allowed:
             if key in data:
                 setattr(user, key, data[key])
@@ -48,4 +48,5 @@ def _serialize(user: User) -> dict:
         "company_name": user.company_name,
         "phone": user.phone,
         "payment_method": user.payment_method,
+        "address": user.address,
     }

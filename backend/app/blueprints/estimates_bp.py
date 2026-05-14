@@ -78,6 +78,30 @@ def _serialize_estimate(estimate, totals: dict | None = None) -> dict:
         "created_at": estimate.created_at.isoformat() if estimate.created_at else None,
         "updated_at": estimate.updated_at.isoformat() if estimate.updated_at else None,
         "pdf_status": _compute_pdf_status(estimate),
+        # Document metadata
+        "document_number": estimate.document_number,
+        "document_date": estimate.document_date.isoformat() if estimate.document_date else None,
+        "bill_to": estimate.bill_to,
+        "company_name": estimate.company_name,
+        "user_name": estimate.user_name,
+        "user_phone": estimate.user_phone,
+        "user_email": estimate.user_email,
+        "payment_method": estimate.payment_method,
+        "business_address": estimate.business_address,
+        "worksite_address": estimate.worksite_address,
+        "notes": estimate.notes,
+        # Visibility flags
+        "show_document_number": estimate.show_document_number,
+        "show_document_date": estimate.show_document_date,
+        "show_bill_to": estimate.show_bill_to,
+        "show_company_name": estimate.show_company_name,
+        "show_user_name": estimate.show_user_name,
+        "show_user_phone": estimate.show_user_phone,
+        "show_user_email": estimate.show_user_email,
+        "show_payment_method": estimate.show_payment_method,
+        "show_business_address": estimate.show_business_address,
+        "show_worksite_address": estimate.show_worksite_address,
+        "show_notes": estimate.show_notes,
     }
 
 
@@ -112,10 +136,48 @@ def create_estimate(job_id: str):
         tax_rate, err = _parse_decimal(data["tax_rate"], "tax_rate")
         if err:
             return err
+
+    # Build metadata from profile defaults, then override with any explicit values
+    from ..services.profile_service import ProfileService
+    profile_service = ProfileService()
+    try:
+        profile = profile_service.get_profile(user_id)
+    except Exception:
+        profile = {}
+
+    # Resolve bill_to from primary contact on the job
+    from ..repositories.job_repo import SQLAlchemyJobRepository
+    job_repo = SQLAlchemyJobRepository()
+    job = job_repo.get_by_id(job_id)
+    bill_to_default = None
+    worksite_default = None
+    if job:
+        if job.primary_contact is not None:
+            bill_to_default = job.primary_contact.name
+        elif job.job_site and job.job_site.primary_contact:
+            bill_to_default = job.job_site.primary_contact.name
+        if job.job_site:
+            worksite_default = job.job_site.address
+
+    metadata = {
+        "company_name": data.get("company_name", profile.get("company_name")),
+        "user_name": data.get("user_name", profile.get("name")),
+        "user_phone": data.get("user_phone", profile.get("phone")),
+        "user_email": data.get("user_email", profile.get("email")),
+        "payment_method": data.get("payment_method", profile.get("payment_method")),
+        "business_address": data.get("business_address", profile.get("address")),
+        "bill_to": data.get("bill_to", bill_to_default),
+        "worksite_address": data.get("worksite_address", worksite_default),
+        "notes": data.get("notes"),
+    }
+    # Pass through any explicit visibility flags
+    for key in [k for k in data if k.startswith("show_")]:
+        metadata[key] = data[key]
+
     try:
         est = _service.create(job_id=job_id, user_id=user_id, title=title,
                               delivered=bool(data.get("delivered", False)),
-                              tax_rate=tax_rate)
+                              tax_rate=tax_rate, metadata=metadata)
         return jsonify(_serialize_estimate(est, _service.calculate_totals(str(est.id), user_id))), 201
     except NotFoundError:
         return not_found("Job")
@@ -158,9 +220,23 @@ def patch_estimate(estimate_id: str):
             tax_rate, err = _parse_decimal(data["tax_rate"], "tax_rate")
             if err:
                 return err
+
+    # Extract metadata fields
+    META_KEYS = (
+        "document_number", "document_date", "bill_to", "company_name",
+        "user_name", "user_phone", "user_email", "payment_method",
+        "business_address", "worksite_address", "notes",
+        "show_document_number", "show_document_date", "show_bill_to",
+        "show_company_name", "show_user_name", "show_user_phone",
+        "show_user_email", "show_payment_method", "show_business_address",
+        "show_worksite_address", "show_notes",
+    )
+    metadata = {k: data[k] for k in META_KEYS if k in data}
+
     try:
         est = _service.update(estimate_id=estimate_id, user_id=user_id, title=title,
-                              delivered=delivered, tax_rate=tax_rate, clear_tax=clear_tax)
+                              delivered=delivered, tax_rate=tax_rate, clear_tax=clear_tax,
+                              metadata=metadata or None)
         return jsonify(_serialize_estimate(est, _service.calculate_totals(estimate_id, user_id))), 200
     except NotFoundError:
         return not_found("Estimate")

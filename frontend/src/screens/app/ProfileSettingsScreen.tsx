@@ -34,6 +34,7 @@ export default function ProfileSettingsScreen({ navigation }: Props) {
   const [companyName, setCompanyName] = useState("");
   const [phone, setPhone] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [address, setAddress] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [showStatePicker, setShowStatePicker] = useState(false);
@@ -46,6 +47,7 @@ export default function ProfileSettingsScreen({ navigation }: Props) {
       setCompanyName(profile.company_name ?? "");
       setPhone(profile.phone ?? "");
       setPaymentMethod(profile.payment_method ?? "");
+      setAddress(profile.address ?? "");
     }
   }, [profile]);
 
@@ -67,6 +69,7 @@ export default function ProfileSettingsScreen({ navigation }: Props) {
         company_name: companyName.trim() || null,
         phone: phone.trim() || null,
         payment_method: paymentMethod.trim() || null,
+        address: address.trim() || null,
       },
       {
         onSuccess: () => {
@@ -193,6 +196,19 @@ export default function ProfileSettingsScreen({ navigation }: Props) {
           keyboardType="phone-pad"
           autoComplete="tel"
         />
+
+        {/* Business Address */}
+        <Text style={styles.label}>Business Address</Text>
+        <TextInput
+          style={styles.input}
+          value={address}
+          onChangeText={setAddress}
+          placeholder="123 Main St, City, State ZIP"
+          autoCapitalize="words"
+        />
+        <Text style={styles.hint}>
+          This will appear as the default business address on your estimates and invoices.
+        </Text>
 
         {/* Payment Method */}
         <Text style={styles.label}>Payment Method</Text>

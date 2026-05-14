@@ -74,6 +74,30 @@ def _serialize_invoice(invoice, totals: dict | None = None) -> dict:
         "created_at": invoice.created_at.isoformat() if invoice.created_at else None,
         "updated_at": invoice.updated_at.isoformat() if invoice.updated_at else None,
         "pdf_status": _compute_pdf_status(invoice),
+        # Document metadata
+        "document_number": invoice.document_number,
+        "document_date": invoice.document_date.isoformat() if invoice.document_date else None,
+        "bill_to": invoice.bill_to,
+        "company_name": invoice.company_name,
+        "user_name": invoice.user_name,
+        "user_phone": invoice.user_phone,
+        "user_email": invoice.user_email,
+        "payment_method": invoice.payment_method,
+        "business_address": invoice.business_address,
+        "worksite_address": invoice.worksite_address,
+        "notes": invoice.notes,
+        # Visibility flags
+        "show_document_number": invoice.show_document_number,
+        "show_document_date": invoice.show_document_date,
+        "show_bill_to": invoice.show_bill_to,
+        "show_company_name": invoice.show_company_name,
+        "show_user_name": invoice.show_user_name,
+        "show_user_phone": invoice.show_user_phone,
+        "show_user_email": invoice.show_user_email,
+        "show_payment_method": invoice.show_payment_method,
+        "show_business_address": invoice.show_business_address,
+        "show_worksite_address": invoice.show_worksite_address,
+        "show_notes": invoice.show_notes,
     }
 
 
@@ -108,11 +132,48 @@ def create_invoice(job_id: str):
         tax_rate, err = _parse_decimal(data["tax_rate"], "tax_rate")
         if err:
             return err
+
+    # Build metadata from profile defaults
+    from ..services.profile_service import ProfileService
+    profile_service = ProfileService()
+    try:
+        profile = profile_service.get_profile(user_id)
+    except Exception:
+        profile = {}
+
+    # Resolve bill_to from primary contact on the job
+    from ..repositories.job_repo import SQLAlchemyJobRepository
+    job_repo = SQLAlchemyJobRepository()
+    job = job_repo.get_by_id(job_id)
+    bill_to_default = None
+    worksite_default = None
+    if job:
+        if job.primary_contact is not None:
+            bill_to_default = job.primary_contact.name
+        elif job.job_site and job.job_site.primary_contact:
+            bill_to_default = job.job_site.primary_contact.name
+        if job.job_site:
+            worksite_default = job.job_site.address
+
+    metadata = {
+        "company_name": data.get("company_name", profile.get("company_name")),
+        "user_name": data.get("user_name", profile.get("name")),
+        "user_phone": data.get("user_phone", profile.get("phone")),
+        "user_email": data.get("user_email", profile.get("email")),
+        "payment_method": data.get("payment_method", profile.get("payment_method")),
+        "business_address": data.get("business_address", profile.get("address")),
+        "bill_to": data.get("bill_to", bill_to_default),
+        "worksite_address": data.get("worksite_address", worksite_default),
+        "notes": data.get("notes"),
+    }
+    for key in [k for k in data if k.startswith("show_")]:
+        metadata[key] = data[key]
+
     try:
         inv = _service.create(job_id=job_id, user_id=user_id, title=title,
                               delivered=bool(data.get("delivered", False)),
                               source_estimate_id=data.get("source_estimate_id"),
-                              tax_rate=tax_rate)
+                              tax_rate=tax_rate, metadata=metadata)
         return jsonify(_serialize_invoice(inv, _service.calculate_totals(str(inv.id), user_id))), 201
     except NotFoundError:
         return not_found("Job")
@@ -155,9 +216,23 @@ def patch_invoice(invoice_id: str):
             tax_rate, err = _parse_decimal(data["tax_rate"], "tax_rate")
             if err:
                 return err
+
+    # Extract metadata fields
+    META_KEYS = (
+        "document_number", "document_date", "bill_to", "company_name",
+        "user_name", "user_phone", "user_email", "payment_method",
+        "business_address", "worksite_address", "notes",
+        "show_document_number", "show_document_date", "show_bill_to",
+        "show_company_name", "show_user_name", "show_user_phone",
+        "show_user_email", "show_payment_method", "show_business_address",
+        "show_worksite_address", "show_notes",
+    )
+    metadata = {k: data[k] for k in META_KEYS if k in data}
+
     try:
         inv = _service.update(invoice_id=invoice_id, user_id=user_id, title=title,
-                              delivered=delivered, tax_rate=tax_rate, clear_tax=clear_tax)
+                              delivered=delivered, tax_rate=tax_rate, clear_tax=clear_tax,
+                              metadata=metadata or None)
         return jsonify(_serialize_invoice(inv, _service.calculate_totals(invoice_id, user_id))), 200
     except NotFoundError:
         return not_found("Invoice")

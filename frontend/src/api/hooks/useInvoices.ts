@@ -42,7 +42,7 @@ export function useCreateInvoice() {
 export function useUpdateInvoice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ invoiceId, ...data }: { invoiceId: string; title?: string; delivered?: boolean; tax_rate?: string | null }) =>
+    mutationFn: ({ invoiceId, ...data }: { invoiceId: string; [key: string]: any }) =>
       apiClient.patch<Invoice>(`/api/v1/invoices/${invoiceId}`, data).then((r) => r.data),
     onSuccess: (inv) => {
       qc.invalidateQueries({ queryKey: KEYS.detail(inv.id) });

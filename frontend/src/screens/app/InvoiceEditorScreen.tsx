@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, ActivityIndicator,
-  Modal, ScrollView, StyleSheet,
+  Modal, ScrollView, StyleSheet, Switch,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
@@ -16,6 +16,16 @@ import LineItemEditor from "../../components/LineItemEditor";
 import type { LineItemEntry, SavedItem, SavedItemEntry } from "../../api/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "InvoiceEditor">;
+
+function useDebouncedCallback<T extends (...args: any[]) => void>(fn: T, delay: number): T {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fnRef = useRef(fn);
+  fnRef.current = fn;
+  return useCallback((...args: any[]) => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => fnRef.current(...args), delay);
+  }, [delay]) as unknown as T;
+}
 
 export default function InvoiceEditorScreen({ route, navigation }: Props) {
   const { invoiceId, jobId } = route.params;
@@ -33,10 +43,37 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
   const updateEntry = useUpdateInvoiceEntry();
   const deleteEntry = useDeleteInvoiceEntry();
 
-  const [title, setTitle] = useState(invoice?.title ?? "");
-  const [taxRate, setTaxRate] = useState(invoice?.tax_rate ?? "");
+  // --- Form state ---
+  const [title, setTitle] = useState("");
+  const [taxRate, setTaxRate] = useState("");
+  const [documentNumber, setDocumentNumber] = useState("");
+  const [documentDate, setDocumentDate] = useState("");
+  const [billTo, setBillTo] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [userName, setUserName] = useState("");
+  const [userPhone, setUserPhone] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [businessAddress, setBusinessAddress] = useState("");
+  const [worksiteAddress, setWorksiteAddress] = useState("");
+  const [notes, setNotes] = useState("");
+
+  // Visibility toggles
+  const [showDocumentNumber, setShowDocumentNumber] = useState(true);
+  const [showDocumentDate, setShowDocumentDate] = useState(true);
+  const [showBillTo, setShowBillTo] = useState(true);
+  const [showCompanyName, setShowCompanyName] = useState(true);
+  const [showUserName, setShowUserName] = useState(true);
+  const [showUserPhone, setShowUserPhone] = useState(true);
+  const [showUserEmail, setShowUserEmail] = useState(true);
+  const [showPaymentMethod, setShowPaymentMethod] = useState(true);
+  const [showBusinessAddress, setShowBusinessAddress] = useState(true);
+  const [showWorksiteAddress, setShowWorksiteAddress] = useState(true);
+  const [showNotes, setShowNotes] = useState(true);
+
   const [titleError, setTitleError] = useState<string | null>(null);
-  const [isSavingTitle, setIsSavingTitle] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const initialized = useRef(false);
 
   const saveToLibrary = useSaveInvoiceLineItemToLibrary();
   const populateSaved = usePopulateSavedItem();
@@ -51,10 +88,34 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
   const [newItemRate, setNewItemRate] = useState("");
   const [newItemError, setNewItemError] = useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (invoice && !title) {
-      setTitle(invoice.title);
+  // Initialize form from loaded invoice
+  useEffect(() => {
+    if (invoice && !initialized.current) {
+      initialized.current = true;
+      setTitle(invoice.title ?? "");
       setTaxRate(invoice.tax_rate ?? "");
+      setDocumentNumber(invoice.document_number ?? "");
+      setDocumentDate(invoice.document_date ?? "");
+      setBillTo(invoice.bill_to ?? "");
+      setCompanyName(invoice.company_name ?? "");
+      setUserName(invoice.user_name ?? "");
+      setUserPhone(invoice.user_phone ?? "");
+      setUserEmail(invoice.user_email ?? "");
+      setPaymentMethod(invoice.payment_method ?? "");
+      setBusinessAddress(invoice.business_address ?? "");
+      setWorksiteAddress(invoice.worksite_address ?? "");
+      setNotes(invoice.notes ?? "");
+      setShowDocumentNumber(invoice.show_document_number);
+      setShowDocumentDate(invoice.show_document_date);
+      setShowBillTo(invoice.show_bill_to);
+      setShowCompanyName(invoice.show_company_name);
+      setShowUserName(invoice.show_user_name);
+      setShowUserPhone(invoice.show_user_phone);
+      setShowUserEmail(invoice.show_user_email);
+      setShowPaymentMethod(invoice.show_payment_method);
+      setShowBusinessAddress(invoice.show_business_address);
+      setShowWorksiteAddress(invoice.show_worksite_address);
+      setShowNotes(invoice.show_notes);
     }
   }, [invoice]);
 
@@ -62,21 +123,54 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
     navigation.setOptions({ title: isNew ? "New Invoice" : "Edit Invoice" });
   }, [navigation, isNew]);
 
-  function handleSaveTitle() {
+  // --- Auto-save via debounced PATCH ---
+  const debouncedSave = useDebouncedCallback((fields: Record<string, any>) => {
+    if (!invoiceId) return;
+    updateInvoice.mutate({ invoiceId, ...fields });
+  }, 800);
+
+  function onFieldChange(setter: (v: string) => void, field: string, value: string) {
+    setter(value);
+    if (!invoiceId) return;
+    if (field === "title" && !value.trim()) return;
+    const payload: Record<string, any> = {};
+    if (field === "tax_rate") {
+      payload.tax_rate = value.trim() || null;
+    } else {
+      payload[field] = value;
+    }
+    debouncedSave(payload);
+  }
+
+  function onToggleChange(setter: (v: boolean) => void, field: string, value: boolean) {
+    setter(value);
+    if (!invoiceId) return;
+    debouncedSave({ [field]: value });
+  }
+
+  function handleCreate() {
     const t = title.trim();
     if (!t) { setTitleError("Title is required."); return; }
     setTitleError(null);
-    if (isNew) {
-      setIsSavingTitle(true);
-      createInvoice.mutate({ jobId, title: t, tax_rate: taxRate.trim() || undefined }, {
-        onSuccess: (inv) => { setIsSavingTitle(false); navigation.setParams({ invoiceId: inv.id } as any); },
-        onError: () => { setIsSavingTitle(false); setTitleError("Failed to create invoice."); },
-      });
-    } else {
-      updateInvoice.mutate({ invoiceId: invoiceId!, title: t, tax_rate: taxRate.trim() || null }, {
-        onError: () => setTitleError("Failed to update title."),
-      });
-    }
+    setIsCreating(true);
+    createInvoice.mutate({ jobId, title: t, tax_rate: taxRate.trim() || undefined }, {
+      onSuccess: (inv) => {
+        setIsCreating(false);
+        initialized.current = true;
+        navigation.setParams({ invoiceId: inv.id } as any);
+        setDocumentNumber(inv.document_number ?? "");
+        setDocumentDate(inv.document_date ?? "");
+        setBillTo(inv.bill_to ?? "");
+        setCompanyName(inv.company_name ?? "");
+        setUserName(inv.user_name ?? "");
+        setUserPhone(inv.user_phone ?? "");
+        setUserEmail(inv.user_email ?? "");
+        setPaymentMethod(inv.payment_method ?? "");
+        setBusinessAddress(inv.business_address ?? "");
+        setWorksiteAddress(inv.worksite_address ?? "");
+      },
+      onError: () => { setIsCreating(false); setTitleError("Failed to create invoice."); },
+    });
   }
 
   function handleAddLineItem() {
@@ -84,11 +178,7 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
     if (!name) { setNewItemError("Name is required."); return; }
     if (!invoiceId) return;
     setNewItemError(null);
-    addLineItem.mutate({
-      invoiceId,
-      name,
-      hourly_rate: newItemRate.trim() || undefined,
-    }, {
+    addLineItem.mutate({ invoiceId, name, hourly_rate: newItemRate.trim() || undefined }, {
       onSuccess: () => { setShowAddItem(false); setNewItemName(""); setNewItemRate(""); },
       onError: () => setNewItemError("Failed to add line item."),
     });
@@ -103,7 +193,6 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
   }
 
   const grandTotal = (lineItems ?? []).reduce((sum, item) => sum + parseFloat(item.total_cost || "0"), 0);
-  const grandHours = (lineItems ?? []).reduce((sum, item) => sum + parseFloat(item.total_hours || "0"), 0);
 
   if (!isNew && (loadingInv || loadingItems)) {
     return <View style={styles.centered}><ActivityIndicator size="large" color="#2563eb" /></View>;
@@ -118,69 +207,124 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
           </View>
         )}
 
+        {/* Title */}
         <Text style={styles.sectionLabel}>Title</Text>
         {titleError && <Text style={styles.fieldError}>{titleError}</Text>}
-        <View style={styles.titleRow}>
-          <TextInput
-            style={[styles.input, styles.flex1]}
-            value={title}
-            onChangeText={(v) => { setTitle(v); setTitleError(null); }}
-            placeholder="Invoice title"
-          />
-          <TouchableOpacity
-            style={[styles.saveBtn, isSavingTitle && styles.btnDisabled]}
-            onPress={handleSaveTitle}
-            disabled={isSavingTitle}
-          >
-            {isSavingTitle ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveBtnText}>Save</Text>}
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.sectionLabel}>Sales Tax Rate %</Text>
-        <TextInput
-          style={styles.input}
-          value={taxRate}
-          onChangeText={setTaxRate}
-          placeholder="e.g. 8.5 (leave blank for no tax)"
-          keyboardType="decimal-pad"
-        />
-        <Text style={styles.taxHint}>Tax applies to material items only, not labour hours.</Text>
+        {isNew ? (
+          <View style={styles.titleRow}>
+            <TextInput style={[styles.input, styles.flex1]} value={title}
+              onChangeText={(v) => { setTitle(v); setTitleError(null); }} placeholder="Invoice title" />
+            <TouchableOpacity style={[styles.createBtn, isCreating && styles.btnDisabled]}
+              onPress={handleCreate} disabled={isCreating}>
+              {isCreating ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.createBtnText}>Create</Text>}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TextInput style={styles.input} value={title}
+            onChangeText={(v) => onFieldChange(setTitle, "title", v)} placeholder="Invoice title" />
+        )}
 
         {invoiceId && (
           <>
-            <Text style={[styles.sectionLabel, { marginTop: 20 }]}>Line Items</Text>
+            {/* Tax Rate */}
+            <Text style={styles.sectionLabel}>Sales Tax Rate %</Text>
+            <TextInput style={styles.input} value={taxRate}
+              onChangeText={(v) => onFieldChange(setTaxRate, "tax_rate", v)}
+              placeholder="e.g. 8.5 (leave blank for no tax)" keyboardType="decimal-pad" />
+            <Text style={styles.taxHint}>Tax applies to material items only, not labour hours.</Text>
+
+            {/* Document Details */}
+            <Text style={[styles.sectionHeader, { marginTop: 20 }]}>Document Details</Text>
+
+            <MetadataField label="Invoice #" value={documentNumber}
+              onChangeText={(v) => onFieldChange(setDocumentNumber, "document_number", v)}
+              showToggle={showDocumentNumber}
+              onToggle={(v) => onToggleChange(setShowDocumentNumber, "show_document_number", v)} />
+
+            <MetadataField label="Date" value={documentDate}
+              onChangeText={(v) => onFieldChange(setDocumentDate, "document_date", v)}
+              placeholder="YYYY-MM-DD"
+              showToggle={showDocumentDate}
+              onToggle={(v) => onToggleChange(setShowDocumentDate, "show_document_date", v)} />
+
+            <MetadataField label="Bill To" value={billTo}
+              onChangeText={(v) => onFieldChange(setBillTo, "bill_to", v)}
+              showToggle={showBillTo}
+              onToggle={(v) => onToggleChange(setShowBillTo, "show_bill_to", v)} />
+
+            <MetadataField label="Worksite Address" value={worksiteAddress}
+              onChangeText={(v) => onFieldChange(setWorksiteAddress, "worksite_address", v)}
+              showToggle={showWorksiteAddress}
+              onToggle={(v) => onToggleChange(setShowWorksiteAddress, "show_worksite_address", v)} />
+
+            {/* Business Details */}
+            <Text style={[styles.sectionHeader, { marginTop: 20 }]}>Business Details</Text>
+
+            <MetadataField label="Business Name" value={companyName}
+              onChangeText={(v) => onFieldChange(setCompanyName, "company_name", v)}
+              showToggle={showCompanyName}
+              onToggle={(v) => onToggleChange(setShowCompanyName, "show_company_name", v)} />
+
+            <MetadataField label="Owner / Worker Name" value={userName}
+              onChangeText={(v) => onFieldChange(setUserName, "user_name", v)}
+              showToggle={showUserName}
+              onToggle={(v) => onToggleChange(setShowUserName, "show_user_name", v)} />
+
+            <MetadataField label="Business Address" value={businessAddress}
+              onChangeText={(v) => onFieldChange(setBusinessAddress, "business_address", v)}
+              showToggle={showBusinessAddress}
+              onToggle={(v) => onToggleChange(setShowBusinessAddress, "show_business_address", v)} />
+
+            <MetadataField label="Phone" value={userPhone}
+              onChangeText={(v) => onFieldChange(setUserPhone, "user_phone", v)}
+              showToggle={showUserPhone}
+              onToggle={(v) => onToggleChange(setShowUserPhone, "show_user_phone", v)} />
+
+            <MetadataField label="Email" value={userEmail}
+              onChangeText={(v) => onFieldChange(setUserEmail, "user_email", v)}
+              showToggle={showUserEmail}
+              onToggle={(v) => onToggleChange(setShowUserEmail, "show_user_email", v)} />
+
+            <MetadataField label="Payment Method" value={paymentMethod}
+              onChangeText={(v) => onFieldChange(setPaymentMethod, "payment_method", v)}
+              showToggle={showPaymentMethod}
+              onToggle={(v) => onToggleChange(setShowPaymentMethod, "show_payment_method", v)} />
+
+            {/* Additional Notes */}
+            <Text style={[styles.sectionHeader, { marginTop: 20 }]}>Additional Notes</Text>
+            <View style={styles.toggleRow}>
+              <Text style={styles.toggleLabel}>Show in PDF</Text>
+              <Switch value={showNotes} onValueChange={(v) => onToggleChange(setShowNotes, "show_notes", v)}
+                trackColor={{ true: "#2563eb" }} />
+            </View>
+            <TextInput style={[styles.input, styles.multiline]} value={notes}
+              onChangeText={(v) => onFieldChange(setNotes, "notes", v)}
+              placeholder="Additional notes (supports markdown)" multiline numberOfLines={4} />
+
+            {/* Line Items */}
+            <Text style={[styles.sectionHeader, { marginTop: 20 }]}>Line Items</Text>
 
             {(lineItems ?? []).map((item) => (
               <LineItemEditor
-                key={item.id}
-                item={item}
+                key={item.id} item={item}
                 onUpdateItem={(data) => updateLineItem.mutate({ invoiceId, itemId: item.id, ...data })}
                 onDeleteItem={() => deleteLineItem.mutate({ invoiceId, itemId: item.id })}
                 onAddEntry={(values) => addEntry.mutate({ invoiceId, itemId: item.id, ...values })}
                 onUpdateEntry={(entryId, values) => {
                   const cleaned: Record<string, string | undefined> = {};
-                  for (const [k, v] of Object.entries(values)) {
-                    cleaned[k] = typeof v === "string" && v.trim() === "" ? undefined : v;
-                  }
+                  for (const [k, v] of Object.entries(values)) { cleaned[k] = typeof v === "string" && v.trim() === "" ? undefined : v; }
                   updateEntry.mutate({ invoiceId, itemId: item.id, entryId, ...cleaned });
                 }}
                 onDeleteEntry={(entryId) => deleteEntry.mutate({ invoiceId, itemId: item.id, entryId })}
                 onSaveToLibrary={() => saveToLibrary.mutate({ invoiceId, itemId: item.id })}
                 onSaveEntryToLibrary={(entry: LineItemEntry) => saveEntryToLib.mutate({
-                  entry_type: entry.entry_type,
-                  name: entry.name,
-                  notes: entry.notes ?? undefined,
-                  url: entry.url ?? undefined,
-                  unit_price: entry.unit_price ?? undefined,
-                  quantity: entry.quantity ?? undefined,
-                  hours: entry.hours ?? undefined,
+                  entry_type: entry.entry_type, name: entry.name, notes: entry.notes ?? undefined,
+                  url: entry.url ?? undefined, unit_price: entry.unit_price ?? undefined,
+                  quantity: entry.quantity ?? undefined, hours: entry.hours ?? undefined,
                 })}
                 savedItems={savedItems}
                 onPickSavedEntry={(savedEntry: SavedItemEntry) => populateSavedEntry.mutate({
-                  entryId: savedEntry.id,
-                  lineItemId: item.id,
-                  parentId: invoiceId,
-                  parentType: "invoice",
+                  entryId: savedEntry.id, lineItemId: item.id, parentId: invoiceId, parentType: "invoice",
                 })}
                 allSavedEntries={allSavedEntries}
                 isSavingEntry={addEntry.isPending || updateEntry.isPending}
@@ -199,12 +343,8 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
                 </View>
                 {invoice?.tax_rate && parseFloat(invoice.tax_rate) > 0 && (
                   <View style={styles.grandTotalRow}>
-                    <Text style={styles.grandTotalLabel}>
-                      Tax ({invoice.tax_rate}% on materials)
-                    </Text>
-                    <Text style={styles.grandTotalValue}>
-                      ${parseFloat(invoice.tax_amount || "0").toFixed(2)}
-                    </Text>
+                    <Text style={styles.grandTotalLabel}>Tax ({invoice.tax_rate}% on materials)</Text>
+                    <Text style={styles.grandTotalValue}>${parseFloat(invoice.tax_amount || "0").toFixed(2)}</Text>
                   </View>
                 )}
                 <View style={[styles.grandTotalRow, styles.grandTotalFinal]}>
@@ -216,7 +356,6 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
               </View>
             )}
 
-
             <TouchableOpacity style={styles.addItemBtn} onPress={() => { setNewItemName(""); setNewItemRate(""); setNewItemError(null); setAddItemMode("new"); setShowAddItem(true); }}>
               <Text style={styles.addItemBtnText}>+ Add Line Item</Text>
             </TouchableOpacity>
@@ -224,59 +363,31 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
         )}
       </ScrollView>
 
+      {/* Add line item modal */}
       <Modal visible={showAddItem} transparent animationType="fade" onRequestClose={() => setShowAddItem(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Add Line Item</Text>
-
             <View style={styles.modeTabs}>
-              <TouchableOpacity
-                style={[styles.modeTab, addItemMode === "new" && styles.modeTabActive]}
-                onPress={() => setAddItemMode("new")}
-              >
+              <TouchableOpacity style={[styles.modeTab, addItemMode === "new" && styles.modeTabActive]} onPress={() => setAddItemMode("new")}>
                 <Text style={[styles.modeTabText, addItemMode === "new" && styles.modeTabTextActive]}>New Item</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modeTab, addItemMode === "library" && styles.modeTabActive]}
-                onPress={() => setAddItemMode("library")}
-              >
+              <TouchableOpacity style={[styles.modeTab, addItemMode === "library" && styles.modeTabActive]} onPress={() => setAddItemMode("library")}>
                 <Text style={[styles.modeTabText, addItemMode === "library" && styles.modeTabTextActive]}>From Library</Text>
               </TouchableOpacity>
             </View>
-
             {newItemError && <Text style={styles.fieldError}>{newItemError}</Text>}
-
             {addItemMode === "new" ? (
               <>
                 <Text style={styles.fieldLabel}>Name <Text style={styles.req}>*</Text></Text>
-                <TextInput
-                  style={styles.input}
-                  value={newItemName}
-                  onChangeText={setNewItemName}
-                  placeholder="e.g. Toilet Replacement"
-                  autoFocus
-                />
+                <TextInput style={styles.input} value={newItemName} onChangeText={setNewItemName} placeholder="e.g. Toilet Replacement" autoFocus />
                 <Text style={styles.fieldLabel}>Hourly Rate (optional)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={newItemRate}
-                  onChangeText={setNewItemRate}
-                  placeholder="e.g. 85.00"
-                  keyboardType="decimal-pad"
-                />
+                <TextInput style={styles.input} value={newItemRate} onChangeText={setNewItemRate} placeholder="e.g. 85.00" keyboardType="decimal-pad" />
                 <Text style={styles.rateHint}>Used to calculate cost of hours entries under this item.</Text>
                 <View style={styles.modalActions}>
-                  <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowAddItem(false)}>
-                    <Text style={styles.cancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.confirmBtn, addLineItem.isPending && styles.btnDisabled]}
-                    onPress={handleAddLineItem}
-                    disabled={addLineItem.isPending}
-                  >
-                    {addLineItem.isPending
-                      ? <ActivityIndicator color="#fff" size="small" />
-                      : <Text style={styles.confirmText}>Add</Text>}
+                  <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowAddItem(false)}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity>
+                  <TouchableOpacity style={[styles.confirmBtn, addLineItem.isPending && styles.btnDisabled]} onPress={handleAddLineItem} disabled={addLineItem.isPending}>
+                    {addLineItem.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.confirmText}>Add</Text>}
                   </TouchableOpacity>
                 </View>
               </>
@@ -286,26 +397,17 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
                   <Text style={styles.emptyLibText}>No saved items yet. Create one from a line item using "📚 Save".</Text>
                 ) : (
                   (savedItems ?? []).map((saved) => (
-                    <TouchableOpacity
-                      key={saved.id}
-                      style={styles.savedItemRow}
-                      onPress={() => handlePickFromLibrary(saved)}
-                      disabled={populateSaved.isPending}
-                    >
+                    <TouchableOpacity key={saved.id} style={styles.savedItemRow} onPress={() => handlePickFromLibrary(saved)} disabled={populateSaved.isPending}>
                       <View style={styles.savedItemInfo}>
                         <Text style={styles.savedItemName}>{saved.name}</Text>
-                        {saved.hourly_rate && (
-                          <Text style={styles.savedItemMeta}>${saved.hourly_rate}/hr</Text>
-                        )}
+                        {saved.hourly_rate && <Text style={styles.savedItemMeta}>${saved.hourly_rate}/hr</Text>}
                         <Text style={styles.savedItemMeta}>{saved.entries.length} entries</Text>
                       </View>
                       <Text style={styles.pickText}>Add →</Text>
                     </TouchableOpacity>
                   ))
                 )}
-                <TouchableOpacity style={[styles.cancelBtn, { marginTop: 12 }]} onPress={() => setShowAddItem(false)}>
-                  <Text style={styles.cancelText}>Cancel</Text>
-                </TouchableOpacity>
+                <TouchableOpacity style={[styles.cancelBtn, { marginTop: 12 }]} onPress={() => setShowAddItem(false)}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity>
               </>
             )}
           </View>
@@ -315,34 +417,58 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
   );
 }
 
+function MetadataField({ label, value, onChangeText, placeholder, showToggle, onToggle }: {
+  label: string; value: string; onChangeText: (v: string) => void;
+  placeholder?: string; showToggle: boolean; onToggle: (v: boolean) => void;
+}) {
+  return (
+    <View style={styles.metaFieldContainer}>
+      <View style={styles.metaFieldHeader}>
+        <Text style={styles.metaFieldLabel}>{label}</Text>
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleLabel}>PDF</Text>
+          <Switch value={showToggle} onValueChange={onToggle} trackColor={{ true: "#2563eb" }} />
+        </View>
+      </View>
+      <TextInput style={styles.input} value={value} onChangeText={onChangeText}
+        placeholder={placeholder ?? label} />
+    </View>
+  );
+}
+
+
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: "#f3f4f6" },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  content: { padding: 16 },
+  content: { padding: 16, paddingBottom: 40 },
   convertedBanner: { backgroundColor: "#f5f3ff", borderRadius: 8, padding: 10, marginBottom: 16, borderWidth: 1, borderColor: "#ddd6fe" },
   convertedText: { fontSize: 13, color: "#7c3aed", fontStyle: "italic", fontWeight: "500" },
   sectionLabel: { fontSize: 11, fontWeight: "700", color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 },
+  sectionHeader: { fontSize: 14, fontWeight: "700", color: "#374151", marginBottom: 12, borderBottomWidth: 1, borderBottomColor: "#e5e7eb", paddingBottom: 6 },
   fieldError: { color: "#dc2626", fontSize: 13, marginBottom: 4 },
   titleRow: { flexDirection: "row", gap: 8, alignItems: "center" },
-  input: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: "#1a1a1a", backgroundColor: "#fff" },
+  input: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: "#1a1a1a", backgroundColor: "#fff", marginBottom: 8 },
+  multiline: { minHeight: 80, textAlignVertical: "top" },
   flex1: { flex: 1 },
-  saveBtn: { backgroundColor: "#2563eb", borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10, alignItems: "center", minWidth: 64 },
-  saveBtnText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  createBtn: { backgroundColor: "#2563eb", borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10, alignItems: "center", minWidth: 80 },
+  createBtnText: { color: "#fff", fontSize: 14, fontWeight: "600" },
   btnDisabled: { opacity: 0.6 },
+  taxHint: { fontSize: 12, color: "#9ca3af", marginTop: -4, marginBottom: 12 },
   emptyText: { fontSize: 14, color: "#9ca3af", textAlign: "center", paddingVertical: 20 },
-  grandTotalBlock: {
-    backgroundColor: "#f9fafb", borderRadius: 10, padding: 14,
-    borderTopWidth: 2, borderTopColor: "#e5e7eb", marginTop: 8,
-  },
+  grandTotalBlock: { backgroundColor: "#f9fafb", borderRadius: 10, padding: 14, borderTopWidth: 2, borderTopColor: "#e5e7eb", marginTop: 8 },
   grandTotalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
   grandTotalLabel: { fontSize: 14, color: "#6b7280" },
   grandTotalValue: { fontSize: 14, color: "#374151" },
   grandTotalFinal: { borderTopWidth: 1, borderTopColor: "#e5e7eb", paddingTop: 8, marginTop: 2, marginBottom: 0 },
   grandTotalFinalLabel: { fontSize: 16, fontWeight: "700", color: "#1a1a1a" },
   grandTotalFinalValue: { fontSize: 20, fontWeight: "700", color: "#2563eb" },
-  taxHint: { fontSize: 12, color: "#9ca3af", marginTop: 4, marginBottom: 12 },
   addItemBtn: { backgroundColor: "#2563eb", borderRadius: 8, paddingVertical: 12, alignItems: "center", marginTop: 12 },
   addItemBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  metaFieldContainer: { marginBottom: 4 },
+  metaFieldHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
+  metaFieldLabel: { fontSize: 13, fontWeight: "600", color: "#374151" },
+  toggleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  toggleLabel: { fontSize: 11, color: "#6b7280" },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: 24 },
   modalCard: { backgroundColor: "#fff", borderRadius: 12, padding: 24, width: "100%", maxWidth: 400 },
   modalTitle: { fontSize: 18, fontWeight: "700", color: "#1a1a1a", marginBottom: 12 },

@@ -146,29 +146,49 @@ class PdfService:
         estimate = self._estimate_service.get(estimate_id, user_id)
         line_items = self._estimate_service.get_line_items(estimate_id, user_id)
         totals = self._estimate_service.calculate_totals(estimate_id, user_id)
-        profile = self._profile_service.get_profile(user_id)
 
-        # Resolve primary contact and job site address
+        # Use document's stored metadata (already populated from profile on creation)
+        # Fall back to profile for any fields that are still None (legacy documents)
+        profile = self._profile_service.get_profile(user_id)
         job = estimate.job
-        bill_to_name = self._resolve_primary_contact(job)
-        job_site_address = self._get_job_site_address(job)
+
+        # Resolve values: document override > profile default > job/site default
+        bill_to = estimate.bill_to or self._resolve_primary_contact(job)
+        worksite = estimate.worksite_address or self._get_job_site_address(job)
 
         # Build PdfData
         pdf_data = PdfData(
             document_type="Estimate",
             title=estimate.title,
-            company_name=profile.get("company_name"),
-            user_name=profile.get("name"),
-            user_phone=profile.get("phone"),
-            user_email=profile.get("email", ""),
-            payment_method=profile.get("payment_method"),
-            bill_to_name=bill_to_name,
-            job_site_address=job_site_address,
+            company_name=estimate.company_name or profile.get("company_name"),
+            user_name=estimate.user_name or profile.get("name"),
+            user_phone=estimate.user_phone or profile.get("phone"),
+            user_email=estimate.user_email or profile.get("email", ""),
+            payment_method=estimate.payment_method or profile.get("payment_method"),
+            bill_to_name=bill_to,
+            job_site_address=worksite,
             line_items=self._build_pdf_line_items(line_items),
             tax_rate=estimate.tax_rate,
             subtotal=totals["subtotal"],
             tax_amount=totals["tax_amount"],
             total=totals["total"],
+            # New fields
+            document_number=estimate.document_number,
+            document_date=estimate.document_date.isoformat() if estimate.document_date else None,
+            business_address=estimate.business_address or profile.get("address"),
+            notes=estimate.notes,
+            # Visibility flags
+            show_document_number=estimate.show_document_number,
+            show_document_date=estimate.show_document_date,
+            show_bill_to=estimate.show_bill_to,
+            show_company_name=estimate.show_company_name,
+            show_user_name=estimate.show_user_name,
+            show_user_phone=estimate.show_user_phone,
+            show_user_email=estimate.show_user_email,
+            show_payment_method=estimate.show_payment_method,
+            show_business_address=estimate.show_business_address,
+            show_worksite_address=estimate.show_worksite_address,
+            show_notes=estimate.show_notes,
         )
 
         # Generate PDF bytes
@@ -203,29 +223,47 @@ class PdfService:
         invoice = self._invoice_service.get(invoice_id, user_id)
         line_items = self._invoice_service.get_line_items(invoice_id, user_id)
         totals = self._invoice_service.calculate_totals(invoice_id, user_id)
-        profile = self._profile_service.get_profile(user_id)
 
-        # Resolve primary contact and job site address
+        # Use document's stored metadata, fall back to profile
+        profile = self._profile_service.get_profile(user_id)
         job = invoice.job
-        bill_to_name = self._resolve_primary_contact(job)
-        job_site_address = self._get_job_site_address(job)
+
+        bill_to = invoice.bill_to or self._resolve_primary_contact(job)
+        worksite = invoice.worksite_address or self._get_job_site_address(job)
 
         # Build PdfData
         pdf_data = PdfData(
             document_type="Invoice",
             title=invoice.title,
-            company_name=profile.get("company_name"),
-            user_name=profile.get("name"),
-            user_phone=profile.get("phone"),
-            user_email=profile.get("email", ""),
-            payment_method=profile.get("payment_method"),
-            bill_to_name=bill_to_name,
-            job_site_address=job_site_address,
+            company_name=invoice.company_name or profile.get("company_name"),
+            user_name=invoice.user_name or profile.get("name"),
+            user_phone=invoice.user_phone or profile.get("phone"),
+            user_email=invoice.user_email or profile.get("email", ""),
+            payment_method=invoice.payment_method or profile.get("payment_method"),
+            bill_to_name=bill_to,
+            job_site_address=worksite,
             line_items=self._build_pdf_line_items(line_items),
             tax_rate=invoice.tax_rate,
             subtotal=totals["subtotal"],
             tax_amount=totals["tax_amount"],
             total=totals["total"],
+            # New fields
+            document_number=invoice.document_number,
+            document_date=invoice.document_date.isoformat() if invoice.document_date else None,
+            business_address=invoice.business_address or profile.get("address"),
+            notes=invoice.notes,
+            # Visibility flags
+            show_document_number=invoice.show_document_number,
+            show_document_date=invoice.show_document_date,
+            show_bill_to=invoice.show_bill_to,
+            show_company_name=invoice.show_company_name,
+            show_user_name=invoice.show_user_name,
+            show_user_phone=invoice.show_user_phone,
+            show_user_email=invoice.show_user_email,
+            show_payment_method=invoice.show_payment_method,
+            show_business_address=invoice.show_business_address,
+            show_worksite_address=invoice.show_worksite_address,
+            show_notes=invoice.show_notes,
         )
 
         # Generate PDF bytes

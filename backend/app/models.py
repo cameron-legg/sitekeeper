@@ -19,6 +19,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Column,
+    Date,
     ForeignKey,
     Integer,
     Numeric,
@@ -86,6 +87,7 @@ class User(db.Model):
     company_name = Column(String(255), nullable=True)
     phone = Column(String(50), nullable=True)
     payment_method = Column(String(255), nullable=True)
+    address = Column(String(500), nullable=True)
     # Tenant access control
     role = Column(String(20), nullable=False, default="member")  # 'admin' or 'member'
     is_approved = Column(Boolean, nullable=False, default=False)
@@ -279,6 +281,32 @@ class Estimate(db.Model):
     pdf_generated_at = Column(TIMESTAMP(timezone=True), nullable=True)
     pdf_object_key = Column(Text, nullable=True)
 
+    # Document metadata (overridable per-document, defaults from profile)
+    document_number = Column(String(50), nullable=True)
+    document_date = Column(Date, nullable=True)
+    bill_to = Column(Text, nullable=True)
+    company_name = Column(String(255), nullable=True)
+    user_name = Column(String(255), nullable=True)
+    user_phone = Column(String(50), nullable=True)
+    user_email = Column(String(255), nullable=True)
+    payment_method = Column(String(255), nullable=True)
+    business_address = Column(String(500), nullable=True)
+    worksite_address = Column(String(500), nullable=True)
+    notes = Column(Text, nullable=True)
+
+    # Visibility flags for PDF generation
+    show_document_number = Column(Boolean, nullable=False, default=True)
+    show_document_date = Column(Boolean, nullable=False, default=True)
+    show_bill_to = Column(Boolean, nullable=False, default=True)
+    show_company_name = Column(Boolean, nullable=False, default=True)
+    show_user_name = Column(Boolean, nullable=False, default=True)
+    show_user_phone = Column(Boolean, nullable=False, default=True)
+    show_user_email = Column(Boolean, nullable=False, default=True)
+    show_payment_method = Column(Boolean, nullable=False, default=True)
+    show_business_address = Column(Boolean, nullable=False, default=True)
+    show_worksite_address = Column(Boolean, nullable=False, default=True)
+    show_notes = Column(Boolean, nullable=False, default=True)
+
     job = relationship("Job", back_populates="estimates")
     line_items = relationship(
         "LineItem",
@@ -333,6 +361,32 @@ class Invoice(db.Model):
     )
     pdf_generated_at = Column(TIMESTAMP(timezone=True), nullable=True)
     pdf_object_key = Column(Text, nullable=True)
+
+    # Document metadata (overridable per-document, defaults from profile)
+    document_number = Column(String(50), nullable=True)
+    document_date = Column(Date, nullable=True)
+    bill_to = Column(Text, nullable=True)
+    company_name = Column(String(255), nullable=True)
+    user_name = Column(String(255), nullable=True)
+    user_phone = Column(String(50), nullable=True)
+    user_email = Column(String(255), nullable=True)
+    payment_method = Column(String(255), nullable=True)
+    business_address = Column(String(500), nullable=True)
+    worksite_address = Column(String(500), nullable=True)
+    notes = Column(Text, nullable=True)
+
+    # Visibility flags for PDF generation
+    show_document_number = Column(Boolean, nullable=False, default=True)
+    show_document_date = Column(Boolean, nullable=False, default=True)
+    show_bill_to = Column(Boolean, nullable=False, default=True)
+    show_company_name = Column(Boolean, nullable=False, default=True)
+    show_user_name = Column(Boolean, nullable=False, default=True)
+    show_user_phone = Column(Boolean, nullable=False, default=True)
+    show_user_email = Column(Boolean, nullable=False, default=True)
+    show_payment_method = Column(Boolean, nullable=False, default=True)
+    show_business_address = Column(Boolean, nullable=False, default=True)
+    show_worksite_address = Column(Boolean, nullable=False, default=True)
+    show_notes = Column(Boolean, nullable=False, default=True)
 
     job = relationship("Job", back_populates="invoices")
     source_estimate = relationship(
@@ -511,3 +565,19 @@ class SavedItemEntry(db.Model):
 
     def __repr__(self):
         return f"<SavedItemEntry [{self.entry_type}] {self.name}>"
+
+
+# ---------------------------------------------------------------------------
+# DocumentNumber  (auto-increment tracking for estimates/invoices)
+# ---------------------------------------------------------------------------
+
+
+class DocumentNumber(db.Model):
+    __tablename__ = "document_numbers"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_type = Column(String(20), nullable=False)  # 'estimate' or 'invoice'
+    next_number = Column(Integer, nullable=False, default=1)
+
+    def __repr__(self):
+        return f"<DocumentNumber {self.document_type} next={self.next_number}>"
