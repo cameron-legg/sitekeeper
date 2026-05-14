@@ -60,6 +60,18 @@ export function useDeleteInvoice() {
   });
 }
 
+export function usePopulateInvoiceDefaults() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ invoiceId }: { invoiceId: string }) =>
+      apiClient.post<Invoice>(`/api/v1/invoices/${invoiceId}/populate-defaults`).then((r) => r.data),
+    onSuccess: (inv) => {
+      qc.invalidateQueries({ queryKey: KEYS.detail(inv.id) });
+      qc.invalidateQueries({ queryKey: KEYS.forJob(inv.job_id) });
+    },
+  });
+}
+
 export function useInvoiceLineItems(invoiceId: string) {
   return useQuery({
     queryKey: KEYS.lineItems(invoiceId),

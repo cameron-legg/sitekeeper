@@ -10,6 +10,7 @@ import {
   useEstimateLineItems, useAddEstimateLineItem, useUpdateEstimateLineItem,
   useDeleteEstimateLineItem, useAddEstimateEntry, useUpdateEstimateEntry,
   useDeleteEstimateEntry, useSaveEstimateLineItemToLibrary,
+  usePopulateEstimateDefaults,
 } from "../../api/hooks/useEstimates";
 import { useSavedItems, usePopulateSavedItem, useSaveEntryToLibrary, usePopulateSavedEntry, useAllSavedEntries } from "../../api/hooks/useSavedItems";
 import LineItemEditor from "../../components/LineItemEditor";
@@ -43,6 +44,7 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
   const addEntry = useAddEstimateEntry();
   const updateEntry = useUpdateEstimateEntry();
   const deleteEntry = useDeleteEstimateEntry();
+  const populateDefaults = usePopulateEstimateDefaults();
 
   // --- Form state ---
   const [title, setTitle] = useState("");
@@ -243,7 +245,18 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
             <Text style={styles.taxHint}>Tax applies to material items only, not labour hours.</Text>
 
             {/* Document Details Section */}
-            <Text style={[styles.sectionHeader, { marginTop: 20 }]}>Document Details</Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={[styles.sectionHeader, { marginTop: 0, marginBottom: 0, borderBottomWidth: 0, flex: 1 }]}>Document Details</Text>
+              <TouchableOpacity
+                style={styles.populateBtn}
+                onPress={() => { if (estimateId) populateDefaults.mutate({ estimateId }); }}
+                disabled={populateDefaults.isPending}
+              >
+                {populateDefaults.isPending
+                  ? <ActivityIndicator size="small" color="#2563eb" />
+                  : <Text style={styles.populateBtnText}>↻ Fill Defaults</Text>}
+              </TouchableOpacity>
+            </View>
 
             <MetadataField label="Document #" value={documentNumber}
               onChangeText={(v) => onFieldChange(setDocumentNumber, "document_number", v)}
@@ -254,7 +267,16 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
               onChangeText={(v) => onFieldChange(setDocumentDate, "document_date", v)}
               placeholder="YYYY-MM-DD"
               showToggle={showDocumentDate}
-              onToggle={(v) => onToggleChange(setShowDocumentDate, "show_document_date", v)} />
+              onToggle={(v) => onToggleChange(setShowDocumentDate, "show_document_date", v)}
+              extraButton={
+                <TouchableOpacity style={styles.todayBtn} onPress={() => {
+                  const today = new Date().toISOString().split("T")[0];
+                  setDocumentDate(today);
+                  if (estimateId) debouncedSave({ document_date: today });
+                }}>
+                  <Text style={styles.todayBtnText}>Today</Text>
+                </TouchableOpacity>
+              } />
 
             <MetadataField label="Bill To" value={billTo}
               onChangeText={(v) => onFieldChange(setBillTo, "bill_to", v)}
@@ -428,15 +450,17 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
 }
 
 /** Reusable metadata field row with label, input, and visibility toggle */
-function MetadataField({ label, value, onChangeText, placeholder, showToggle, onToggle }: {
+function MetadataField({ label, value, onChangeText, placeholder, showToggle, onToggle, extraButton }: {
   label: string; value: string; onChangeText: (v: string) => void;
   placeholder?: string; showToggle: boolean; onToggle: (v: boolean) => void;
+  extraButton?: React.ReactNode;
 }) {
   return (
     <View style={styles.metaFieldContainer}>
       <View style={styles.metaFieldHeader}>
         <Text style={styles.metaFieldLabel}>{label}</Text>
         <View style={styles.toggleRow}>
+          {extraButton}
           <Text style={styles.toggleLabel}>PDF</Text>
           <Switch value={showToggle} onValueChange={onToggle} trackColor={{ true: "#2563eb" }} />
         </View>
@@ -479,6 +503,11 @@ const styles = StyleSheet.create({
   metaFieldLabel: { fontSize: 13, fontWeight: "600", color: "#374151" },
   toggleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   toggleLabel: { fontSize: 11, color: "#6b7280" },
+  sectionHeaderRow: { flexDirection: "row", alignItems: "center", marginTop: 20, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: "#e5e7eb", paddingBottom: 6 },
+  populateBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, borderWidth: 1, borderColor: "#2563eb", backgroundColor: "#eff6ff" },
+  populateBtnText: { fontSize: 12, fontWeight: "600", color: "#2563eb" },
+  todayBtn: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, backgroundColor: "#e0e7ff" },
+  todayBtnText: { fontSize: 11, fontWeight: "600", color: "#4338ca" },
   // Modal styles
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: 24 },
   modalCard: { backgroundColor: "#fff", borderRadius: 12, padding: 24, width: "100%", maxWidth: 400 },

@@ -244,6 +244,20 @@ def patch_estimate(estimate_id: str):
         return server_error()
 
 
+@estimates_bp.post("/estimates/<estimate_id>/populate-defaults")
+@auth_required
+def populate_estimate_defaults(estimate_id: str):
+    """Re-populate metadata fields from profile and job context (overwrites current values)."""
+    user_id = g.current_user_id
+    try:
+        est = _service.populate_defaults(estimate_id, user_id)
+        return jsonify(_serialize_estimate(est, _service.calculate_totals(estimate_id, user_id))), 200
+    except NotFoundError:
+        return not_found("Estimate")
+    except Exception:
+        return server_error()
+
+
 @estimates_bp.put("/estimates/<estimate_id>")
 @auth_required
 def update_estimate(estimate_id: str):

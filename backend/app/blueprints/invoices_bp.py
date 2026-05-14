@@ -240,6 +240,20 @@ def patch_invoice(invoice_id: str):
         return server_error()
 
 
+@invoices_bp.post("/invoices/<invoice_id>/populate-defaults")
+@auth_required
+def populate_invoice_defaults(invoice_id: str):
+    """Re-populate metadata fields from profile and job context (overwrites current values)."""
+    user_id = g.current_user_id
+    try:
+        inv = _service.populate_defaults(invoice_id, user_id)
+        return jsonify(_serialize_invoice(inv, _service.calculate_totals(invoice_id, user_id))), 200
+    except NotFoundError:
+        return not_found("Invoice")
+    except Exception:
+        return server_error()
+
+
 @invoices_bp.put("/invoices/<invoice_id>")
 @auth_required
 def update_invoice(invoice_id: str):

@@ -234,6 +234,48 @@ class EstimateService:
         if doc.worksite_address is None and job and job.job_site:
             doc.worksite_address = job.job_site.address
 
+    def populate_defaults(self, estimate_id: str, user_id: str) -> Estimate:
+        """Re-populate all metadata fields from profile and job context (overwrites current values)."""
+        estimate = self._verify_estimate_access(estimate_id, user_id)
+        job = self._job_repo.get_by_id(str(estimate.job_id))
+
+        from .profile_service import ProfileService
+        try:
+            profile = ProfileService().get_profile(user_id)
+        except Exception:
+            profile = {}
+
+        # Overwrite with fresh defaults
+        estimate.company_name = profile.get("company_name")
+        estimate.user_name = profile.get("name")
+        estimate.user_phone = profile.get("phone")
+        estimate.user_email = profile.get("email")
+        estimate.payment_method = profile.get("payment_method")
+        estimate.business_address = profile.get("address")
+        estimate.document_date = date.today()
+
+        # Job/site context
+        if job:
+            if job.primary_contact is not None:
+                estimate.bill_to = job.primary_contact.name
+            elif job.job_site and job.job_site.primary_contact:
+                estimate.bill_to = job.job_site.primary_contact.name
+            else:
+                estimate.bill_to = None
+            if job.job_site:
+                estimate.worksite_address = job.job_site.address
+            else:
+                estimate.worksite_address = None
+
+        # Assign a new document number if none exists
+        if not estimate.document_number:
+            doc_num_row = DocumentNumber.query.filter_by(document_type="estimate").first()
+            if doc_num_row:
+                estimate.document_number = str(doc_num_row.next_number)
+                doc_num_row.next_number += 1
+
+        return self._estimate_repo.update(estimate)
+
     def delete(self, estimate_id: str, user_id: str) -> None:
         self._verify_estimate_access(estimate_id, user_id)
         self._estimate_repo.delete(estimate_id)

@@ -62,6 +62,18 @@ export function useDeleteEstimate() {
   });
 }
 
+export function usePopulateEstimateDefaults() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ estimateId }: { estimateId: string }) =>
+      apiClient.post<Estimate>(`/api/v1/estimates/${estimateId}/populate-defaults`).then((r) => r.data),
+    onSuccess: (est) => {
+      qc.invalidateQueries({ queryKey: KEYS.detail(est.id) });
+      qc.invalidateQueries({ queryKey: KEYS.forJob(est.job_id) });
+    },
+  });
+}
+
 // ── Line items ────────────────────────────────────────────────────────────────
 
 export function useEstimateLineItems(estimateId: string) {

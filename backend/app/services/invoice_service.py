@@ -161,6 +161,45 @@ class InvoiceService:
         if doc.worksite_address is None and job and job.job_site:
             doc.worksite_address = job.job_site.address
 
+    def populate_defaults(self, invoice_id: str, user_id: str) -> Invoice:
+        """Re-populate all metadata fields from profile and job context (overwrites current values)."""
+        invoice = self._verify_invoice_access(invoice_id, user_id)
+        job = self._job_repo.get_by_id(str(invoice.job_id))
+
+        from .profile_service import ProfileService
+        try:
+            profile = ProfileService().get_profile(user_id)
+        except Exception:
+            profile = {}
+
+        invoice.company_name = profile.get("company_name")
+        invoice.user_name = profile.get("name")
+        invoice.user_phone = profile.get("phone")
+        invoice.user_email = profile.get("email")
+        invoice.payment_method = profile.get("payment_method")
+        invoice.business_address = profile.get("address")
+        invoice.document_date = date.today()
+
+        if job:
+            if job.primary_contact is not None:
+                invoice.bill_to = job.primary_contact.name
+            elif job.job_site and job.job_site.primary_contact:
+                invoice.bill_to = job.job_site.primary_contact.name
+            else:
+                invoice.bill_to = None
+            if job.job_site:
+                invoice.worksite_address = job.job_site.address
+            else:
+                invoice.worksite_address = None
+
+        if not invoice.document_number:
+            doc_num_row = DocumentNumber.query.filter_by(document_type="invoice").first()
+            if doc_num_row:
+                invoice.document_number = str(doc_num_row.next_number)
+                doc_num_row.next_number += 1
+
+        return self._invoice_repo.update(invoice)
+
     def delete(self, invoice_id: str, user_id: str) -> None:
         self._verify_invoice_access(invoice_id, user_id)
         self._invoice_repo.delete(invoice_id)
