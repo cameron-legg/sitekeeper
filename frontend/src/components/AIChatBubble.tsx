@@ -281,6 +281,8 @@ export default function AIChatBubble({ screenName, screenParams }: AIChatBubbleP
                   break;
                 case "create_invoice":
                 case "convert_estimate_to_invoice":
+                case "get_invoice_details":
+                case "update_invoice":
                   queryClient.invalidateQueries({ queryKey: ["invoices"] });
                   queryClient.invalidateQueries({ queryKey: ["estimates"] });
                   break;

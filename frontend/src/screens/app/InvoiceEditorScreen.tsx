@@ -74,6 +74,7 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
   const [titleError, setTitleError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const initialized = useRef(false);
+  const lastSyncedAt = useRef<string | null>(null);
 
   const saveToLibrary = useSaveInvoiceLineItemToLibrary();
   const populateSaved = usePopulateSavedItem();
@@ -88,10 +89,13 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
   const [newItemRate, setNewItemRate] = useState("");
   const [newItemError, setNewItemError] = useState<string | null>(null);
 
-  // Initialize form from loaded invoice
+  // Initialize form from loaded invoice, and re-sync when data changes externally (e.g. AI updates)
   useEffect(() => {
-    if (invoice && !initialized.current) {
+    if (!invoice) return;
+    const isExternalUpdate = initialized.current && invoice.updated_at !== lastSyncedAt.current;
+    if (!initialized.current || isExternalUpdate) {
       initialized.current = true;
+      lastSyncedAt.current = invoice.updated_at;
       setTitle(invoice.title ?? "");
       setTaxRate(invoice.tax_rate ?? "");
       setDocumentNumber(invoice.document_number ?? "");
@@ -126,7 +130,11 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
   // --- Auto-save via debounced PATCH ---
   const debouncedSave = useDebouncedCallback((fields: Record<string, any>) => {
     if (!invoiceId) return;
-    updateInvoice.mutate({ invoiceId, ...fields });
+    updateInvoice.mutate({ invoiceId, ...fields }, {
+      onSuccess: (updated) => {
+        lastSyncedAt.current = updated.updated_at;
+      },
+    });
   }, 800);
 
   function onFieldChange(setter: (v: string) => void, field: string, value: string) {

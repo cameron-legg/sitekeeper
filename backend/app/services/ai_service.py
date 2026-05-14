@@ -68,13 +68,22 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "create_estimate",
-            "description": "Create a new estimate for a job. Optionally include line items with entries.",
+            "description": "Create a new estimate for a job. Optionally include line items with entries. Document metadata (number, date, bill_to, business details) is auto-populated from the user's profile but can be overridden.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "job_id": {"type": "string", "description": "ID of the job to create the estimate for"},
                     "title": {"type": "string", "description": "Title of the estimate"},
                     "tax_rate": {"type": "number", "description": "Sales tax rate as a percentage (e.g. 8.5 for 8.5%). Only applies to materials."},
+                    "bill_to": {"type": "string", "description": "Who to bill (overrides primary contact name)"},
+                    "worksite_address": {"type": "string", "description": "Worksite address (overrides job site address)"},
+                    "notes": {"type": "string", "description": "Additional notes to include at the end of the PDF (supports markdown)"},
+                    "company_name": {"type": "string", "description": "Business name override"},
+                    "user_name": {"type": "string", "description": "Worker/owner name override"},
+                    "user_phone": {"type": "string", "description": "Business phone override"},
+                    "user_email": {"type": "string", "description": "Business email override"},
+                    "payment_method": {"type": "string", "description": "Payment method override"},
+                    "business_address": {"type": "string", "description": "Business address override"},
                     "line_items": {
                         "type": "array",
                         "description": "Optional line items to add to the estimate",
@@ -113,13 +122,22 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "create_invoice",
-            "description": "Create a new invoice for a job. Optionally include line items with entries.",
+            "description": "Create a new invoice for a job. Optionally include line items with entries. Document metadata is auto-populated from the user's profile but can be overridden.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "job_id": {"type": "string", "description": "ID of the job to create the invoice for"},
                     "title": {"type": "string", "description": "Title of the invoice"},
                     "tax_rate": {"type": "number", "description": "Sales tax rate as a percentage (e.g. 8.5 for 8.5%). Only applies to materials."},
+                    "bill_to": {"type": "string", "description": "Who to bill (overrides primary contact name)"},
+                    "worksite_address": {"type": "string", "description": "Worksite address (overrides job site address)"},
+                    "notes": {"type": "string", "description": "Additional notes to include at the end of the PDF (supports markdown)"},
+                    "company_name": {"type": "string", "description": "Business name override"},
+                    "user_name": {"type": "string", "description": "Worker/owner name override"},
+                    "user_phone": {"type": "string", "description": "Business phone override"},
+                    "user_email": {"type": "string", "description": "Business email override"},
+                    "payment_method": {"type": "string", "description": "Payment method override"},
+                    "business_address": {"type": "string", "description": "Business address override"},
                     "line_items": {
                         "type": "array",
                         "description": "Optional line items to add to the invoice",
@@ -200,13 +218,35 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "update_estimate",
-            "description": "Update an existing estimate's title or tax rate.",
+            "description": "Update an existing estimate's title, tax rate, or document metadata fields (bill_to, notes, business details, visibility flags, etc.).",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "estimate_id": {"type": "string", "description": "ID of the estimate to update"},
                     "title": {"type": "string", "description": "New title for the estimate"},
                     "tax_rate": {"type": "number", "description": "New tax rate as a percentage (e.g. 8.5). Set to 0 to clear tax."},
+                    "document_number": {"type": "string", "description": "Override the auto-assigned document number"},
+                    "document_date": {"type": "string", "description": "Document date in YYYY-MM-DD format"},
+                    "bill_to": {"type": "string", "description": "Who to bill"},
+                    "worksite_address": {"type": "string", "description": "Worksite address"},
+                    "company_name": {"type": "string", "description": "Business name"},
+                    "user_name": {"type": "string", "description": "Worker/owner name"},
+                    "user_phone": {"type": "string", "description": "Business phone"},
+                    "user_email": {"type": "string", "description": "Business email"},
+                    "payment_method": {"type": "string", "description": "Payment method"},
+                    "business_address": {"type": "string", "description": "Business address"},
+                    "notes": {"type": "string", "description": "Additional notes (markdown) for end of PDF"},
+                    "show_document_number": {"type": "boolean", "description": "Show document number in PDF"},
+                    "show_document_date": {"type": "boolean", "description": "Show date in PDF"},
+                    "show_bill_to": {"type": "boolean", "description": "Show bill-to in PDF"},
+                    "show_company_name": {"type": "boolean", "description": "Show business name in PDF"},
+                    "show_user_name": {"type": "boolean", "description": "Show owner/worker name in PDF"},
+                    "show_user_phone": {"type": "boolean", "description": "Show phone in PDF"},
+                    "show_user_email": {"type": "boolean", "description": "Show email in PDF"},
+                    "show_payment_method": {"type": "boolean", "description": "Show payment method in PDF"},
+                    "show_business_address": {"type": "boolean", "description": "Show business address in PDF"},
+                    "show_worksite_address": {"type": "boolean", "description": "Show worksite address in PDF"},
+                    "show_notes": {"type": "boolean", "description": "Show notes in PDF"},
                 },
                 "required": ["estimate_id"],
             },
@@ -403,6 +443,58 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "get_invoice_details",
+            "description": "Get full details of an invoice including all its line items, entries, and document metadata. Use this before editing.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "invoice_id": {"type": "string", "description": "ID of the invoice to retrieve"},
+                },
+                "required": ["invoice_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_invoice",
+            "description": "Update an existing invoice's title, tax rate, or document metadata fields.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "invoice_id": {"type": "string", "description": "ID of the invoice to update"},
+                    "title": {"type": "string", "description": "New title"},
+                    "tax_rate": {"type": "number", "description": "New tax rate as a percentage. Set to 0 to clear tax."},
+                    "document_number": {"type": "string", "description": "Override the document number"},
+                    "document_date": {"type": "string", "description": "Document date in YYYY-MM-DD format"},
+                    "bill_to": {"type": "string", "description": "Who to bill"},
+                    "worksite_address": {"type": "string", "description": "Worksite address"},
+                    "company_name": {"type": "string", "description": "Business name"},
+                    "user_name": {"type": "string", "description": "Worker/owner name"},
+                    "user_phone": {"type": "string", "description": "Business phone"},
+                    "user_email": {"type": "string", "description": "Business email"},
+                    "payment_method": {"type": "string", "description": "Payment method"},
+                    "business_address": {"type": "string", "description": "Business address"},
+                    "notes": {"type": "string", "description": "Additional notes (markdown) for end of PDF"},
+                    "show_document_number": {"type": "boolean", "description": "Show document number in PDF"},
+                    "show_document_date": {"type": "boolean", "description": "Show date in PDF"},
+                    "show_bill_to": {"type": "boolean", "description": "Show bill-to in PDF"},
+                    "show_company_name": {"type": "boolean", "description": "Show business name in PDF"},
+                    "show_user_name": {"type": "boolean", "description": "Show owner/worker name in PDF"},
+                    "show_user_phone": {"type": "boolean", "description": "Show phone in PDF"},
+                    "show_user_email": {"type": "boolean", "description": "Show email in PDF"},
+                    "show_payment_method": {"type": "boolean", "description": "Show payment method in PDF"},
+                    "show_business_address": {"type": "boolean", "description": "Show business address in PDF"},
+                    "show_worksite_address": {"type": "boolean", "description": "Show worksite address in PDF"},
+                    "show_notes": {"type": "boolean", "description": "Show notes in PDF"},
+                },
+                "required": ["invoice_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "create_contact",
             "description": "Create a new contact and associate it with a job site or job. Contacts have a name, phone, email, mailing address, and notes.",
             "parameters": {
@@ -498,6 +590,17 @@ def _build_system_prompt(user: User, screen_context: dict, saved_items_summary: 
         "- Include both materials and labor hours where appropriate",
         "- Apply appropriate tax rates for the user's state (materials only, not labor)",
         "",
+        "Document metadata on estimates/invoices:",
+        "- Each estimate/invoice has metadata fields: document_number, document_date, bill_to, company_name, user_name, user_phone, user_email, payment_method, business_address, worksite_address, and notes",
+        "- These are auto-populated from the user's profile and job/site data on creation",
+        "- You can override any of these when creating or updating an estimate/invoice",
+        "- Each field has a corresponding show_* visibility flag (e.g. show_bill_to) that controls whether it appears in the generated PDF",
+        "- The 'notes' field supports markdown and appears at the end of the PDF",
+        "- If the user asks to hide something from the PDF, set the corresponding show_* flag to false",
+        "- If the user asks to change who the estimate is billed to, update the bill_to field",
+        "- If the user asks to add notes to the estimate/invoice, update the notes field",
+        "- Use get_estimate_details or get_invoice_details to see current metadata before editing",
+        "",
         "When editing estimates:",
         "- If the user asks to edit, update, change, or modify an estimate, use the EDIT tools (update_estimate, update_line_item, update_entry, add_line_item_to_estimate, add_entry_to_line_item, delete_line_item, delete_entry) — do NOT create a new estimate",
         "- If the user is on the EstimateEditor screen, use the estimateId from screen params",
@@ -509,6 +612,13 @@ def _build_system_prompt(user: User, screen_context: dict, saved_items_summary: 
         "- To remove a single entry from a line item, use delete_entry with both the line_item_id and entry_id",
         "- If the user asks to remove/delete multiple items, call delete_line_item or delete_entry for EACH one individually",
         "- If the user says 'remove the toilet replacement' or similar, first get_estimate_details to find the matching line_item_id, then call delete_line_item",
+        "- To change document metadata (bill_to, notes, business details, visibility), use update_estimate with the metadata fields",
+        "",
+        "When editing invoices:",
+        "- If the user is on the InvoiceEditor screen, use the invoiceId from screen params",
+        "- ALWAYS call get_invoice_details FIRST before any edit operation",
+        "- Use update_invoice to change title, tax rate, or any document metadata fields",
+        "- To change document metadata (bill_to, notes, business details, visibility), use update_invoice with the metadata fields",
         "",
         "When working with contacts:",
         "- Contacts are associated with job sites or jobs (not standalone)",
@@ -616,11 +726,20 @@ class AIService:
                 }
 
             elif tool_name == "create_estimate":
+                # Build metadata from args
+                metadata = {}
+                for key in ("bill_to", "worksite_address", "notes", "company_name",
+                            "user_name", "user_phone", "user_email", "payment_method",
+                            "business_address"):
+                    if args.get(key):
+                        metadata[key] = args[key]
+
                 estimate = self._estimate_service.create(
                     job_id=args["job_id"],
                     user_id=user_id,
                     title=args["title"],
                     tax_rate=Decimal(str(args["tax_rate"])) if args.get("tax_rate") else None,
+                    metadata=metadata or None,
                 )
                 # Add line items if provided
                 line_items_data = args.get("line_items", [])
@@ -654,11 +773,20 @@ class AIService:
                 }
 
             elif tool_name == "create_invoice":
+                # Build metadata from args
+                metadata = {}
+                for key in ("bill_to", "worksite_address", "notes", "company_name",
+                            "user_name", "user_phone", "user_email", "payment_method",
+                            "business_address"):
+                    if args.get(key):
+                        metadata[key] = args[key]
+
                 invoice = self._invoice_service.create(
                     job_id=args["job_id"],
                     user_id=user_id,
                     title=args["title"],
                     tax_rate=Decimal(str(args["tax_rate"])) if args.get("tax_rate") else None,
+                    metadata=metadata or None,
                 )
                 line_items_data = args.get("line_items", [])
                 for li_data in line_items_data:
@@ -749,6 +877,28 @@ class AIService:
                     "title": estimate.title,
                     "tax_rate": str(estimate.tax_rate) if estimate.tax_rate else None,
                     "delivered": estimate.delivered,
+                    "document_number": estimate.document_number,
+                    "document_date": estimate.document_date.isoformat() if estimate.document_date else None,
+                    "bill_to": estimate.bill_to,
+                    "company_name": estimate.company_name,
+                    "user_name": estimate.user_name,
+                    "user_phone": estimate.user_phone,
+                    "user_email": estimate.user_email,
+                    "payment_method": estimate.payment_method,
+                    "business_address": estimate.business_address,
+                    "worksite_address": estimate.worksite_address,
+                    "notes": estimate.notes,
+                    "show_document_number": estimate.show_document_number,
+                    "show_document_date": estimate.show_document_date,
+                    "show_bill_to": estimate.show_bill_to,
+                    "show_company_name": estimate.show_company_name,
+                    "show_user_name": estimate.show_user_name,
+                    "show_user_phone": estimate.show_user_phone,
+                    "show_user_email": estimate.show_user_email,
+                    "show_payment_method": estimate.show_payment_method,
+                    "show_business_address": estimate.show_business_address,
+                    "show_worksite_address": estimate.show_worksite_address,
+                    "show_notes": estimate.show_notes,
                     "line_items": items_data,
                 }
 
@@ -760,12 +910,26 @@ class AIService:
                         clear_tax = True
                     else:
                         tax_rate = Decimal(str(args["tax_rate"]))
+
+                # Build metadata from args
+                META_KEYS = (
+                    "document_number", "document_date", "bill_to", "company_name",
+                    "user_name", "user_phone", "user_email", "payment_method",
+                    "business_address", "worksite_address", "notes",
+                    "show_document_number", "show_document_date", "show_bill_to",
+                    "show_company_name", "show_user_name", "show_user_phone",
+                    "show_user_email", "show_payment_method", "show_business_address",
+                    "show_worksite_address", "show_notes",
+                )
+                metadata = {k: args[k] for k in META_KEYS if k in args}
+
                 estimate = self._estimate_service.update(
                     estimate_id=args["estimate_id"],
                     user_id=user_id,
                     title=args.get("title"),
                     tax_rate=tax_rate,
                     clear_tax=clear_tax,
+                    metadata=metadata or None,
                 )
                 return {
                     "success": True,
@@ -956,6 +1120,99 @@ class AIService:
                         }
                         for item in items[:20]
                     ],
+                }
+
+            elif tool_name == "get_invoice_details":
+                invoice = self._invoice_service.get(args["invoice_id"], user_id)
+                line_items = self._invoice_service.get_line_items(args["invoice_id"], user_id)
+                from .estimate_service import compute_line_item_totals as _compute_li_totals
+                items_data = []
+                for li in line_items:
+                    totals = _compute_li_totals(li)
+                    items_data.append({
+                        "id": str(li.id),
+                        "name": li.name,
+                        "notes": li.notes,
+                        "hourly_rate": str(li.hourly_rate) if li.hourly_rate else None,
+                        "total_cost": str(totals["total_cost"]),
+                        "total_hours": str(totals["total_hours"]),
+                        "entries": [
+                            {
+                                "id": str(e.id),
+                                "entry_type": e.entry_type,
+                                "name": e.name,
+                                "notes": e.notes,
+                                "unit_price": str(e.unit_price) if e.unit_price else None,
+                                "quantity": str(e.quantity) if e.quantity else None,
+                                "hours": str(e.hours) if e.hours else None,
+                            }
+                            for e in (li.entries or [])
+                        ],
+                    })
+                return {
+                    "success": True,
+                    "invoice_id": str(invoice.id),
+                    "title": invoice.title,
+                    "tax_rate": str(invoice.tax_rate) if invoice.tax_rate else None,
+                    "delivered": invoice.delivered,
+                    "document_number": invoice.document_number,
+                    "document_date": invoice.document_date.isoformat() if invoice.document_date else None,
+                    "bill_to": invoice.bill_to,
+                    "company_name": invoice.company_name,
+                    "user_name": invoice.user_name,
+                    "user_phone": invoice.user_phone,
+                    "user_email": invoice.user_email,
+                    "payment_method": invoice.payment_method,
+                    "business_address": invoice.business_address,
+                    "worksite_address": invoice.worksite_address,
+                    "notes": invoice.notes,
+                    "show_document_number": invoice.show_document_number,
+                    "show_document_date": invoice.show_document_date,
+                    "show_bill_to": invoice.show_bill_to,
+                    "show_company_name": invoice.show_company_name,
+                    "show_user_name": invoice.show_user_name,
+                    "show_user_phone": invoice.show_user_phone,
+                    "show_user_email": invoice.show_user_email,
+                    "show_payment_method": invoice.show_payment_method,
+                    "show_business_address": invoice.show_business_address,
+                    "show_worksite_address": invoice.show_worksite_address,
+                    "show_notes": invoice.show_notes,
+                    "line_items": items_data,
+                }
+
+            elif tool_name == "update_invoice":
+                clear_tax = False
+                tax_rate = None
+                if "tax_rate" in args:
+                    if args["tax_rate"] == 0:
+                        clear_tax = True
+                    else:
+                        tax_rate = Decimal(str(args["tax_rate"]))
+
+                META_KEYS = (
+                    "document_number", "document_date", "bill_to", "company_name",
+                    "user_name", "user_phone", "user_email", "payment_method",
+                    "business_address", "worksite_address", "notes",
+                    "show_document_number", "show_document_date", "show_bill_to",
+                    "show_company_name", "show_user_name", "show_user_phone",
+                    "show_user_email", "show_payment_method", "show_business_address",
+                    "show_worksite_address", "show_notes",
+                )
+                metadata = {k: args[k] for k in META_KEYS if k in args}
+
+                invoice = self._invoice_service.update(
+                    invoice_id=args["invoice_id"],
+                    user_id=user_id,
+                    title=args.get("title"),
+                    tax_rate=tax_rate,
+                    clear_tax=clear_tax,
+                    metadata=metadata or None,
+                )
+                return {
+                    "success": True,
+                    "invoice_id": str(invoice.id),
+                    "title": invoice.title,
+                    "message": f"Updated invoice '{invoice.title}'",
                 }
 
             elif tool_name == "create_contact":

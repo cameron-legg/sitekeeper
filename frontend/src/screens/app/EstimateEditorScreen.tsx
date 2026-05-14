@@ -75,6 +75,7 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
   const [titleError, setTitleError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const initialized = useRef(false);
+  const lastSyncedAt = useRef<string | null>(null);
 
   const saveToLibrary = useSaveEstimateLineItemToLibrary();
   const populateSaved = usePopulateSavedItem();
@@ -89,10 +90,14 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
   const [newItemRate, setNewItemRate] = useState("");
   const [newItemError, setNewItemError] = useState<string | null>(null);
 
-  // Initialize form from loaded estimate
+  // Initialize form from loaded estimate, and re-sync when data changes externally (e.g. AI updates)
   useEffect(() => {
-    if (estimate && !initialized.current) {
+    if (!estimate) return;
+    // First load or external update detected (updated_at changed)
+    const isExternalUpdate = initialized.current && estimate.updated_at !== lastSyncedAt.current;
+    if (!initialized.current || isExternalUpdate) {
       initialized.current = true;
+      lastSyncedAt.current = estimate.updated_at;
       setTitle(estimate.title ?? "");
       setTaxRate(estimate.tax_rate ?? "");
       setDocumentNumber(estimate.document_number ?? "");
@@ -127,7 +132,12 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
   // --- Auto-save via debounced PATCH ---
   const debouncedSave = useDebouncedCallback((fields: Record<string, any>) => {
     if (!estimateId) return;
-    updateEstimate.mutate({ estimateId, ...fields });
+    updateEstimate.mutate({ estimateId, ...fields }, {
+      onSuccess: (updated) => {
+        // Track our own save so the re-sync effect doesn't overwrite local state
+        lastSyncedAt.current = updated.updated_at;
+      },
+    });
   }, 800);
 
   // Field change handlers that auto-save
