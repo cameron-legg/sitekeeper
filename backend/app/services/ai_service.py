@@ -589,6 +589,7 @@ def _build_system_prompt(user: User, screen_context: dict, saved_items_summary: 
         "- Use realistic pricing for the user's state/region",
         "- Include both materials and labor hours where appropriate",
         "- Apply appropriate tax rates for the user's state (materials only, not labor)",
+        "- For titles, use SHORT descriptive names like 'Bathroom Renovation' or 'Kitchen Faucet Repair' — do NOT prefix with 'Estimate for' or 'Invoice for' since the document type is already shown on the PDF",
         "",
         "Document metadata on estimates/invoices:",
         "- Each estimate/invoice has metadata fields: document_number, document_date, bill_to, company_name, user_name, user_phone, user_email, payment_method, business_address, worksite_address, and notes",

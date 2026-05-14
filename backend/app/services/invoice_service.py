@@ -74,7 +74,7 @@ class InvoiceService:
     def create(self, job_id: str, user_id: str, title: str, delivered: bool = False,
                source_estimate_id: str | None = None,
                tax_rate: Decimal | None = None, metadata: dict | None = None) -> Invoice:
-        self._verify_job_access(job_id, user_id)
+        job = self._verify_job_access(job_id, user_id)
         invoice = Invoice(
             job_id=job_id, title=title, delivered=delivered,
             source_estimate_id=source_estimate_id, tax_rate=tax_rate,
@@ -86,9 +86,11 @@ class InvoiceService:
             doc_num_row.next_number += 1
         # Auto-set document date to today
         invoice.document_date = date.today()
-        # Apply metadata overrides
+        # Apply explicit metadata overrides first
         if metadata:
             self._apply_metadata(invoice, metadata)
+        # Auto-populate any remaining None fields from profile and job context
+        self._populate_defaults(invoice, user_id, job)
         return self._invoice_repo.create(invoice)
 
     def update(self, invoice_id: str, user_id: str, title: str | None = None,
@@ -128,6 +130,36 @@ class InvoiceService:
                     except ValueError:
                         continue
                 setattr(doc, key, value)
+
+    @staticmethod
+    def _populate_defaults(doc, user_id: str, job) -> None:
+        """Fill in any still-None metadata fields from the user's profile and job context."""
+        from .profile_service import ProfileService
+        try:
+            profile = ProfileService().get_profile(user_id)
+        except Exception:
+            profile = {}
+
+        if doc.company_name is None and profile.get("company_name"):
+            doc.company_name = profile["company_name"]
+        if doc.user_name is None and profile.get("name"):
+            doc.user_name = profile["name"]
+        if doc.user_phone is None and profile.get("phone"):
+            doc.user_phone = profile["phone"]
+        if doc.user_email is None and profile.get("email"):
+            doc.user_email = profile["email"]
+        if doc.payment_method is None and profile.get("payment_method"):
+            doc.payment_method = profile["payment_method"]
+        if doc.business_address is None and profile.get("address"):
+            doc.business_address = profile["address"]
+
+        if doc.bill_to is None and job:
+            if job.primary_contact is not None:
+                doc.bill_to = job.primary_contact.name
+            elif job.job_site and job.job_site.primary_contact:
+                doc.bill_to = job.job_site.primary_contact.name
+        if doc.worksite_address is None and job and job.job_site:
+            doc.worksite_address = job.job_site.address
 
     def delete(self, invoice_id: str, user_id: str) -> None:
         self._verify_invoice_access(invoice_id, user_id)
