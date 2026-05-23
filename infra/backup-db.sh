@@ -95,10 +95,10 @@ prune_dir() {
     local dir="$1" days="$2"
     if [[ -d "$dir" ]]; then
         local count
-        count=$(find "$dir" -name "*.sql.gz" -mtime +"$days" | wc -l)
+        count=$(find "$dir" -maxdepth 1 -name "*.sql.gz" -mtime +"$days" 2>/dev/null | wc -l)
         if [[ "$count" -gt 0 ]]; then
             info "  Pruning $count file(s) older than $days days from $dir"
-            find "$dir" -name "*.sql.gz" -mtime +"$days" -delete
+            find "$dir" -maxdepth 1 -name "*.sql.gz" -mtime +"$days" -delete 2>/dev/null
         fi
     fi
 }
