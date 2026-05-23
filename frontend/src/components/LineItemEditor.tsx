@@ -60,9 +60,10 @@ interface EntryModalProps {
   onClose: () => void;
   onSave: (values: EntryFormValues) => void;
   isSaving?: boolean;
+  lineItemName?: string;
 }
 
-function EntryModal({ visible, initial, onClose, onSave, isSaving }: EntryModalProps) {
+function EntryModal({ visible, initial, onClose, onSave, isSaving, lineItemName }: EntryModalProps) {
   const [values, setValues] = useState<EntryFormValues>({ ...EMPTY_ENTRY, ...initial });
   const [errors, setErrors] = useState<Partial<Record<keyof EntryFormValues, string>>>({});
 
@@ -80,7 +81,7 @@ function EntryModal({ visible, initial, onClose, onSave, isSaving }: EntryModalP
 
   function handleSave() {
     const errs: Partial<Record<keyof EntryFormValues, string>> = {};
-    if (!values.name.trim()) errs.name = "Name is required.";
+    if (values.entry_type === "material" && !values.name.trim()) errs.name = "Name is required.";
     if (values.entry_type === "material") {
       if (!values.unit_price.trim()) errs.unit_price = "Unit price is required.";
       else if (isNaN(parseFloat(values.unit_price))) errs.unit_price = "Must be a number.";
@@ -94,9 +95,12 @@ function EntryModal({ visible, initial, onClose, onSave, isSaving }: EntryModalP
       setErrors(errs);
       return;
     }
-    // Default quantity to "1" if left blank
+    // Default quantity to "1" if left blank; default hours name to "{lineItemName} Labor"
     const finalValues: EntryFormValues = {
       ...values,
+      name: values.entry_type === "hours" && !values.name.trim()
+        ? `${lineItemName ?? "Item"} Labor`
+        : values.name,
       quantity: values.entry_type === "material" && !values.quantity.trim() ? "1" : values.quantity,
     };
     onSave(finalValues);
@@ -140,12 +144,12 @@ function EntryModal({ visible, initial, onClose, onSave, isSaving }: EntryModalP
               ))}
             </View>
 
-            <Text style={styles.fieldLabel}>Name <Text style={styles.req}>*</Text></Text>
+            <Text style={styles.fieldLabel}>Name {values.entry_type === "material" && <Text style={styles.req}>*</Text>}{values.entry_type === "hours" && <Text style={styles.optional}>(default: {lineItemName ?? "Item"} Labor)</Text>}</Text>
             <TextInput
               style={[styles.input, errors.name && styles.inputError]}
               value={values.name}
               onChangeText={(v) => set("name", v)}
-              placeholder={values.entry_type === "material" ? "e.g. Toilet" : "e.g. Installation labour"}
+              placeholder={values.entry_type === "material" ? "e.g. Toilet" : `${lineItemName ?? "Item"} Labor`}
             />
             {errors.name && <Text style={styles.fieldError}>{errors.name}</Text>}
 
@@ -445,6 +449,7 @@ export default function LineItemEditor({
         onClose={() => { setEntryModalVisible(false); setEditingEntry(null); }}
         onSave={handleSaveEntry}
         isSaving={isSavingEntry}
+        lineItemName={item.name}
       />
 
       {/* Save to library confirmation */}
