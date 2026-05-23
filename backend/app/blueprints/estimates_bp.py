@@ -145,10 +145,15 @@ def create_estimate(job_id: str):
         profile = profile_service.get_profile(user_id)
     except Exception:
         profile = {}
+    biz_service = BusinessInfoService()
     try:
-        biz = BusinessInfoService().get_business_info()
+        biz = biz_service.get_business_info()
     except Exception:
         biz = {}
+
+    # Owner name takes priority over creating user's name
+    owner_name = biz.get("owner_name") or biz_service.get_owner_name()
+    default_user_name = owner_name or profile.get("name")
 
     # Resolve bill_to from primary contact on the job
     from ..repositories.job_repo import SQLAlchemyJobRepository
@@ -166,7 +171,7 @@ def create_estimate(job_id: str):
 
     metadata = {
         "company_name": data.get("company_name", biz.get("business_name")),
-        "user_name": data.get("user_name", profile.get("name")),
+        "user_name": data.get("user_name", default_user_name),
         "user_phone": data.get("user_phone", biz.get("business_phone")),
         "user_email": data.get("user_email", biz.get("business_email")),
         "payment_method": data.get("payment_method", biz.get("payment_method")),

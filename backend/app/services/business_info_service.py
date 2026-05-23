@@ -1,6 +1,6 @@
 """Business info service — get and update tenant-level business settings."""
 
-from ..models import BusinessInfo
+from ..models import BusinessInfo, User
 from ..repositories.business_info_repo import (
     IBusinessInfoRepository,
     SQLAlchemyBusinessInfoRepository,
@@ -36,6 +36,7 @@ class BusinessInfoService:
         allowed = (
             "business_name", "state", "payment_method",
             "business_address", "business_phone", "business_email",
+            "owner_user_id",
         )
         for key in allowed:
             if key in data:
@@ -44,8 +45,19 @@ class BusinessInfoService:
         info = self._repo.update(info)
         return _serialize(info)
 
+    def get_owner_name(self) -> str | None:
+        """Return the business owner's name, or None if not set."""
+        info = self._repo.get()
+        if info is None or info.owner_user_id is None:
+            return None
+        owner = User.query.filter_by(id=info.owner_user_id).first()
+        return owner.name if owner else None
+
 
 def _serialize(info: BusinessInfo) -> dict:
+    owner_name = None
+    if info.owner is not None:
+        owner_name = info.owner.name
     return {
         "id": str(info.id),
         "business_name": info.business_name,
@@ -54,4 +66,6 @@ def _serialize(info: BusinessInfo) -> dict:
         "business_address": info.business_address,
         "business_phone": info.business_phone,
         "business_email": info.business_email,
+        "owner_user_id": str(info.owner_user_id) if info.owner_user_id else None,
+        "owner_name": owner_name,
     }

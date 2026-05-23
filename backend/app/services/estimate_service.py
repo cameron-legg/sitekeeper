@@ -211,8 +211,9 @@ class EstimateService:
             profile = ProfileService().get_profile(user_id)
         except Exception:
             profile = {}
+        biz_service = BusinessInfoService()
         try:
-            biz = BusinessInfoService().get_business_info()
+            biz = biz_service.get_business_info()
         except Exception:
             biz = {}
 
@@ -224,9 +225,13 @@ class EstimateService:
         if doc.business_address is None and biz.get("business_address"):
             doc.business_address = biz["business_address"]
 
-        # User-level defaults (from profile)
-        if doc.user_name is None and profile.get("name"):
-            doc.user_name = profile["name"]
+        # Owner name (from business_info owner, not the creating user)
+        if doc.user_name is None:
+            owner_name = biz.get("owner_name") or biz_service.get_owner_name()
+            if owner_name:
+                doc.user_name = owner_name
+            elif profile.get("name"):
+                doc.user_name = profile["name"]
         if doc.user_phone is None and biz.get("business_phone"):
             doc.user_phone = biz["business_phone"]
         if doc.user_email is None and biz.get("business_email"):
@@ -252,14 +257,17 @@ class EstimateService:
             profile = ProfileService().get_profile(user_id)
         except Exception:
             profile = {}
+        biz_service = BusinessInfoService()
         try:
-            biz = BusinessInfoService().get_business_info()
+            biz = biz_service.get_business_info()
         except Exception:
             biz = {}
 
         # Overwrite with fresh defaults
         estimate.company_name = biz.get("business_name")
-        estimate.user_name = profile.get("name")
+        # Use owner name, fall back to creating user's name
+        owner_name = biz.get("owner_name") or biz_service.get_owner_name()
+        estimate.user_name = owner_name or profile.get("name")
         estimate.user_phone = biz.get("business_phone")
         estimate.user_email = biz.get("business_email")
         estimate.payment_method = biz.get("payment_method")

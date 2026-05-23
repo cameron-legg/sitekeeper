@@ -3,11 +3,13 @@
 Routes:
     GET  /api/v1/business-info
     PUT  /api/v1/business-info
+    GET  /api/v1/business-info/users  — list approved users (for owner picker)
 """
 
 from flask import Blueprint, jsonify, request
 
 from ..auth.decorators import auth_required
+from ..models import User
 from ..services.business_info_service import BusinessInfoService, NotFoundError
 from .helpers import not_found, server_error
 
@@ -21,7 +23,8 @@ def get_business_info():
     """Return the tenant's business information.
 
     Responses:
-        200  { id, business_name, state, payment_method, business_address, business_phone, business_email }
+        200  { id, business_name, state, payment_method, business_address,
+               business_phone, business_email, owner_user_id, owner_name }
         404  business info not found
     """
     try:
@@ -45,6 +48,7 @@ def update_business_info():
         business_address (str | null)
         business_phone   (str | null)
         business_email   (str | null)
+        owner_user_id    (str | null)  — UUID of the business owner user
 
     Responses:
         200  updated business info object
@@ -58,3 +62,18 @@ def update_business_info():
     except Exception:
         return server_error()
     return jsonify(info), 200
+
+
+@business_info_bp.get("/business-info/users")
+@auth_required
+def list_users_for_picker():
+    """Return a lightweight list of approved users for the owner picker.
+
+    Responses:
+        200  [{ id, name, email }]
+    """
+    users = User.query.filter_by(is_approved=True).order_by(User.name).all()
+    return jsonify([
+        {"id": str(u.id), "name": u.name, "email": u.email}
+        for u in users
+    ]), 200

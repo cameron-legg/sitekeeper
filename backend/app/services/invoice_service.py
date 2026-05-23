@@ -140,8 +140,9 @@ class InvoiceService:
             profile = ProfileService().get_profile(user_id)
         except Exception:
             profile = {}
+        biz_service = BusinessInfoService()
         try:
-            biz = BusinessInfoService().get_business_info()
+            biz = biz_service.get_business_info()
         except Exception:
             biz = {}
 
@@ -153,9 +154,13 @@ class InvoiceService:
         if doc.business_address is None and biz.get("business_address"):
             doc.business_address = biz["business_address"]
 
-        # User-level defaults (from profile / business info)
-        if doc.user_name is None and profile.get("name"):
-            doc.user_name = profile["name"]
+        # Owner name (from business_info owner, not the creating user)
+        if doc.user_name is None:
+            owner_name = biz.get("owner_name") or biz_service.get_owner_name()
+            if owner_name:
+                doc.user_name = owner_name
+            elif profile.get("name"):
+                doc.user_name = profile["name"]
         if doc.user_phone is None and biz.get("business_phone"):
             doc.user_phone = biz["business_phone"]
         if doc.user_email is None and biz.get("business_email"):
@@ -180,13 +185,16 @@ class InvoiceService:
             profile = ProfileService().get_profile(user_id)
         except Exception:
             profile = {}
+        biz_service = BusinessInfoService()
         try:
-            biz = BusinessInfoService().get_business_info()
+            biz = biz_service.get_business_info()
         except Exception:
             biz = {}
 
         invoice.company_name = biz.get("business_name")
-        invoice.user_name = profile.get("name")
+        # Use owner name, fall back to creating user's name
+        owner_name = biz.get("owner_name") or biz_service.get_owner_name()
+        invoice.user_name = owner_name or profile.get("name")
         invoice.user_phone = biz.get("business_phone")
         invoice.user_email = biz.get("business_email")
         invoice.payment_method = biz.get("payment_method")

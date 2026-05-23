@@ -9,10 +9,13 @@ import {
   ScrollView,
   SafeAreaView,
   Platform,
+  Modal,
+  FlatList,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
-import { useBusinessInfo, useUpdateBusinessInfo } from "../../api/hooks/useBusinessInfo";
+import { useBusinessInfo, useUpdateBusinessInfo, useBusinessInfoUsers } from "../../api/hooks/useBusinessInfo";
+import type { BusinessInfoUser } from "../../api/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "BusinessInfo">;
 
@@ -27,6 +30,7 @@ const US_STATES = [
 
 export default function BusinessInfoScreen({ navigation }: Props) {
   const { data: info, isLoading, isError } = useBusinessInfo();
+  const { data: users } = useBusinessInfoUsers();
   const updateInfo = useUpdateBusinessInfo();
 
   const [businessName, setBusinessName] = useState("");
@@ -35,9 +39,11 @@ export default function BusinessInfoScreen({ navigation }: Props) {
   const [businessAddress, setBusinessAddress] = useState("");
   const [businessPhone, setBusinessPhone] = useState("");
   const [businessEmail, setBusinessEmail] = useState("");
+  const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [showStatePicker, setShowStatePicker] = useState(false);
+  const [showOwnerPicker, setShowOwnerPicker] = useState(false);
 
   useEffect(() => {
     if (info) {
@@ -47,8 +53,12 @@ export default function BusinessInfoScreen({ navigation }: Props) {
       setBusinessAddress(info.business_address ?? "");
       setBusinessPhone(info.business_phone ?? "");
       setBusinessEmail(info.business_email ?? "");
+      setOwnerUserId(info.owner_user_id);
     }
   }, [info]);
+
+  const selectedOwner = users?.find((u) => u.id === ownerUserId);
+  const ownerDisplayName = selectedOwner?.name || selectedOwner?.email || info?.owner_name;
 
   function handleSave() {
     setSaveError(null);
@@ -68,6 +78,7 @@ export default function BusinessInfoScreen({ navigation }: Props) {
         business_address: businessAddress.trim() || null,
         business_phone: businessPhone.trim() || null,
         business_email: businessEmail.trim() || null,
+        owner_user_id: ownerUserId,
       },
       {
         onSuccess: () => {
@@ -78,6 +89,21 @@ export default function BusinessInfoScreen({ navigation }: Props) {
           setSaveError("Failed to save business information. Please try again.");
         },
       }
+    );
+  }
+
+  function renderUserItem({ item }: { item: BusinessInfoUser }) {
+    const isSelected = item.id === ownerUserId;
+    return (
+      <TouchableOpacity
+        style={[styles.pickerRow, isSelected && styles.pickerRowSelected]}
+        onPress={() => { setOwnerUserId(item.id); setShowOwnerPicker(false); }}
+      >
+        <Text style={[styles.pickerRowText, isSelected && styles.pickerRowTextSelected]}>
+          {item.name || "(No name)"} — {item.email}
+        </Text>
+        {isSelected && <Text style={styles.pickerCheck}>✓</Text>}
+      </TouchableOpacity>
     );
   }
 
@@ -121,6 +147,21 @@ export default function BusinessInfoScreen({ navigation }: Props) {
           autoCapitalize="words"
           autoComplete="organization"
         />
+
+        {/* Business Owner */}
+        <Text style={styles.label}>Business Owner</Text>
+        <TouchableOpacity
+          style={styles.input}
+          onPress={() => setShowOwnerPicker(true)}
+          activeOpacity={0.7}
+        >
+          <Text style={ownerDisplayName ? styles.inputText : styles.placeholderText}>
+            {ownerDisplayName || "Select business owner"}
+          </Text>
+        </TouchableOpacity>
+        <Text style={styles.hint}>
+          This person's name will appear on estimates and invoices by default.
+        </Text>
 
         {/* State */}
         <Text style={styles.label}>State</Text>
@@ -237,6 +278,33 @@ export default function BusinessInfoScreen({ navigation }: Props) {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Owner picker modal */}
+      <Modal visible={showOwnerPicker} transparent animationType="fade" onRequestClose={() => setShowOwnerPicker(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Select Business Owner</Text>
+            <FlatList
+              data={users ?? []}
+              keyExtractor={(item) => item.id}
+              renderItem={renderUserItem}
+              style={styles.pickerList}
+              ListEmptyComponent={<Text style={styles.pickerEmpty}>No approved users found.</Text>}
+            />
+            {ownerUserId && (
+              <TouchableOpacity
+                style={styles.clearOwnerBtn}
+                onPress={() => { setOwnerUserId(null); setShowOwnerPicker(false); }}
+              >
+                <Text style={styles.clearOwnerText}>Clear Selection</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowOwnerPicker(false)}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -357,5 +425,87 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  // Owner picker modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    width: "100%",
+    maxWidth: 400,
+    maxHeight: "70%",
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#1a1a1a",
+    marginBottom: 12,
+  },
+  pickerList: {
+    maxHeight: 300,
+  },
+  pickerRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  pickerRowSelected: {
+    backgroundColor: "#eff6ff",
+    borderRadius: 8,
+  },
+  pickerRowText: {
+    fontSize: 15,
+    color: "#374151",
+    flex: 1,
+  },
+  pickerRowTextSelected: {
+    color: "#2563eb",
+    fontWeight: "600",
+  },
+  pickerCheck: {
+    fontSize: 16,
+    color: "#2563eb",
+    fontWeight: "700",
+    marginLeft: 8,
+  },
+  pickerEmpty: {
+    fontSize: 14,
+    color: "#9ca3af",
+    textAlign: "center",
+    paddingVertical: 20,
+  },
+  clearOwnerBtn: {
+    marginTop: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 8,
+    backgroundColor: "#fef2f2",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  clearOwnerText: {
+    fontSize: 14,
+    color: "#dc2626",
+    fontWeight: "500",
+  },
+  modalCancelBtn: {
+    marginTop: 8,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  modalCancelText: {
+    fontSize: 15,
+    color: "#6b7280",
   },
 });

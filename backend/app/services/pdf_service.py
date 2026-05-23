@@ -151,8 +151,9 @@ class PdfService:
         # Fall back to business_info for any fields that are still None (legacy documents)
         profile = self._profile_service.get_profile(user_id)
         from .business_info_service import BusinessInfoService
+        biz_service = BusinessInfoService()
         try:
-            biz = BusinessInfoService().get_business_info()
+            biz = biz_service.get_business_info()
         except Exception:
             biz = {}
         job = estimate.job
@@ -160,13 +161,14 @@ class PdfService:
         # Resolve values: document override > business_info/profile default > job/site default
         bill_to = estimate.bill_to or self._resolve_primary_contact(job)
         worksite = estimate.worksite_address or self._get_job_site_address(job)
+        owner_name = biz.get("owner_name") or biz_service.get_owner_name()
 
         # Build PdfData
         pdf_data = PdfData(
             document_type="Estimate",
             title=estimate.title,
             company_name=estimate.company_name or biz.get("business_name"),
-            user_name=estimate.user_name or profile.get("name"),
+            user_name=estimate.user_name or owner_name or profile.get("name"),
             user_phone=estimate.user_phone or biz.get("business_phone"),
             user_email=estimate.user_email or biz.get("business_email", ""),
             payment_method=estimate.payment_method or biz.get("payment_method"),
@@ -232,21 +234,23 @@ class PdfService:
         # Use document's stored metadata, fall back to business_info
         profile = self._profile_service.get_profile(user_id)
         from .business_info_service import BusinessInfoService
+        biz_service = BusinessInfoService()
         try:
-            biz = BusinessInfoService().get_business_info()
+            biz = biz_service.get_business_info()
         except Exception:
             biz = {}
         job = invoice.job
 
         bill_to = invoice.bill_to or self._resolve_primary_contact(job)
         worksite = invoice.worksite_address or self._get_job_site_address(job)
+        owner_name = biz.get("owner_name") or biz_service.get_owner_name()
 
         # Build PdfData
         pdf_data = PdfData(
             document_type="Invoice",
             title=invoice.title,
             company_name=invoice.company_name or biz.get("business_name"),
-            user_name=invoice.user_name or profile.get("name"),
+            user_name=invoice.user_name or owner_name or profile.get("name"),
             user_phone=invoice.user_phone or biz.get("business_phone"),
             user_email=invoice.user_email or biz.get("business_email", ""),
             payment_method=invoice.payment_method or biz.get("payment_method"),

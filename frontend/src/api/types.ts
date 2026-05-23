@@ -213,6 +213,14 @@ export interface BusinessInfo {
   business_address: string | null;
   business_phone: string | null;
   business_email: string | null;
+  owner_user_id: string | null;
+  owner_name: string | null;
+}
+
+export interface BusinessInfoUser {
+  id: string;
+  name: string | null;
+  email: string;
 }
 
 export interface ApiError {

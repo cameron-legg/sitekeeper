@@ -594,12 +594,19 @@ class BusinessInfo(db.Model):
     business_address = Column(String(500), nullable=True)
     business_phone = Column(String(50), nullable=True)
     business_email = Column(String(255), nullable=True)
+    owner_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     updated_at = Column(
         TIMESTAMP(timezone=True),
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+    owner = relationship("User", foreign_keys=[owner_user_id])
 
     def __repr__(self):
         return f"<BusinessInfo {self.business_name}>"
