@@ -25,7 +25,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "name": "SiteKeeper",
+      "shortName": "SiteKeeper",
+      "themeColor": "#ffffff",
+      "backgroundColor": "#ffffff"
     },
     "plugins": [],
     "scheme": "sitekeeper"
