@@ -43,6 +43,17 @@ TARGET="${1:-all}"
 [[ "$TARGET" =~ ^(all|frontend|backend)$ ]] || die "Usage: $0 [all|frontend|backend]"
 
 # =============================================================================
+# PRE-DEPLOY BACKUP
+# =============================================================================
+run_pre_deploy_backup() {
+    info "Running pre-deploy database backup..."
+    ssh "$SSH_HOST" "
+        sudo -u sitekeeper bash -c '$APP_DIR/infra/backup-db.sh pre-deploy'
+    " && info "  Pre-deploy backup complete." \
+      || warn "  Pre-deploy backup failed (continuing with deploy)."
+}
+
+# =============================================================================
 # BACKEND
 # =============================================================================
 deploy_backend() {
@@ -123,8 +134,8 @@ deploy_frontend() {
 # RUN
 # =============================================================================
 case "$TARGET" in
-    all)      deploy_backend; deploy_frontend ;;
-    backend)  deploy_backend ;;
+    all)      run_pre_deploy_backup; deploy_backend; deploy_frontend ;;
+    backend)  run_pre_deploy_backup; deploy_backend ;;
     frontend) deploy_frontend ;;
 esac
 
