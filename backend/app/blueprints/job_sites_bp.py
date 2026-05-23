@@ -25,6 +25,7 @@ def _serialize_site(site, job_count: int = 0, active_job_count: int = 0) -> dict
         "name": site.name,
         "description": site.description,
         "address": site.address,
+        "default_hourly_rate": str(site.default_hourly_rate) if site.default_hourly_rate is not None else None,
         "primary_contact_id": str(site.primary_contact_id) if site.primary_contact_id else None,
         "job_count": job_count,
         "active_job_count": active_job_count,
@@ -99,6 +100,20 @@ def update_job_site(site_id: str):
     if name is not None and not str(name).strip():
         return error_response("VALIDATION_ERROR", "Name cannot be empty.", field="name")
 
+    # Handle default_hourly_rate: explicit null clears it
+    from decimal import Decimal, InvalidOperation
+    default_hourly_rate = None
+    clear_hourly_rate = False
+    if "default_hourly_rate" in data:
+        raw = data["default_hourly_rate"]
+        if raw is None:
+            clear_hourly_rate = True
+        else:
+            try:
+                default_hourly_rate = Decimal(str(raw))
+            except (InvalidOperation, ValueError):
+                return error_response("VALIDATION_ERROR", "Must be a valid number.", field="default_hourly_rate")
+
     try:
         site = _service.update(
             site_id=site_id,
@@ -106,6 +121,8 @@ def update_job_site(site_id: str):
             name=str(name).strip() if name is not None else None,
             description=description,
             address=address,
+            default_hourly_rate=default_hourly_rate,
+            clear_hourly_rate=clear_hourly_rate,
         )
         from ..repositories.job_site_repo import SQLAlchemyJobSiteRepository
         repo = SQLAlchemyJobSiteRepository()

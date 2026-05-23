@@ -67,6 +67,7 @@ class JobService:
     ) -> Job:
         """Create and persist a new job within the given site.
 
+        Inherits default_hourly_rate from the parent job site.
         Raises NotFoundError if the site does not exist or is not owned by user.
         Raises ValidationError if status is not a valid value.
         """
@@ -77,7 +78,10 @@ class JobService:
             raise ValidationError(
                 f"Invalid status '{status}'. Must be one of: {', '.join(sorted(_VALID_STATUSES))}."
             )
-        job = Job(job_site_id=site_id, name=name, status=status, description=description)
+        job = Job(
+            job_site_id=site_id, name=name, status=status, description=description,
+            default_hourly_rate=site.default_hourly_rate,
+        )
         return self._job_repo.create(job)
 
     def update(
@@ -88,6 +92,7 @@ class JobService:
         status: str | None = None,
         description: str | None = None,
         finished_at=_UNSET,
+        default_hourly_rate=_UNSET,
     ) -> Job:
         """Update fields on an existing job.
 
@@ -132,6 +137,10 @@ class JobService:
         # Honour explicit finished_at from caller (including None to clear)
         if finished_at is not _UNSET:
             job.finished_at = finished_at
+
+        # Honour explicit default_hourly_rate (including None to clear)
+        if default_hourly_rate is not _UNSET:
+            job.default_hourly_rate = default_hourly_rate
 
         return self._job_repo.update(job)
 

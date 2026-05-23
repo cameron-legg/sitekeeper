@@ -70,6 +70,7 @@ export function useUpdateJob() {
       status?: string;
       description?: string;
       finished_at?: string | null;
+      default_hourly_rate?: string | null;
     }) =>
       apiClient.patch<Job>(`/api/v1/jobs/${jobId}`, data).then((r) => r.data),
     onSuccess: (job) => {

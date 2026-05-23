@@ -36,7 +36,7 @@ class BusinessInfoService:
         allowed = (
             "business_name", "state", "payment_method",
             "business_address", "business_phone", "business_email",
-            "owner_user_id",
+            "owner_user_id", "default_hourly_rate",
         )
         for key in allowed:
             if key in data:
@@ -68,4 +68,5 @@ def _serialize(info: BusinessInfo) -> dict:
         "business_email": info.business_email,
         "owner_user_id": str(info.owner_user_id) if info.owner_user_id else None,
         "owner_name": owner_name,
+        "default_hourly_rate": str(info.default_hourly_rate) if info.default_hourly_rate is not None else None,
     }

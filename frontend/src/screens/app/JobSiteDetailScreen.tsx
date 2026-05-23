@@ -50,6 +50,7 @@ export default function JobSiteDetailScreen({ route, navigation }: Props) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editName, setEditName] = useState(siteName);
   const [editAddress, setEditAddress] = useState("");
+  const [editHourlyRate, setEditHourlyRate] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
 
   // Keep header title in sync with latest site data
@@ -86,6 +87,7 @@ export default function JobSiteDetailScreen({ route, navigation }: Props) {
   function openEditModal() {
     setEditName(site?.name ?? siteName);
     setEditAddress(site?.address ?? "");
+    setEditHourlyRate(site?.default_hourly_rate ?? "");
     setEditError(null);
     setShowEditModal(true);
   }
@@ -98,7 +100,7 @@ export default function JobSiteDetailScreen({ route, navigation }: Props) {
     }
     setEditError(null);
     updateSite.mutate(
-      { siteId, name, address: editAddress.trim() || "" },
+      { siteId, name, address: editAddress.trim() || "", default_hourly_rate: editHourlyRate.trim() || null },
       {
         onSuccess: (updated) => {
           setShowEditModal(false);
@@ -329,7 +331,7 @@ export default function JobSiteDetailScreen({ route, navigation }: Props) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit Job Site</Text>
+            <Text style={styles.modalTitle}>Site Information</Text>
 
             {editError && (
               <Text style={styles.inlineError}>{editError}</Text>
@@ -353,6 +355,15 @@ export default function JobSiteDetailScreen({ route, navigation }: Props) {
               multiline
               numberOfLines={3}
               textAlignVertical="top"
+            />
+
+            <Text style={styles.fieldLabel}>Default Hourly Rate</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editHourlyRate}
+              onChangeText={setEditHourlyRate}
+              placeholder="e.g. 75.00"
+              keyboardType="decimal-pad"
             />
 
             <View style={styles.modalActions}>

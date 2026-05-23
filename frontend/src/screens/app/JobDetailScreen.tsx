@@ -57,6 +57,9 @@ export default function JobDetailScreen({ route, navigation }: Props) {
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [renameError, setRenameError] = useState<string | null>(null);
+  const [showJobInfoModal, setShowJobInfoModal] = useState(false);
+  const [jobInfoRate, setJobInfoRate] = useState("");
+  const [jobInfoError, setJobInfoError] = useState<string | null>(null);
 
   const { data: job, isLoading, isError } = useJob(jobId);
   const updateJob = useUpdateJob();
@@ -99,6 +102,23 @@ export default function JobDetailScreen({ route, navigation }: Props) {
 
   function handleClearFinished() {
     setShowClearConfirm(true);
+  }
+
+  function openJobInfoModal() {
+    setJobInfoRate(job?.default_hourly_rate ?? "");
+    setJobInfoError(null);
+    setShowJobInfoModal(true);
+  }
+
+  function handleSaveJobInfo() {
+    setJobInfoError(null);
+    updateJob.mutate(
+      { jobId, default_hourly_rate: jobInfoRate.trim() || null },
+      {
+        onSuccess: () => setShowJobInfoModal(false),
+        onError: () => setJobInfoError("Failed to update job info. Please try again."),
+      }
+    );
   }
 
   function formatDate(iso: string) {
@@ -190,6 +210,14 @@ export default function JobDetailScreen({ route, navigation }: Props) {
             </>
           )}
         </View>
+
+        {/* Job Info button */}
+        <TouchableOpacity style={styles.jobInfoBtn} onPress={openJobInfoModal}>
+          <Text style={styles.jobInfoBtnText}>⚙️ Job Information</Text>
+          {job.default_hourly_rate && (
+            <Text style={styles.jobInfoRate}>${job.default_hourly_rate}/hr</Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Tab bar */}
@@ -271,6 +299,42 @@ export default function JobDetailScreen({ route, navigation }: Props) {
               <TouchableOpacity
                 style={[styles.clearBtn, updateJob.isPending && styles.btnDisabled]}
                 onPress={handleRename}
+                disabled={updateJob.isPending}
+              >
+                {updateJob.isPending
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.clearBtnText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Job Information modal */}
+      <Modal visible={showJobInfoModal} transparent animationType="fade" onRequestClose={() => setShowJobInfoModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Job Information</Text>
+            {jobInfoError && <Text style={styles.renameError}>{jobInfoError}</Text>}
+            <Text style={styles.jobInfoLabel}>Default Hourly Rate</Text>
+            <TextInput
+              style={styles.renameInput}
+              value={jobInfoRate}
+              onChangeText={setJobInfoRate}
+              placeholder="e.g. 75.00"
+              keyboardType="decimal-pad"
+              autoFocus
+            />
+            <Text style={styles.jobInfoHint}>
+              New line items on estimates/invoices for this job will use this rate.
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowJobInfoModal(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.clearBtn, updateJob.isPending && styles.btnDisabled]}
+                onPress={handleSaveJobInfo}
                 disabled={updateJob.isPending}
               >
                 {updateJob.isPending
@@ -415,6 +479,40 @@ const styles = StyleSheet.create({
   renameError: {
     color: "#dc2626",
     fontSize: 13,
+    marginBottom: 12,
+  },
+  jobInfoBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "#f9fafb",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  jobInfoBtnText: {
+    fontSize: 14,
+    color: "#374151",
+    fontWeight: "500",
+  },
+  jobInfoRate: {
+    fontSize: 13,
+    color: "#2563eb",
+    fontWeight: "600",
+  },
+  jobInfoLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 6,
+  },
+  jobInfoHint: {
+    fontSize: 12,
+    color: "#9ca3af",
+    marginTop: 4,
     marginBottom: 12,
   },
 });

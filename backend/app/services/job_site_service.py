@@ -37,8 +37,21 @@ class JobSiteService:
         return site
 
     def create(self, user_id: str, name: str, description: str | None = None, address: str | None = None) -> JobSite:
-        """Create and persist a new job site owned by user_id."""
-        site = JobSite(user_id=user_id, name=name, description=description, address=address)
+        """Create and persist a new job site owned by user_id.
+
+        Inherits default_hourly_rate from business_info if not explicitly set.
+        """
+        from .business_info_service import BusinessInfoService
+        try:
+            biz = BusinessInfoService().get_business_info()
+        except Exception:
+            biz = {}
+        inherited_rate = biz.get("default_hourly_rate")
+
+        site = JobSite(
+            user_id=user_id, name=name, description=description, address=address,
+            default_hourly_rate=inherited_rate,
+        )
         return self._repo.create(site)
 
     def update(
@@ -48,10 +61,13 @@ class JobSiteService:
         name: str | None = None,
         description: str | None = None,
         address: str | None = None,
+        default_hourly_rate=None,
+        clear_hourly_rate: bool = False,
     ) -> JobSite:
         """Update fields on an existing job site.
 
         Only provided (non-None) fields are updated.
+        Use clear_hourly_rate=True to explicitly set default_hourly_rate to None.
         Raises NotFoundError if the site does not exist or is not owned by user.
         """
         site = self._repo.get_by_id(site_id, user_id)
@@ -63,6 +79,10 @@ class JobSiteService:
             site.description = description
         if address is not None:
             site.address = address
+        if clear_hourly_rate:
+            site.default_hourly_rate = None
+        elif default_hourly_rate is not None:
+            site.default_hourly_rate = default_hourly_rate
         return self._repo.update(site)
 
     def delete(self, site_id: str, user_id: str) -> None:

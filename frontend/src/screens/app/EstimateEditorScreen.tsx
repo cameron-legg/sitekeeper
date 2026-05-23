@@ -13,6 +13,7 @@ import {
   usePopulateEstimateDefaults,
 } from "../../api/hooks/useEstimates";
 import { useSavedItems, usePopulateSavedItem, useSaveEntryToLibrary, usePopulateSavedEntry, useAllSavedEntries } from "../../api/hooks/useSavedItems";
+import { useJob } from "../../api/hooks/useJobs";
 import LineItemEditor from "../../components/LineItemEditor";
 import type { LineItemEntry, SavedItem, SavedItemEntry } from "../../api/types";
 
@@ -35,6 +36,7 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
 
   const { data: estimate, isLoading: loadingEst } = useEstimate(estimateId ?? "");
   const { data: lineItems, isLoading: loadingItems } = useEstimateLineItems(estimateId ?? "");
+  const { data: job } = useJob(jobId);
 
   const createEstimate = useCreateEstimate();
   const updateEstimate = useUpdateEstimate();
@@ -388,7 +390,7 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
               </View>
             )}
 
-            <TouchableOpacity style={styles.addItemBtn} onPress={() => { setNewItemName(""); setNewItemRate(""); setNewItemError(null); setAddItemMode("new"); setShowAddItem(true); }}>
+            <TouchableOpacity style={styles.addItemBtn} onPress={() => { setNewItemName(""); setNewItemRate(job?.default_hourly_rate ?? ""); setNewItemError(null); setAddItemMode("new"); setShowAddItem(true); }}>
               <Text style={styles.addItemBtnText}>+ Add Line Item</Text>
             </TouchableOpacity>
           </>

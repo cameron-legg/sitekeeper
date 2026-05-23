@@ -40,6 +40,7 @@ export default function BusinessInfoScreen({ navigation }: Props) {
   const [businessPhone, setBusinessPhone] = useState("");
   const [businessEmail, setBusinessEmail] = useState("");
   const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
+  const [defaultHourlyRate, setDefaultHourlyRate] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [showStatePicker, setShowStatePicker] = useState(false);
@@ -54,6 +55,7 @@ export default function BusinessInfoScreen({ navigation }: Props) {
       setBusinessPhone(info.business_phone ?? "");
       setBusinessEmail(info.business_email ?? "");
       setOwnerUserId(info.owner_user_id);
+      setDefaultHourlyRate(info.default_hourly_rate ?? "");
     }
   }, [info]);
 
@@ -79,6 +81,7 @@ export default function BusinessInfoScreen({ navigation }: Props) {
         business_phone: businessPhone.trim() || null,
         business_email: businessEmail.trim() || null,
         owner_user_id: ownerUserId,
+        default_hourly_rate: defaultHourlyRate.trim() || null,
       },
       {
         onSuccess: () => {
@@ -259,6 +262,19 @@ export default function BusinessInfoScreen({ navigation }: Props) {
         />
         <Text style={styles.hint}>
           This will appear on your invoices so clients know how to pay you.
+        </Text>
+
+        {/* Default Hourly Rate */}
+        <Text style={styles.label}>Default Hourly Rate</Text>
+        <TextInput
+          style={styles.input}
+          value={defaultHourlyRate}
+          onChangeText={setDefaultHourlyRate}
+          placeholder="e.g. 75.00"
+          keyboardType="decimal-pad"
+        />
+        <Text style={styles.hint}>
+          New job sites and jobs will inherit this rate. Line items will use the job's rate as their default.
         </Text>
 
         {/* Error / Success */}

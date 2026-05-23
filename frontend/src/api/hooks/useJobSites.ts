@@ -52,6 +52,7 @@ export function useUpdateJobSite() {
       name?: string;
       description?: string;
       address?: string;
+      default_hourly_rate?: string | null;
     }) =>
       apiClient
         .put<JobSite>(`/api/v1/job-sites/${siteId}`, data)

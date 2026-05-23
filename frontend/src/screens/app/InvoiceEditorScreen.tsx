@@ -13,6 +13,7 @@ import {
   usePopulateInvoiceDefaults,
 } from "../../api/hooks/useInvoices";
 import { useSavedItems, usePopulateSavedItem, useSaveEntryToLibrary, usePopulateSavedEntry, useAllSavedEntries } from "../../api/hooks/useSavedItems";
+import { useJob } from "../../api/hooks/useJobs";
 import LineItemEditor from "../../components/LineItemEditor";
 import type { LineItemEntry, SavedItem, SavedItemEntry } from "../../api/types";
 
@@ -34,6 +35,7 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
 
   const { data: invoice, isLoading: loadingInv } = useInvoice(invoiceId ?? "");
   const { data: lineItems, isLoading: loadingItems } = useInvoiceLineItems(invoiceId ?? "");
+  const { data: job } = useJob(jobId);
 
   const createInvoice = useCreateInvoice();
   const updateInvoice = useUpdateInvoice();
@@ -386,7 +388,7 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
               </View>
             )}
 
-            <TouchableOpacity style={styles.addItemBtn} onPress={() => { setNewItemName(""); setNewItemRate(""); setNewItemError(null); setAddItemMode("new"); setShowAddItem(true); }}>
+            <TouchableOpacity style={styles.addItemBtn} onPress={() => { setNewItemName(""); setNewItemRate(job?.default_hourly_rate ?? ""); setNewItemError(null); setAddItemMode("new"); setShowAddItem(true); }}>
               <Text style={styles.addItemBtnText}>+ Add Line Item</Text>
             </TouchableOpacity>
           </>

@@ -8,6 +8,7 @@ export interface JobSite {
   name: string;
   description: string | null;
   address: string | null;
+  default_hourly_rate: string | null;
   primary_contact_id: string | null;
   job_count: number;
   active_job_count: number;
@@ -21,6 +22,7 @@ export interface Job {
   name: string;
   status: "pending" | "in_progress" | "completed" | "cancelled";
   description: string | null;
+  default_hourly_rate: string | null;
   primary_contact_id: string | null;
   finished_at: string | null;
   created_at: string;
@@ -215,6 +217,7 @@ export interface BusinessInfo {
   business_email: string | null;
   owner_user_id: string | null;
   owner_name: string | null;
+  default_hourly_rate: string | null;
 }
 
 export interface BusinessInfoUser {

@@ -26,6 +26,7 @@ def _serialize_job(job) -> dict:
         "name": job.name,
         "status": job.status,
         "description": job.description,
+        "default_hourly_rate": str(job.default_hourly_rate) if job.default_hourly_rate is not None else None,
         "primary_contact_id": str(job.primary_contact_id) if job.primary_contact_id else None,
         "finished_at": job.finished_at.isoformat() if job.finished_at else None,
         "created_at": job.created_at.isoformat() if job.created_at else None,
@@ -170,6 +171,18 @@ def patch_job(job_id: str):
                     field="finished_at",
                 )
 
+    default_hourly_rate = _UNSET
+    if "default_hourly_rate" in data:
+        raw = data["default_hourly_rate"]
+        if raw is None:
+            default_hourly_rate = None
+        else:
+            from decimal import Decimal, InvalidOperation
+            try:
+                default_hourly_rate = Decimal(str(raw))
+            except (InvalidOperation, ValueError):
+                return error_response("VALIDATION_ERROR", "Must be a valid number.", field="default_hourly_rate")
+
     try:
         job = _service.update(
             job_id=job_id,
@@ -178,6 +191,7 @@ def patch_job(job_id: str):
             status=status,
             description=description,
             finished_at=finished_at,
+            default_hourly_rate=default_hourly_rate,
         )
         return jsonify(_serialize_job(job)), 200
     except NotFoundError:

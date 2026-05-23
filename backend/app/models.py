@@ -141,6 +141,7 @@ class JobSite(db.Model):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     address = Column(Text, nullable=True)
+    default_hourly_rate = Column(Numeric(12, 4), nullable=True)
     primary_contact_id = Column(
         UUID(as_uuid=True),
         ForeignKey("contacts.id", ondelete="SET NULL"),
@@ -184,6 +185,7 @@ class Job(db.Model):
     name = Column(String(255), nullable=False)
     status = Column(String(50), nullable=False, default="pending")
     description = Column(Text, nullable=True)
+    default_hourly_rate = Column(Numeric(12, 4), nullable=True)
     primary_contact_id = Column(
         UUID(as_uuid=True),
         ForeignKey("contacts.id", ondelete="SET NULL"),
@@ -599,6 +601,7 @@ class BusinessInfo(db.Model):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
+    default_hourly_rate = Column(Numeric(12, 4), nullable=True)
     updated_at = Column(
         TIMESTAMP(timezone=True),
         nullable=False,
