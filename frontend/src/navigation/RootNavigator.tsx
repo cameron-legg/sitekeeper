@@ -31,6 +31,7 @@ import ContactEditorScreen from "../screens/app/ContactEditorScreen";
 import SavedItemsScreen from "../screens/app/SavedItemsScreen";
 import SavedItemEditorScreen from "../screens/app/SavedItemEditorScreen";
 import ProfileSettingsScreen from "../screens/app/ProfileSettingsScreen";
+import BusinessInfoScreen from "../screens/app/BusinessInfoScreen";
 import MaterialsLibraryScreen from "../screens/app/MaterialsLibraryScreen";
 import AdminUsersScreen from "../screens/app/AdminUsersScreen";
 
@@ -50,6 +51,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       Register: "register",
       Home: "",
       ProfileSettings: "profile",
+      BusinessInfo: "business-info",
       JobSiteDetail: "sites/:siteId",
       JobDetail: "jobs/:jobId",
       EstimateEditor: "estimates/:estimateId?",
@@ -95,6 +97,11 @@ export default function RootNavigator() {
               name="ProfileSettings"
               component={ProfileSettingsScreen}
               options={{ headerShown: true, title: "Profile Settings" }}
+            />
+            <Stack.Screen
+              name="BusinessInfo"
+              component={BusinessInfoScreen}
+              options={{ headerShown: true, title: "Business Information" }}
             />
             <Stack.Screen
               name="JobSiteDetail"

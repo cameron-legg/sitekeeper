@@ -147,12 +147,17 @@ class PdfService:
         line_items = self._estimate_service.get_line_items(estimate_id, user_id)
         totals = self._estimate_service.calculate_totals(estimate_id, user_id)
 
-        # Use document's stored metadata (already populated from profile on creation)
-        # Fall back to profile for any fields that are still None (legacy documents)
+        # Use document's stored metadata (already populated from business_info on creation)
+        # Fall back to business_info for any fields that are still None (legacy documents)
         profile = self._profile_service.get_profile(user_id)
+        from .business_info_service import BusinessInfoService
+        try:
+            biz = BusinessInfoService().get_business_info()
+        except Exception:
+            biz = {}
         job = estimate.job
 
-        # Resolve values: document override > profile default > job/site default
+        # Resolve values: document override > business_info/profile default > job/site default
         bill_to = estimate.bill_to or self._resolve_primary_contact(job)
         worksite = estimate.worksite_address or self._get_job_site_address(job)
 
@@ -160,11 +165,11 @@ class PdfService:
         pdf_data = PdfData(
             document_type="Estimate",
             title=estimate.title,
-            company_name=estimate.company_name or profile.get("company_name"),
+            company_name=estimate.company_name or biz.get("business_name"),
             user_name=estimate.user_name or profile.get("name"),
-            user_phone=estimate.user_phone or profile.get("phone"),
-            user_email=estimate.user_email or profile.get("email", ""),
-            payment_method=estimate.payment_method or profile.get("payment_method"),
+            user_phone=estimate.user_phone or biz.get("business_phone"),
+            user_email=estimate.user_email or biz.get("business_email", ""),
+            payment_method=estimate.payment_method or biz.get("payment_method"),
             bill_to_name=bill_to,
             job_site_address=worksite,
             line_items=self._build_pdf_line_items(line_items),
@@ -175,7 +180,7 @@ class PdfService:
             # New fields
             document_number=estimate.document_number,
             document_date=estimate.document_date.isoformat() if estimate.document_date else None,
-            business_address=estimate.business_address or profile.get("address"),
+            business_address=estimate.business_address or biz.get("business_address"),
             notes=estimate.notes,
             # Visibility flags
             show_document_number=estimate.show_document_number,
@@ -224,8 +229,13 @@ class PdfService:
         line_items = self._invoice_service.get_line_items(invoice_id, user_id)
         totals = self._invoice_service.calculate_totals(invoice_id, user_id)
 
-        # Use document's stored metadata, fall back to profile
+        # Use document's stored metadata, fall back to business_info
         profile = self._profile_service.get_profile(user_id)
+        from .business_info_service import BusinessInfoService
+        try:
+            biz = BusinessInfoService().get_business_info()
+        except Exception:
+            biz = {}
         job = invoice.job
 
         bill_to = invoice.bill_to or self._resolve_primary_contact(job)
@@ -235,11 +245,11 @@ class PdfService:
         pdf_data = PdfData(
             document_type="Invoice",
             title=invoice.title,
-            company_name=invoice.company_name or profile.get("company_name"),
+            company_name=invoice.company_name or biz.get("business_name"),
             user_name=invoice.user_name or profile.get("name"),
-            user_phone=invoice.user_phone or profile.get("phone"),
-            user_email=invoice.user_email or profile.get("email", ""),
-            payment_method=invoice.payment_method or profile.get("payment_method"),
+            user_phone=invoice.user_phone or biz.get("business_phone"),
+            user_email=invoice.user_email or biz.get("business_email", ""),
+            payment_method=invoice.payment_method or biz.get("payment_method"),
             bill_to_name=bill_to,
             job_site_address=worksite,
             line_items=self._build_pdf_line_items(line_items),
@@ -250,7 +260,7 @@ class PdfService:
             # New fields
             document_number=invoice.document_number,
             document_date=invoice.document_date.isoformat() if invoice.document_date else None,
-            business_address=invoice.business_address or profile.get("address"),
+            business_address=invoice.business_address or biz.get("business_address"),
             notes=invoice.notes,
             # Visibility flags
             show_document_number=invoice.show_document_number,

@@ -68,7 +68,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "create_estimate",
-            "description": "Create a new estimate for a job. Optionally include line items with entries. Document metadata (number, date, bill_to, business details) is auto-populated from the user's profile but can be overridden.",
+            "description": "Create a new estimate for a job. Optionally include line items with entries. Document metadata (number, date, bill_to, business details) is auto-populated from the tenant's business info but can be overridden.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -122,7 +122,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "create_invoice",
-            "description": "Create a new invoice for a job. Optionally include line items with entries. Document metadata is auto-populated from the user's profile but can be overridden.",
+            "description": "Create a new invoice for a job. Optionally include line items with entries. Document metadata is auto-populated from the tenant's business info but can be overridden.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -553,7 +553,12 @@ TOOLS = [
 
 def _build_system_prompt(user: User, screen_context: dict, saved_items_summary: str) -> str:
     """Build the system prompt with app context."""
-    state = user.state or "unknown"
+    from .business_info_service import BusinessInfoService
+    try:
+        biz = BusinessInfoService().get_business_info()
+    except Exception:
+        biz = {}
+    state = biz.get("state") or "unknown"
     user_name = user.name or "there"
 
     screen_name = screen_context.get("screen", "Home")
@@ -593,7 +598,7 @@ def _build_system_prompt(user: User, screen_context: dict, saved_items_summary: 
         "",
         "Document metadata on estimates/invoices:",
         "- Each estimate/invoice has metadata fields: document_number, document_date, bill_to, company_name, user_name, user_phone, user_email, payment_method, business_address, worksite_address, and notes",
-        "- These are auto-populated from the user's profile and job/site data on creation",
+        "- These are auto-populated from the tenant's business info and job/site data on creation",
         "- You can override any of these when creating or updating an estimate/invoice",
         "- Each field has a corresponding show_* visibility flag (e.g. show_bill_to) that controls whether it appears in the generated PDF",
         "- The 'notes' field supports markdown and appears at the end of the PDF",

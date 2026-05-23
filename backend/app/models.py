@@ -83,11 +83,7 @@ class User(db.Model):
     email = Column(String(255), nullable=False, unique=True)
     password_hash = Column(Text, nullable=False)
     name = Column(String(255), nullable=True)
-    state = Column(String(2), nullable=True)
-    company_name = Column(String(255), nullable=True)
     phone = Column(String(50), nullable=True)
-    payment_method = Column(String(255), nullable=True)
-    address = Column(String(500), nullable=True)
     # Tenant access control
     role = Column(String(20), nullable=False, default="member")  # 'admin' or 'member'
     is_approved = Column(Boolean, nullable=False, default=False)
@@ -581,3 +577,29 @@ class DocumentNumber(db.Model):
 
     def __repr__(self):
         return f"<DocumentNumber {self.document_type} next={self.next_number}>"
+
+
+# ---------------------------------------------------------------------------
+# BusinessInfo  (tenant-level settings — one row per tenant database)
+# ---------------------------------------------------------------------------
+
+
+class BusinessInfo(db.Model):
+    __tablename__ = "business_info"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    business_name = Column(String(255), nullable=True)
+    state = Column(String(2), nullable=True)
+    payment_method = Column(String(255), nullable=True)
+    business_address = Column(String(500), nullable=True)
+    business_phone = Column(String(50), nullable=True)
+    business_email = Column(String(255), nullable=True)
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    def __repr__(self):
+        return f"<BusinessInfo {self.business_name}>"

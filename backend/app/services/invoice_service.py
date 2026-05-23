@@ -133,25 +133,33 @@ class InvoiceService:
 
     @staticmethod
     def _populate_defaults(doc, user_id: str, job) -> None:
-        """Fill in any still-None metadata fields from the user's profile and job context."""
+        """Fill in any still-None metadata fields from business info, profile, and job context."""
         from .profile_service import ProfileService
+        from .business_info_service import BusinessInfoService
         try:
             profile = ProfileService().get_profile(user_id)
         except Exception:
             profile = {}
+        try:
+            biz = BusinessInfoService().get_business_info()
+        except Exception:
+            biz = {}
 
-        if doc.company_name is None and profile.get("company_name"):
-            doc.company_name = profile["company_name"]
+        # Business-level defaults (from tenant business_info)
+        if doc.company_name is None and biz.get("business_name"):
+            doc.company_name = biz["business_name"]
+        if doc.payment_method is None and biz.get("payment_method"):
+            doc.payment_method = biz["payment_method"]
+        if doc.business_address is None and biz.get("business_address"):
+            doc.business_address = biz["business_address"]
+
+        # User-level defaults (from profile / business info)
         if doc.user_name is None and profile.get("name"):
             doc.user_name = profile["name"]
-        if doc.user_phone is None and profile.get("phone"):
-            doc.user_phone = profile["phone"]
-        if doc.user_email is None and profile.get("email"):
-            doc.user_email = profile["email"]
-        if doc.payment_method is None and profile.get("payment_method"):
-            doc.payment_method = profile["payment_method"]
-        if doc.business_address is None and profile.get("address"):
-            doc.business_address = profile["address"]
+        if doc.user_phone is None and biz.get("business_phone"):
+            doc.user_phone = biz["business_phone"]
+        if doc.user_email is None and biz.get("business_email"):
+            doc.user_email = biz["business_email"]
 
         if doc.bill_to is None and job:
             if job.primary_contact is not None:
@@ -162,22 +170,27 @@ class InvoiceService:
             doc.worksite_address = job.job_site.address
 
     def populate_defaults(self, invoice_id: str, user_id: str) -> Invoice:
-        """Re-populate all metadata fields from profile and job context (overwrites current values)."""
+        """Re-populate all metadata fields from business info, profile, and job context (overwrites current values)."""
         invoice = self._verify_invoice_access(invoice_id, user_id)
         job = self._job_repo.get_by_id(str(invoice.job_id))
 
         from .profile_service import ProfileService
+        from .business_info_service import BusinessInfoService
         try:
             profile = ProfileService().get_profile(user_id)
         except Exception:
             profile = {}
+        try:
+            biz = BusinessInfoService().get_business_info()
+        except Exception:
+            biz = {}
 
-        invoice.company_name = profile.get("company_name")
+        invoice.company_name = biz.get("business_name")
         invoice.user_name = profile.get("name")
-        invoice.user_phone = profile.get("phone")
-        invoice.user_email = profile.get("email")
-        invoice.payment_method = profile.get("payment_method")
-        invoice.business_address = profile.get("address")
+        invoice.user_phone = biz.get("business_phone")
+        invoice.user_email = biz.get("business_email")
+        invoice.payment_method = biz.get("payment_method")
+        invoice.business_address = biz.get("business_address")
         invoice.document_date = date.today()
 
         if job:

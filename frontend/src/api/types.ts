@@ -202,11 +202,17 @@ export interface UserProfile {
   id: string;
   email: string;
   name: string | null;
-  state: string | null;
-  company_name: string | null;
   phone: string | null;
+}
+
+export interface BusinessInfo {
+  id: string;
+  business_name: string | null;
+  state: string | null;
   payment_method: string | null;
-  address: string | null;
+  business_address: string | null;
+  business_phone: string | null;
+  business_email: string | null;
 }
 
 export interface ApiError {

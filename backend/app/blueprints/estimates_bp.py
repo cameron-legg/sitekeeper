@@ -137,13 +137,18 @@ def create_estimate(job_id: str):
         if err:
             return err
 
-    # Build metadata from profile defaults, then override with any explicit values
+    # Build metadata from business info + profile defaults, then override with any explicit values
     from ..services.profile_service import ProfileService
+    from ..services.business_info_service import BusinessInfoService
     profile_service = ProfileService()
     try:
         profile = profile_service.get_profile(user_id)
     except Exception:
         profile = {}
+    try:
+        biz = BusinessInfoService().get_business_info()
+    except Exception:
+        biz = {}
 
     # Resolve bill_to from primary contact on the job
     from ..repositories.job_repo import SQLAlchemyJobRepository
@@ -160,12 +165,12 @@ def create_estimate(job_id: str):
             worksite_default = job.job_site.address
 
     metadata = {
-        "company_name": data.get("company_name", profile.get("company_name")),
+        "company_name": data.get("company_name", biz.get("business_name")),
         "user_name": data.get("user_name", profile.get("name")),
-        "user_phone": data.get("user_phone", profile.get("phone")),
-        "user_email": data.get("user_email", profile.get("email")),
-        "payment_method": data.get("payment_method", profile.get("payment_method")),
-        "business_address": data.get("business_address", profile.get("address")),
+        "user_phone": data.get("user_phone", biz.get("business_phone")),
+        "user_email": data.get("user_email", biz.get("business_email")),
+        "payment_method": data.get("payment_method", biz.get("payment_method")),
+        "business_address": data.get("business_address", biz.get("business_address")),
         "bill_to": data.get("bill_to", bill_to_default),
         "worksite_address": data.get("worksite_address", worksite_default),
         "notes": data.get("notes"),

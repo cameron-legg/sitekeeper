@@ -265,6 +265,13 @@ export default function HomeScreen({ navigation }: Props) {
             <View style={styles.menuDivider} />
             <TouchableOpacity
               style={styles.menuItem}
+              onPress={() => { setShowMenu(false); navigation.navigate("BusinessInfo"); }}
+            >
+              <Text style={styles.menuItemText}>🏢  Business Info</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuItem}
               onPress={() => { setShowMenu(false); navigation.navigate("SavedItems", {}); }}
             >
               <Text style={styles.menuItemText}>📚  Item Library</Text>

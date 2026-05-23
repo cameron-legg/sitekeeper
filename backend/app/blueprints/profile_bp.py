@@ -21,7 +21,7 @@ def get_profile():
     """Return the current user's profile settings.
 
     Responses:
-        200  { id, email, name, state, company_name, phone, payment_method }
+        200  { id, email, name, phone }
         404  user not found (should not happen for authenticated users)
     """
     try:
@@ -39,11 +39,8 @@ def update_profile():
     """Update the current user's profile settings.
 
     Request body (JSON) — all fields optional:
-        name            (str | null)
-        state           (str | null)  — 2-letter US state code
-        company_name    (str | null)
-        phone           (str | null)
-        payment_method  (str | null)
+        name   (str | null)
+        phone  (str | null)
 
     Responses:
         200  updated profile object
