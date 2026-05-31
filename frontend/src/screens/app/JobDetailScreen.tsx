@@ -10,7 +10,6 @@ import {
   StyleSheet,
   Platform,
 } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { useJob, useUpdateJob, useSetJobEmployees } from "../../api/hooks/useJobs";
@@ -28,6 +27,12 @@ import NotesTab from "../../components/NotesTab";
 import ContactsTab from "../../components/ContactsTab";
 import EstimatesTab from "../../components/EstimatesTab";
 import InvoicesTab from "../../components/InvoicesTab";
+
+// Conditionally import DateTimePicker only on native
+let DateTimePicker: any = null;
+if (Platform.OS !== "web") {
+  DateTimePicker = require("@react-native-community/datetimepicker").default;
+}
 
 type Props = NativeStackScreenProps<RootStackParamList, "JobDetail">;
 
@@ -652,11 +657,19 @@ export default function JobDetailScreen({ route, navigation }: Props) {
             />
             <Text style={styles.jobInfoLabel}>Date Worked</Text>
             {Platform.OS === "web" ? (
-              <DateTimePicker
-                value={manualWorkedAt}
-                mode="date"
-                display="default"
-                onChange={onDateChange}
+              <input
+                type="date"
+                value={`${manualWorkedAt.getFullYear()}-${String(manualWorkedAt.getMonth() + 1).padStart(2, "0")}-${String(manualWorkedAt.getDate()).padStart(2, "0")}`}
+                onChange={(e: any) => {
+                  const val = e.target.value;
+                  if (val) {
+                    const [y, m, d] = val.split("-").map(Number);
+                    const updated = new Date(manualWorkedAt);
+                    updated.setFullYear(y, m - 1, d);
+                    setManualWorkedAt(updated);
+                  }
+                }}
+                style={{ fontSize: 16, padding: 10, borderRadius: 8, border: "1px solid #d1d5db", width: "100%", marginBottom: 12, boxSizing: "border-box" } as any}
               />
             ) : (
               <>
@@ -666,7 +679,7 @@ export default function JobDetailScreen({ route, navigation }: Props) {
                 >
                   <Text style={styles.pickerBtnText}>{formatDateShort(manualWorkedAt)}</Text>
                 </TouchableOpacity>
-                {showDatePicker && (
+                {showDatePicker && DateTimePicker && (
                   <DateTimePicker
                     value={manualWorkedAt}
                     mode="date"
@@ -678,11 +691,19 @@ export default function JobDetailScreen({ route, navigation }: Props) {
             )}
             <Text style={[styles.jobInfoLabel, { marginTop: 12 }]}>Time</Text>
             {Platform.OS === "web" ? (
-              <DateTimePicker
-                value={manualWorkedAt}
-                mode="time"
-                display="default"
-                onChange={onTimeChange}
+              <input
+                type="time"
+                value={`${String(manualWorkedAt.getHours()).padStart(2, "0")}:${String(manualWorkedAt.getMinutes()).padStart(2, "0")}`}
+                onChange={(e: any) => {
+                  const val = e.target.value;
+                  if (val) {
+                    const [h, m] = val.split(":").map(Number);
+                    const updated = new Date(manualWorkedAt);
+                    updated.setHours(h, m, 0, 0);
+                    setManualWorkedAt(updated);
+                  }
+                }}
+                style={{ fontSize: 16, padding: 10, borderRadius: 8, border: "1px solid #d1d5db", width: "100%", marginBottom: 12, boxSizing: "border-box" } as any}
               />
             ) : (
               <>
@@ -692,7 +713,7 @@ export default function JobDetailScreen({ route, navigation }: Props) {
                 >
                   <Text style={styles.pickerBtnText}>{formatTimeShort(manualWorkedAt)}</Text>
                 </TouchableOpacity>
-                {showTimePicker && (
+                {showTimePicker && DateTimePicker && (
                   <DateTimePicker
                     value={manualWorkedAt}
                     mode="time"
