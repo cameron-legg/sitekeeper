@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,14 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { useJob, useUpdateJob, useSetJobEmployees } from "../../api/hooks/useJobs";
 import { useBusinessInfoUsers } from "../../api/hooks/useBusinessInfo";
+import {
+  useClockStatus,
+  useClockIn,
+  useClockOut,
+  useAddManualTime,
+  useTimeEntries,
+  useDeleteTimeEntry,
+} from "../../api/hooks/useTimeEntries";
 import type { Job } from "../../api/types";
 import NotesTab from "../../components/NotesTab";
 import ContactsTab from "../../components/ContactsTab";
@@ -62,11 +70,21 @@ export default function JobDetailScreen({ route, navigation }: Props) {
   const [jobInfoRate, setJobInfoRate] = useState("");
   const [jobInfoError, setJobInfoError] = useState<string | null>(null);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+  const [showManualTimeModal, setShowManualTimeModal] = useState(false);
+  const [manualHours, setManualHours] = useState("");
+  const [manualNote, setManualNote] = useState("");
+  const [manualError, setManualError] = useState<string | null>(null);
 
   const { data: job, isLoading, isError } = useJob(jobId);
   const updateJob = useUpdateJob();
   const setJobEmployees = useSetJobEmployees();
   const { data: approvedUsers } = useBusinessInfoUsers();
+  const { data: clockStatus } = useClockStatus(jobId);
+  const clockIn = useClockIn();
+  const clockOut = useClockOut();
+  const addManualTime = useAddManualTime();
+  const { data: timeEntries } = useTimeEntries(jobId);
+  const deleteTimeEntry = useDeleteTimeEntry();
 
   const displayName = job?.name ?? jobName;
 
@@ -154,6 +172,60 @@ export default function JobDetailScreen({ route, navigation }: Props) {
         ? prev.filter((id) => id !== userId)
         : [...prev, userId]
     );
+  }
+
+  function handleClockIn() {
+    clockIn.mutate({ jobId });
+  }
+
+  function handleClockOut() {
+    clockOut.mutate({ jobId });
+  }
+
+  function openManualTimeModal() {
+    setManualHours("");
+    setManualNote("");
+    setManualError(null);
+    setShowManualTimeModal(true);
+  }
+
+  function handleAddManualTime() {
+    const trimmed = manualHours.trim();
+    if (!trimmed || isNaN(Number(trimmed)) || Number(trimmed) <= 0) {
+      setManualError("Enter a valid number of hours.");
+      return;
+    }
+    addManualTime.mutate(
+      { jobId, hours: trimmed, note: manualNote.trim() || undefined },
+      {
+        onSuccess: () => setShowManualTimeModal(false),
+        onError: () => setManualError("Failed to add time entry."),
+      }
+    );
+  }
+
+  function handleDeleteTimeEntry(entryId: string) {
+    deleteTimeEntry.mutate({ entryId, jobId });
+  }
+
+  /** Group time entries by user and sum hours */
+  function getHoursByUser() {
+    if (!timeEntries) return [];
+    const map: Record<string, { userId: string; name: string; email: string; totalHours: number; entries: typeof timeEntries }> = {};
+    for (const entry of timeEntries) {
+      if (!map[entry.user_id]) {
+        map[entry.user_id] = {
+          userId: entry.user_id,
+          name: entry.user_name || "",
+          email: entry.user_email || "",
+          totalHours: 0,
+          entries: [],
+        };
+      }
+      map[entry.user_id].totalHours += entry.hours ? parseFloat(entry.hours) : 0;
+      map[entry.user_id].entries.push(entry);
+    }
+    return Object.values(map);
   }
 
   function formatDate(iso: string) {
@@ -245,6 +317,44 @@ export default function JobDetailScreen({ route, navigation }: Props) {
             </>
           )}
         </View>
+
+        {/* Clock In/Out */}
+        <Text style={styles.sectionLabel}>Time Tracking</Text>
+        <View style={styles.clockRow}>
+          {clockStatus?.clocked_in ? (
+            <TouchableOpacity
+              style={[styles.clockBtn, styles.clockOutBtn, clockOut.isPending && styles.btnDisabled]}
+              onPress={handleClockOut}
+              disabled={clockOut.isPending}
+            >
+              {clockOut.isPending ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.clockOutBtnText}>⏹ Clock Out</Text>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.clockBtn, styles.clockInBtn, clockIn.isPending && styles.btnDisabled]}
+              onPress={handleClockIn}
+              disabled={clockIn.isPending}
+            >
+              {clockIn.isPending ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.clockInBtnText}>▶ Clock In</Text>
+              )}
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.manualTimeBtn} onPress={openManualTimeModal}>
+            <Text style={styles.manualTimeBtnText}>+ Add Hours</Text>
+          </TouchableOpacity>
+        </View>
+        {clockStatus?.clocked_in && clockStatus.entry?.clock_in && (
+          <Text style={styles.clockedSince}>
+            Clocked in since {formatDate(clockStatus.entry.clock_in)}
+          </Text>
+        )}
 
         {/* Job Info button */}
         <TouchableOpacity style={styles.jobInfoBtn} onPress={openJobInfoModal}>
@@ -409,6 +519,54 @@ export default function JobDetailScreen({ route, navigation }: Props) {
               ) : (
                 <Text style={styles.noEmployeesText}>No approved users available.</Text>
               )}
+
+              {/* Time tracking summary */}
+              <Text style={[styles.jobInfoLabel, { marginTop: 16 }]}>Hours Tracked</Text>
+              {(() => {
+                const hoursByUser = getHoursByUser();
+                if (hoursByUser.length === 0) {
+                  return <Text style={styles.noEmployeesText}>No hours tracked yet.</Text>;
+                }
+                return (
+                  <View style={styles.employeeList}>
+                    {hoursByUser.map((u) => (
+                      <View key={u.userId} style={styles.hoursUserRow}>
+                        <View style={styles.hoursUserHeader}>
+                          <Text style={styles.employeeName}>{u.name || u.email}</Text>
+                          <Text style={styles.hoursBadge}>{u.totalHours.toFixed(2)} hrs</Text>
+                        </View>
+                        {u.entries.map((entry) => (
+                          <View key={entry.id} style={styles.hoursEntryRow}>
+                            <View style={styles.hoursEntryInfo}>
+                              {entry.clock_in ? (
+                                <Text style={styles.hoursEntryText}>
+                                  {formatDate(entry.clock_in)}
+                                  {entry.clock_out ? ` → ${formatDate(entry.clock_out)}` : " (active)"}
+                                </Text>
+                              ) : (
+                                <Text style={styles.hoursEntryText}>Manual entry</Text>
+                              )}
+                              <Text style={styles.hoursEntryHours}>
+                                {entry.hours ? `${parseFloat(entry.hours).toFixed(2)} hrs` : "—"}
+                              </Text>
+                              {entry.note && (
+                                <Text style={styles.hoursEntryNote}>{entry.note}</Text>
+                              )}
+                            </View>
+                            <TouchableOpacity
+                              onPress={() => handleDeleteTimeEntry(entry.id)}
+                              style={styles.deleteEntryBtn}
+                              accessibilityLabel="Delete time entry"
+                            >
+                              <Text style={styles.deleteEntryText}>✕</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+                );
+              })()}
             </ScrollView>
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowJobInfoModal(false)}>
@@ -422,6 +580,47 @@ export default function JobDetailScreen({ route, navigation }: Props) {
                 {(updateJob.isPending || setJobEmployees.isPending)
                   ? <ActivityIndicator color="#fff" size="small" />
                   : <Text style={styles.clearBtnText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Manual time entry modal */}
+      <Modal visible={showManualTimeModal} transparent animationType="fade" onRequestClose={() => setShowManualTimeModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Add Hours</Text>
+            {manualError && <Text style={styles.renameError}>{manualError}</Text>}
+            <Text style={styles.jobInfoLabel}>Hours Worked</Text>
+            <TextInput
+              style={styles.renameInput}
+              value={manualHours}
+              onChangeText={(t) => { setManualHours(t); setManualError(null); }}
+              placeholder="e.g. 2.5"
+              keyboardType="decimal-pad"
+              autoFocus
+            />
+            <Text style={styles.jobInfoLabel}>Note (optional)</Text>
+            <TextInput
+              style={[styles.renameInput, { height: 60, textAlignVertical: "top" }]}
+              value={manualNote}
+              onChangeText={setManualNote}
+              placeholder="What did you work on?"
+              multiline
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowManualTimeModal(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.clearBtn, addManualTime.isPending && styles.btnDisabled]}
+                onPress={handleAddManualTime}
+                disabled={addManualTime.isPending}
+              >
+                {addManualTime.isPending
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.clearBtnText}>Add</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -663,5 +862,108 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#9ca3af",
     fontStyle: "italic",
+  },
+  clockRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 6,
+  },
+  clockBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    minWidth: 110,
+    alignItems: "center",
+  },
+  clockInBtn: {
+    backgroundColor: "#10b981",
+  },
+  clockOutBtn: {
+    backgroundColor: "#ef4444",
+  },
+  clockInBtnText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  clockOutBtnText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  manualTimeBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: "#eff6ff",
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  manualTimeBtnText: {
+    color: "#2563eb",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  clockedSince: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginBottom: 8,
+  },
+  hoursUserRow: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: "#f9fafb",
+  },
+  hoursUserHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  hoursBadge: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#2563eb",
+    backgroundColor: "#eff6ff",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  hoursEntryRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 4,
+    paddingLeft: 4,
+    borderTopWidth: 1,
+    borderTopColor: "#f3f4f6",
+  },
+  hoursEntryInfo: {
+    flex: 1,
+  },
+  hoursEntryText: {
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  hoursEntryHours: {
+    fontSize: 12,
+    color: "#374151",
+    fontWeight: "500",
+  },
+  hoursEntryNote: {
+    fontSize: 11,
+    color: "#9ca3af",
+    fontStyle: "italic",
+    marginTop: 2,
+  },
+  deleteEntryBtn: {
+    padding: 4,
+    marginLeft: 6,
+  },
+  deleteEntryText: {
+    fontSize: 14,
+    color: "#9ca3af",
   },
 });

@@ -223,6 +223,9 @@ class Job(db.Model):
     contacts = relationship("Contact", secondary=job_contacts, backref="jobs")
     employees = relationship("User", secondary=job_employees, backref="assigned_jobs")
     notes = relationship("Note", back_populates="job", cascade="all, delete-orphan")
+    time_entries = relationship(
+        "TimeEntry", back_populates="job", cascade="all, delete-orphan"
+    )
     estimates = relationship(
         "Estimate", back_populates="job", cascade="all, delete-orphan"
     )
@@ -596,6 +599,46 @@ class DocumentNumber(db.Model):
 
     def __repr__(self):
         return f"<DocumentNumber {self.document_type} next={self.next_number}>"
+
+
+# ---------------------------------------------------------------------------
+# TimeEntry  (clock-in/out or manual hours per user per job)
+# ---------------------------------------------------------------------------
+
+
+class TimeEntry(db.Model):
+    __tablename__ = "time_entries"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("jobs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    clock_in = Column(TIMESTAMP(timezone=True), nullable=True)
+    clock_out = Column(TIMESTAMP(timezone=True), nullable=True)
+    hours = Column(Numeric(8, 4), nullable=True)
+    note = Column(Text, nullable=True)
+    created_at = Column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    job = relationship("Job", back_populates="time_entries")
+    user = relationship("User", backref="time_entries")
+
+    def __repr__(self):
+        return f"<TimeEntry job={self.job_id} user={self.user_id}>"
 
 
 # ---------------------------------------------------------------------------

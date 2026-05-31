@@ -249,3 +249,22 @@ export interface TenantUser {
   is_approved: boolean;
   created_at: string;
 }
+
+export interface TimeEntry {
+  id: string;
+  job_id: string;
+  user_id: string;
+  user_name: string | null;
+  user_email: string | null;
+  clock_in: string | null;
+  clock_out: string | null;
+  hours: string | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClockStatus {
+  clocked_in: boolean;
+  entry: TimeEntry | null;
+}
