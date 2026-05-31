@@ -76,6 +76,8 @@ export function useUpdateJob() {
     onSuccess: (job) => {
       qc.invalidateQueries({ queryKey: KEYS.detail(job.id) });
       qc.invalidateQueries({ queryKey: KEYS.forSite(job.job_site_id) });
+      // Refresh job-sites list so active_job_count updates for filtering
+      qc.invalidateQueries({ queryKey: ["job-sites"] });
     },
   });
 }

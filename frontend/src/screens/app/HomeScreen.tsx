@@ -22,6 +22,8 @@ import type { JobSite } from "../../api/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
+type SiteFilter = "active" | "all";
+
 export default function HomeScreen({ navigation }: Props) {
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const role = useAuthStore((s) => s.role);
@@ -35,19 +37,27 @@ export default function HomeScreen({ navigation }: Props) {
   const [confirmDeleteSite, setConfirmDeleteSite] = useState<JobSite | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [siteFilter, setSiteFilter] = useState<SiteFilter>("active");
 
-  // Sort sites: those with active jobs first, then by creation date (newest first)
-  const sortedSites = useMemo(() => {
+  // Filter and sort sites based on selected filter
+  const filteredSites = useMemo(() => {
     if (!sites) return [];
-    return [...sites].sort((a, b) => {
-      // Sites with active jobs come first
+    let filtered: JobSite[];
+    if (siteFilter === "active") {
+      // Show sites that have at least one pending or in_progress job
+      filtered = sites.filter((s) => s.active_job_count > 0);
+    } else {
+      // "all" — show everything
+      filtered = [...sites];
+    }
+    // Sort: sites with active jobs first, then by creation date (newest first)
+    return filtered.sort((a, b) => {
       const aActive = a.active_job_count > 0 ? 1 : 0;
       const bActive = b.active_job_count > 0 ? 1 : 0;
       if (bActive !== aActive) return bActive - aActive;
-      // Within same group, newest first
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [sites]);
+  }, [sites, siteFilter]);
 
   function handleLogout() {
     setShowLogoutConfirm(true);
@@ -130,6 +140,26 @@ export default function HomeScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
+      {/* Filter bar */}
+      <View style={styles.filterBar}>
+        <TouchableOpacity
+          style={[styles.filterChip, siteFilter === "active" && styles.filterChipActive]}
+          onPress={() => setSiteFilter("active")}
+        >
+          <Text style={[styles.filterChipText, siteFilter === "active" && styles.filterChipTextActive]}>
+            Active Jobs
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterChip, siteFilter === "all" && styles.filterChipActive]}
+          onPress={() => setSiteFilter("all")}
+        >
+          <Text style={[styles.filterChipText, siteFilter === "all" && styles.filterChipTextActive]}>
+            All Sites
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Content */}
       {isLoading ? (
         <View style={styles.centered}>
@@ -141,18 +171,29 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
       ) : (
         <FlatList
-          data={sortedSites}
+          data={filteredSites}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={
-            sortedSites.length === 0 ? styles.emptyContainer : styles.listContent
+            filteredSites.length === 0 ? styles.emptyContainer : styles.listContent
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No job sites yet</Text>
-              <Text style={styles.emptySubtitle}>
-                Tap the button below to create your first job site.
-              </Text>
+              {siteFilter === "active" ? (
+                <>
+                  <Text style={styles.emptyTitle}>No active job sites</Text>
+                  <Text style={styles.emptySubtitle}>
+                    No sites have pending or in-progress jobs. Tap "All Sites" to see everything.
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.emptyTitle}>No job sites yet</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Tap the button below to create your first job site.
+                  </Text>
+                </>
+              )}
             </View>
           }
         />
@@ -388,6 +429,36 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#f3f4f6",
     marginHorizontal: 12,
+  },
+  filterBar: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    backgroundColor: "#f9fafb",
+  },
+  filterChipActive: {
+    backgroundColor: "#2563eb",
+    borderColor: "#2563eb",
+  },
+  filterChipText: {
+    fontSize: 13,
+    color: "#6b7280",
+    fontWeight: "500",
+  },
+  filterChipTextActive: {
+    color: "#fff",
+    fontWeight: "600",
   },
   centered: {
     flex: 1,
