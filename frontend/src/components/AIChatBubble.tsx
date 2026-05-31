@@ -299,6 +299,12 @@ export default function AIChatBubble({ screenName, screenParams }: AIChatBubbleP
                   queryClient.invalidateQueries({ queryKey: ["job-sites"] });
                   queryClient.invalidateQueries({ queryKey: ["jobs"] });
                   break;
+                case "add_time_entry":
+                case "clock_in":
+                case "clock_out":
+                case "list_time_entries":
+                  queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+                  break;
               }
             }
           }

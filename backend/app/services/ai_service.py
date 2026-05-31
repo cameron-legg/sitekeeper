@@ -24,6 +24,7 @@ from ..services.note_service import NoteService
 from ..services.conversion_service import ConversionService
 from ..services.saved_item_service import SavedItemService
 from ..services.contact_service import ContactService
+from ..services.time_entry_service import TimeEntryService
 
 logger = logging.getLogger(__name__)
 
@@ -544,6 +545,66 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_time_entry",
+            "description": "Add a manual time entry (hours worked) for the current user on a job. Use this when the user says they worked X hours on a job.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "job_id": {"type": "string", "description": "ID of the job to log hours on"},
+                    "hours": {"type": "number", "description": "Number of hours worked (e.g. 2.5)"},
+                    "worked_at": {"type": "string", "description": "ISO 8601 datetime of when the work was done (e.g. '2026-05-31T09:00:00'). If not provided, defaults to now."},
+                    "note": {"type": "string", "description": "Optional note describing what was done"},
+                },
+                "required": ["job_id", "hours"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "clock_in",
+            "description": "Clock in the current user on a job. Starts tracking time.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "job_id": {"type": "string", "description": "ID of the job to clock in on"},
+                    "note": {"type": "string", "description": "Optional note about what you're working on"},
+                },
+                "required": ["job_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "clock_out",
+            "description": "Clock out the current user from a job. Stops tracking time and records the hours.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "job_id": {"type": "string", "description": "ID of the job to clock out from"},
+                },
+                "required": ["job_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_time_entries",
+            "description": "List all time entries (hours logged) for a job, grouped by user.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "job_id": {"type": "string", "description": "ID of the job"},
+                },
+                "required": ["job_id"],
+            },
+        },
+    },
 ]
 
 
@@ -633,6 +694,16 @@ def _build_system_prompt(user: User, screen_context: dict, saved_items_summary: 
         "- If the user asks to add a contact, create it and attach it to the relevant job site or job",
         "- Use the screen context to determine which job site or job to attach to",
         "",
+        "When tracking time/hours:",
+        "- Users can log hours worked on a job using add_time_entry (manual hours) or clock_in/clock_out (real-time tracking)",
+        "- If the user says 'I worked 3 hours on X' or 'log 2.5 hours', use add_time_entry",
+        "- If the user says 'clock me in' or 'start tracking', use clock_in",
+        "- If the user says 'clock me out' or 'stop tracking', use clock_out",
+        "- If the user mentions a specific date/time for the work, pass it as worked_at in ISO 8601 format",
+        "- If no date is mentioned, omit worked_at and it defaults to now",
+        "- Use the jobId from screen context (JobDetail screen) if the user doesn't specify which job",
+        "- Use list_time_entries to show the user their logged hours on a job",
+        "",
         "When creating notes:",
         "- Notes support full markdown: headings (#, ##), bold (**text**), bullet lists (- item), numbered lists, links, code blocks, etc.",
         "- Use markdown formatting to make notes well-structured and readable",
@@ -676,6 +747,7 @@ class AIService:
         self._conversion_service = ConversionService()
         self._saved_item_service = SavedItemService()
         self._contact_service = ContactService()
+        self._time_entry_service = TimeEntryService()
 
     def _get_saved_items_summary(self, user_id: str) -> str:
         """Build a brief summary of the user's saved items for context."""
@@ -1293,6 +1365,78 @@ class AIService:
                     "parent_type": parent_type,
                     "parent_id": parent_id,
                     "message": f"Set contact as primary for {parent_type.replace('_', ' ')}",
+                }
+
+            elif tool_name == "add_time_entry":
+                from datetime import datetime
+                worked_at = None
+                if args.get("worked_at"):
+                    try:
+                        worked_at = datetime.fromisoformat(args["worked_at"].replace("Z", "+00:00"))
+                    except (ValueError, AttributeError):
+                        pass
+                entry = self._time_entry_service.add_manual(
+                    job_id=args["job_id"],
+                    user_id=user_id,
+                    hours=Decimal(str(args["hours"])),
+                    note=args.get("note"),
+                    worked_at=worked_at,
+                )
+                return {
+                    "success": True,
+                    "time_entry_id": str(entry.id),
+                    "job_id": args["job_id"],
+                    "hours": str(entry.hours),
+                    "worked_at": entry.worked_at.isoformat() if entry.worked_at else None,
+                    "message": f"Logged {entry.hours} hours on the job",
+                }
+
+            elif tool_name == "clock_in":
+                entry = self._time_entry_service.clock_in(
+                    job_id=args["job_id"],
+                    user_id=user_id,
+                    note=args.get("note"),
+                )
+                return {
+                    "success": True,
+                    "time_entry_id": str(entry.id),
+                    "job_id": args["job_id"],
+                    "clock_in": entry.clock_in.isoformat() if entry.clock_in else None,
+                    "message": "Clocked in successfully",
+                }
+
+            elif tool_name == "clock_out":
+                entry = self._time_entry_service.clock_out(
+                    job_id=args["job_id"],
+                    user_id=user_id,
+                )
+                return {
+                    "success": True,
+                    "time_entry_id": str(entry.id),
+                    "job_id": args["job_id"],
+                    "hours": str(entry.hours),
+                    "clock_in": entry.clock_in.isoformat() if entry.clock_in else None,
+                    "clock_out": entry.clock_out.isoformat() if entry.clock_out else None,
+                    "message": f"Clocked out — {entry.hours} hours recorded",
+                }
+
+            elif tool_name == "list_time_entries":
+                entries = self._time_entry_service.list_for_job(args["job_id"])
+                return {
+                    "success": True,
+                    "time_entries": [
+                        {
+                            "id": str(e.id),
+                            "user_name": e.user.name if e.user else None,
+                            "user_email": e.user.email if e.user else None,
+                            "hours": str(e.hours) if e.hours else None,
+                            "clock_in": e.clock_in.isoformat() if e.clock_in else None,
+                            "clock_out": e.clock_out.isoformat() if e.clock_out else None,
+                            "worked_at": e.worked_at.isoformat() if e.worked_at else None,
+                            "note": e.note,
+                        }
+                        for e in entries
+                    ],
                 }
 
             else:
