@@ -8,7 +8,9 @@ import {
   ScrollView,
   Modal,
   StyleSheet,
+  Platform,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { useJob, useUpdateJob, useSetJobEmployees } from "../../api/hooks/useJobs";
@@ -73,6 +75,9 @@ export default function JobDetailScreen({ route, navigation }: Props) {
   const [showManualTimeModal, setShowManualTimeModal] = useState(false);
   const [manualHours, setManualHours] = useState("");
   const [manualNote, setManualNote] = useState("");
+  const [manualWorkedAt, setManualWorkedAt] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
 
   const { data: job, isLoading, isError } = useJob(jobId);
@@ -185,6 +190,9 @@ export default function JobDetailScreen({ route, navigation }: Props) {
   function openManualTimeModal() {
     setManualHours("");
     setManualNote("");
+    setManualWorkedAt(new Date());
+    setShowDatePicker(false);
+    setShowTimePicker(false);
     setManualError(null);
     setShowManualTimeModal(true);
   }
@@ -195,13 +203,52 @@ export default function JobDetailScreen({ route, navigation }: Props) {
       setManualError("Enter a valid number of hours.");
       return;
     }
+
     addManualTime.mutate(
-      { jobId, hours: trimmed, note: manualNote.trim() || undefined },
+      {
+        jobId,
+        hours: trimmed,
+        note: manualNote.trim() || undefined,
+        worked_at: manualWorkedAt.toISOString(),
+      },
       {
         onSuccess: () => setShowManualTimeModal(false),
         onError: () => setManualError("Failed to add time entry."),
       }
     );
+  }
+
+  function onDateChange(_event: any, selectedDate?: Date) {
+    if (Platform.OS !== "web") setShowDatePicker(false);
+    if (selectedDate) {
+      const updated = new Date(manualWorkedAt);
+      updated.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+      setManualWorkedAt(updated);
+    }
+  }
+
+  function onTimeChange(_event: any, selectedTime?: Date) {
+    if (Platform.OS !== "web") setShowTimePicker(false);
+    if (selectedTime) {
+      const updated = new Date(manualWorkedAt);
+      updated.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+      setManualWorkedAt(updated);
+    }
+  }
+
+  function formatDateShort(date: Date) {
+    return date.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  function formatTimeShort(date: Date) {
+    return date.toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   function handleDeleteTimeEntry(entryId: string) {
@@ -544,7 +591,9 @@ export default function JobDetailScreen({ route, navigation }: Props) {
                                   {entry.clock_out ? ` → ${formatDate(entry.clock_out)}` : " (active)"}
                                 </Text>
                               ) : (
-                                <Text style={styles.hoursEntryText}>Manual entry</Text>
+                                <Text style={styles.hoursEntryText}>
+                                  {entry.worked_at ? formatDate(entry.worked_at) : formatDate(entry.created_at)} (manual)
+                                </Text>
                               )}
                               <Text style={styles.hoursEntryHours}>
                                 {entry.hours ? `${parseFloat(entry.hours).toFixed(2)} hrs` : "—"}
@@ -601,7 +650,59 @@ export default function JobDetailScreen({ route, navigation }: Props) {
               keyboardType="decimal-pad"
               autoFocus
             />
-            <Text style={styles.jobInfoLabel}>Note (optional)</Text>
+            <Text style={styles.jobInfoLabel}>Date Worked</Text>
+            {Platform.OS === "web" ? (
+              <DateTimePicker
+                value={manualWorkedAt}
+                mode="date"
+                display="default"
+                onChange={onDateChange}
+              />
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={styles.pickerBtn}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Text style={styles.pickerBtnText}>{formatDateShort(manualWorkedAt)}</Text>
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={manualWorkedAt}
+                    mode="date"
+                    display="default"
+                    onChange={onDateChange}
+                  />
+                )}
+              </>
+            )}
+            <Text style={[styles.jobInfoLabel, { marginTop: 12 }]}>Time</Text>
+            {Platform.OS === "web" ? (
+              <DateTimePicker
+                value={manualWorkedAt}
+                mode="time"
+                display="default"
+                onChange={onTimeChange}
+              />
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={styles.pickerBtn}
+                  onPress={() => setShowTimePicker(true)}
+                >
+                  <Text style={styles.pickerBtnText}>{formatTimeShort(manualWorkedAt)}</Text>
+                </TouchableOpacity>
+                {showTimePicker && (
+                  <DateTimePicker
+                    value={manualWorkedAt}
+                    mode="time"
+                    display="default"
+                    onChange={onTimeChange}
+                  />
+                )}
+              </>
+            )}
+            <Text style={[styles.jobInfoLabel, { marginTop: 12 }]}>Note (optional)</Text>
             <TextInput
               style={[styles.renameInput, { height: 60, textAlignVertical: "top" }]}
               value={manualNote}
@@ -965,5 +1066,18 @@ const styles = StyleSheet.create({
   deleteEntryText: {
     fontSize: 14,
     color: "#9ca3af",
+  },
+  pickerBtn: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: "#f9fafb",
+    marginBottom: 4,
+  },
+  pickerBtnText: {
+    fontSize: 15,
+    color: "#1a1a1a",
   },
 });

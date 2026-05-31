@@ -259,6 +259,7 @@ export interface TimeEntry {
   clock_in: string | null;
   clock_out: string | null;
   hours: string | null;
+  worked_at: string | null;
   note: string | null;
   created_at: string;
   updated_at: string;

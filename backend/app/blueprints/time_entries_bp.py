@@ -33,6 +33,7 @@ def _serialize_entry(entry) -> dict:
         "clock_in": entry.clock_in.isoformat() if entry.clock_in else None,
         "clock_out": entry.clock_out.isoformat() if entry.clock_out else None,
         "hours": str(entry.hours) if entry.hours is not None else None,
+        "worked_at": entry.worked_at.isoformat() if entry.worked_at else None,
         "note": entry.note,
         "created_at": entry.created_at.isoformat() if entry.created_at else None,
         "updated_at": entry.updated_at.isoformat() if entry.updated_at else None,
@@ -102,7 +103,13 @@ def clock_out(job_id: str):
 @time_entries_bp.post("/jobs/<job_id>/time-entries")
 @auth_required
 def add_manual_entry(job_id: str):
-    """Add a manual time entry (hours worked without clock in/out)."""
+    """Add a manual time entry (hours worked without clock in/out).
+
+    Request body:
+        hours    (number, required) — hours worked
+        note     (string, optional) — description of work
+        worked_at (string, optional) — ISO 8601 datetime of when work was done (defaults to now)
+    """
     user_id = g.current_user_id
     data = request.get_json(silent=True) or {}
 
@@ -119,8 +126,21 @@ def add_manual_entry(job_id: str):
 
     note = data.get("note")
 
+    # Parse optional worked_at datetime
+    worked_at = None
+    if data.get("worked_at"):
+        from datetime import datetime
+        try:
+            worked_at = datetime.fromisoformat(data["worked_at"].replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            return error_response(
+                "VALIDATION_ERROR",
+                "worked_at must be a valid ISO 8601 datetime string.",
+                field="worked_at",
+            )
+
     try:
-        entry = _service.add_manual(job_id, user_id, hours, note=note)
+        entry = _service.add_manual(job_id, user_id, hours, note=note, worked_at=worked_at)
         return jsonify(_serialize_entry(entry)), 201
     except ValidationError as exc:
         return error_response("VALIDATION_ERROR", str(exc), field="hours")

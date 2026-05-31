@@ -72,9 +72,13 @@ class TimeEntryService:
         return self._repo.update(entry)
 
     def add_manual(
-        self, job_id: str, user_id: str, hours: Decimal, note: str | None = None
+        self, job_id: str, user_id: str, hours: Decimal,
+        note: str | None = None, worked_at: datetime | None = None,
     ) -> TimeEntry:
-        """Add a manual time entry (no clock in/out, just hours)."""
+        """Add a manual time entry (no clock in/out, just hours).
+
+        If worked_at is not provided, defaults to now (UTC).
+        """
         if hours <= 0:
             raise ValidationError("Hours must be greater than zero.")
 
@@ -82,6 +86,7 @@ class TimeEntryService:
             job_id=job_id,
             user_id=user_id,
             hours=hours,
+            worked_at=worked_at or datetime.now(tz=timezone.utc),
             note=note,
         )
         return self._repo.create(entry)

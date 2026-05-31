@@ -73,13 +73,15 @@ export function useAddManualTime() {
       jobId,
       hours,
       note,
+      worked_at,
     }: {
       jobId: string;
       hours: string;
       note?: string;
+      worked_at?: string;
     }) =>
       apiClient
-        .post<TimeEntry>(`/api/v1/jobs/${jobId}/time-entries`, { hours, note })
+        .post<TimeEntry>(`/api/v1/jobs/${jobId}/time-entries`, { hours, note, worked_at })
         .then((r) => r.data),
     onSuccess: (entry) => {
       qc.invalidateQueries({ queryKey: KEYS.forJob(entry.job_id) });

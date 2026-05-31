@@ -623,6 +623,7 @@ class TimeEntry(db.Model):
     clock_in = Column(TIMESTAMP(timezone=True), nullable=True)
     clock_out = Column(TIMESTAMP(timezone=True), nullable=True)
     hours = Column(Numeric(8, 4), nullable=True)
+    worked_at = Column(TIMESTAMP(timezone=True), nullable=True)
     note = Column(Text, nullable=True)
     created_at = Column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()

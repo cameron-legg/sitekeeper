@@ -31,7 +31,9 @@
       "themeColor": "#ffffff",
       "backgroundColor": "#ffffff"
     },
-    "plugins": [],
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ],
     "scheme": "sitekeeper"
   }
 }
