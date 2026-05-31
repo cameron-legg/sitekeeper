@@ -31,6 +31,10 @@ def _serialize_job(job) -> dict:
         "finished_at": job.finished_at.isoformat() if job.finished_at else None,
         "created_at": job.created_at.isoformat() if job.created_at else None,
         "updated_at": job.updated_at.isoformat() if job.updated_at else None,
+        "employees": [
+            {"id": str(u.id), "name": u.name, "email": u.email}
+            for u in job.employees
+        ],
     }
 
 
@@ -214,3 +218,47 @@ def delete_job(job_id: str):
         return not_found("Job")
     except Exception:
         return server_error()
+
+
+# ── Employee assignment endpoints ──────────────────────────────────────────────
+
+
+@jobs_bp.put("/jobs/<job_id>/employees")
+@auth_required
+def set_job_employees(job_id: str):
+    """Replace the full list of employees assigned to a job.
+
+    Request body: {"employee_ids": ["uuid1", "uuid2", ...]}
+    Only approved users in the tenant can be assigned.
+    """
+    from ..extensions import db
+    from ..models import User
+
+    user_id = g.current_user_id
+    try:
+        job = _service.get(job_id, user_id)
+    except NotFoundError:
+        return not_found("Job")
+    except Exception:
+        return server_error()
+
+    data = request.get_json(silent=True) or {}
+    employee_ids = data.get("employee_ids", [])
+
+    if not isinstance(employee_ids, list):
+        return error_response("VALIDATION_ERROR", "employee_ids must be an array.", field="employee_ids")
+
+    # Fetch only approved users matching the provided IDs
+    if employee_ids:
+        users = User.query.filter(
+            User.id.in_(employee_ids),
+            User.is_approved == True,
+        ).all()
+    else:
+        users = []
+
+    job.employees = users
+    db.session.commit()
+    db.session.refresh(job)
+
+    return jsonify(_serialize_job(job)), 200

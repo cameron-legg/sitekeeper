@@ -91,3 +91,25 @@ export function useDeleteJob() {
     },
   });
 }
+
+export function useSetJobEmployees() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      jobId,
+      employeeIds,
+    }: {
+      jobId: string;
+      employeeIds: string[];
+    }) =>
+      apiClient
+        .put<Job>(`/api/v1/jobs/${jobId}/employees`, {
+          employee_ids: employeeIds,
+        })
+        .then((r) => r.data),
+    onSuccess: (job) => {
+      qc.invalidateQueries({ queryKey: KEYS.detail(job.id) });
+      qc.invalidateQueries({ queryKey: KEYS.forSite(job.job_site_id) });
+    },
+  });
+}

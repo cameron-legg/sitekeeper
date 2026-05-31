@@ -11,7 +11,8 @@ import {
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
-import { useJob, useUpdateJob } from "../../api/hooks/useJobs";
+import { useJob, useUpdateJob, useSetJobEmployees } from "../../api/hooks/useJobs";
+import { useBusinessInfoUsers } from "../../api/hooks/useBusinessInfo";
 import type { Job } from "../../api/types";
 import NotesTab from "../../components/NotesTab";
 import ContactsTab from "../../components/ContactsTab";
@@ -60,9 +61,12 @@ export default function JobDetailScreen({ route, navigation }: Props) {
   const [showJobInfoModal, setShowJobInfoModal] = useState(false);
   const [jobInfoRate, setJobInfoRate] = useState("");
   const [jobInfoError, setJobInfoError] = useState<string | null>(null);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
 
   const { data: job, isLoading, isError } = useJob(jobId);
   const updateJob = useUpdateJob();
+  const setJobEmployees = useSetJobEmployees();
+  const { data: approvedUsers } = useBusinessInfoUsers();
 
   const displayName = job?.name ?? jobName;
 
@@ -106,18 +110,49 @@ export default function JobDetailScreen({ route, navigation }: Props) {
 
   function openJobInfoModal() {
     setJobInfoRate(job?.default_hourly_rate ?? "");
+    setSelectedEmployeeIds(job?.employees?.map((e) => e.id) ?? []);
     setJobInfoError(null);
     setShowJobInfoModal(true);
   }
 
   function handleSaveJobInfo() {
     setJobInfoError(null);
+    const ratePayload = jobInfoRate.trim() || null;
+    const currentEmployeeIds = job?.employees?.map((e) => e.id) ?? [];
+    const employeesChanged =
+      JSON.stringify([...selectedEmployeeIds].sort()) !==
+      JSON.stringify([...currentEmployeeIds].sort());
+
+    // Save hourly rate
     updateJob.mutate(
-      { jobId, default_hourly_rate: jobInfoRate.trim() || null },
+      { jobId, default_hourly_rate: ratePayload },
       {
-        onSuccess: () => setShowJobInfoModal(false),
-        onError: () => setJobInfoError("Failed to update job info. Please try again."),
+        onSuccess: () => {
+          // Save employees if changed
+          if (employeesChanged) {
+            setJobEmployees.mutate(
+              { jobId, employeeIds: selectedEmployeeIds },
+              {
+                onSuccess: () => setShowJobInfoModal(false),
+                onError: () =>
+                  setJobInfoError("Failed to update employees. Please try again."),
+              }
+            );
+          } else {
+            setShowJobInfoModal(false);
+          }
+        },
+        onError: () =>
+          setJobInfoError("Failed to update job info. Please try again."),
       }
+    );
+  }
+
+  function toggleEmployee(userId: string) {
+    setSelectedEmployeeIds((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
     );
   }
 
@@ -214,9 +249,16 @@ export default function JobDetailScreen({ route, navigation }: Props) {
         {/* Job Info button */}
         <TouchableOpacity style={styles.jobInfoBtn} onPress={openJobInfoModal}>
           <Text style={styles.jobInfoBtnText}>⚙️ Job Information</Text>
-          {job.default_hourly_rate && (
-            <Text style={styles.jobInfoRate}>${job.default_hourly_rate}/hr</Text>
-          )}
+          <View style={styles.jobInfoMeta}>
+            {job.employees && job.employees.length > 0 && (
+              <Text style={styles.jobInfoEmployees}>
+                {job.employees.length} employee{job.employees.length !== 1 ? "s" : ""}
+              </Text>
+            )}
+            {job.default_hourly_rate && (
+              <Text style={styles.jobInfoRate}>${job.default_hourly_rate}/hr</Text>
+            )}
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -316,28 +358,68 @@ export default function JobDetailScreen({ route, navigation }: Props) {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Job Information</Text>
             {jobInfoError && <Text style={styles.renameError}>{jobInfoError}</Text>}
-            <Text style={styles.jobInfoLabel}>Default Hourly Rate</Text>
-            <TextInput
-              style={styles.renameInput}
-              value={jobInfoRate}
-              onChangeText={setJobInfoRate}
-              placeholder="e.g. 75.00"
-              keyboardType="decimal-pad"
-              autoFocus
-            />
-            <Text style={styles.jobInfoHint}>
-              New line items on estimates/invoices for this job will use this rate.
-            </Text>
+            <ScrollView style={styles.jobInfoScroll} keyboardShouldPersistTaps="handled">
+              <Text style={styles.jobInfoLabel}>Default Hourly Rate</Text>
+              <TextInput
+                style={styles.renameInput}
+                value={jobInfoRate}
+                onChangeText={setJobInfoRate}
+                placeholder="e.g. 75.00"
+                keyboardType="decimal-pad"
+                autoFocus
+              />
+              <Text style={styles.jobInfoHint}>
+                New line items on estimates/invoices for this job will use this rate.
+              </Text>
+
+              <Text style={styles.jobInfoLabel}>Assigned Employees</Text>
+              <Text style={styles.jobInfoHint}>
+                Select employees responsible for working this job.
+              </Text>
+              {approvedUsers && approvedUsers.length > 0 ? (
+                <View style={styles.employeeList}>
+                  {approvedUsers.map((user) => {
+                    const isSelected = selectedEmployeeIds.includes(user.id);
+                    return (
+                      <TouchableOpacity
+                        key={user.id}
+                        style={[
+                          styles.employeeRow,
+                          isSelected && styles.employeeRowSelected,
+                        ]}
+                        onPress={() => toggleEmployee(user.id)}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: isSelected }}
+                      >
+                        <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
+                          {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                        </View>
+                        <View style={styles.employeeInfo}>
+                          <Text style={styles.employeeName}>
+                            {user.name || user.email}
+                          </Text>
+                          {user.name && (
+                            <Text style={styles.employeeEmail}>{user.email}</Text>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : (
+                <Text style={styles.noEmployeesText}>No approved users available.</Text>
+              )}
+            </ScrollView>
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowJobInfoModal(false)}>
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.clearBtn, updateJob.isPending && styles.btnDisabled]}
+                style={[styles.clearBtn, (updateJob.isPending || setJobEmployees.isPending) && styles.btnDisabled]}
                 onPress={handleSaveJobInfo}
-                disabled={updateJob.isPending}
+                disabled={updateJob.isPending || setJobEmployees.isPending}
               >
-                {updateJob.isPending
+                {(updateJob.isPending || setJobEmployees.isPending)
                   ? <ActivityIndicator color="#fff" size="small" />
                   : <Text style={styles.clearBtnText}>Save</Text>}
               </TouchableOpacity>
@@ -498,10 +580,19 @@ const styles = StyleSheet.create({
     color: "#374151",
     fontWeight: "500",
   },
+  jobInfoMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   jobInfoRate: {
     fontSize: 13,
     color: "#2563eb",
     fontWeight: "600",
+  },
+  jobInfoEmployees: {
+    fontSize: 12,
+    color: "#6b7280",
   },
   jobInfoLabel: {
     fontSize: 13,
@@ -514,5 +605,63 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
     marginTop: 4,
     marginBottom: 12,
+  },
+  jobInfoScroll: {
+    maxHeight: 400,
+    marginBottom: 16,
+  },
+  employeeList: {
+    gap: 6,
+  },
+  employeeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    backgroundColor: "#f9fafb",
+  },
+  employeeRowSelected: {
+    borderColor: "#2563eb",
+    backgroundColor: "#eff6ff",
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: "#d1d5db",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  checkboxChecked: {
+    borderColor: "#2563eb",
+    backgroundColor: "#2563eb",
+  },
+  checkmark: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  employeeInfo: {
+    flex: 1,
+  },
+  employeeName: {
+    fontSize: 14,
+    color: "#1a1a1a",
+    fontWeight: "500",
+  },
+  employeeEmail: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginTop: 1,
+  },
+  noEmployeesText: {
+    fontSize: 13,
+    color: "#9ca3af",
+    fontStyle: "italic",
   },
 });

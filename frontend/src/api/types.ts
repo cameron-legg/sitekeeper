@@ -16,6 +16,12 @@ export interface JobSite {
   updated_at: string;
 }
 
+export interface JobEmployee {
+  id: string;
+  name: string | null;
+  email: string;
+}
+
 export interface Job {
   id: string;
   job_site_id: string;
@@ -27,6 +33,7 @@ export interface Job {
   finished_at: string | null;
   created_at: string;
   updated_at: string;
+  employees: JobEmployee[];
 }
 
 export interface Contact {

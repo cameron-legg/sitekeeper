@@ -70,6 +70,22 @@ job_contacts = db.Table(
     ),
 )
 
+job_employees = db.Table(
+    "job_employees",
+    Column(
+        "job_id",
+        UUID(as_uuid=True),
+        ForeignKey("jobs.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "user_id",
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
 
 # ---------------------------------------------------------------------------
 # User
@@ -205,6 +221,7 @@ class Job(db.Model):
     job_site = relationship("JobSite", back_populates="jobs")
     primary_contact = relationship("Contact", foreign_keys=[primary_contact_id])
     contacts = relationship("Contact", secondary=job_contacts, backref="jobs")
+    employees = relationship("User", secondary=job_employees, backref="assigned_jobs")
     notes = relationship("Note", back_populates="job", cascade="all, delete-orphan")
     estimates = relationship(
         "Estimate", back_populates="job", cascade="all, delete-orphan"
