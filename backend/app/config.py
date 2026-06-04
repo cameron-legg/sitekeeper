@@ -40,6 +40,7 @@ class Config:
     SECRET_KEY: str = os.environ.get("SECRET_KEY", JWT_SECRET)
     TESTING: bool = False
     DEBUG: bool = os.environ.get("FLASK_DEBUG", "0") == "1"
+    MAX_CONTENT_LENGTH: int = int(os.environ.get("MAX_CONTENT_LENGTH", str(25 * 1024 * 1024)))  # 25 MB
 
     # OpenAI (for AI assistant features)
     OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "")
