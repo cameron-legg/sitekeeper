@@ -680,6 +680,36 @@ class JobPhoto(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# DocumentPhoto  (junction: links job_photos to estimates/invoices)
+# ---------------------------------------------------------------------------
+
+
+class DocumentPhoto(db.Model):
+    __tablename__ = "document_photos"
+    __table_args__ = (
+        CheckConstraint(
+            "document_type IN ('estimate', 'invoice')",
+            name="ck_document_photos_type",
+        ),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id = Column(UUID(as_uuid=True), nullable=False)
+    document_type = Column(String(20), nullable=False)
+    photo_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("job_photos.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    sort_order = Column(Integer, nullable=False, default=0)
+
+    photo = relationship("JobPhoto")
+
+    def __repr__(self):
+        return f"<DocumentPhoto doc={self.document_id} photo={self.photo_id}>"
+
+
+# ---------------------------------------------------------------------------
 # BusinessInfo  (tenant-level settings — one row per tenant database)
 # ---------------------------------------------------------------------------
 

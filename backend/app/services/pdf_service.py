@@ -72,6 +72,47 @@ class PdfService:
     # Helpers
     # ------------------------------------------------------------------
 
+    def _load_document_photos(self, document_id: str, document_type: str) -> list[bytes]:
+        """Load photo bytes for all photos attached to a document.
+
+        Returns a list of raw image bytes, skipping any that fail to download.
+        """
+        from ..models import DocumentPhoto
+        from ..services.job_photo_service import _get_media_bucket
+
+        doc_photos = (
+            DocumentPhoto.query
+            .filter_by(document_id=document_id, document_type=document_type)
+            .order_by(DocumentPhoto.sort_order)
+            .all()
+        )
+
+        if not doc_photos:
+            return []
+
+        # Get media storage
+        storage = self._minio_storage or getattr(current_app, "minio_storage", None)
+        if storage is None:
+            return []
+
+        from flask import g
+        media_bucket = _get_media_bucket()
+        media_storage = storage.with_bucket(media_bucket)
+
+        images = []
+        for dp in doc_photos:
+            if dp.photo is None:
+                continue
+            try:
+                img_bytes = media_storage.download(dp.photo.object_key)
+                images.append(img_bytes)
+            except Exception:
+                logger.warning(
+                    "Failed to load photo %s for document %s PDF",
+                    dp.photo_id, document_id,
+                )
+        return images
+
     @staticmethod
     def _resolve_primary_contact(job) -> str | None:
         """Resolve the primary contact name: job's primary_contact first,
@@ -198,6 +239,9 @@ class PdfService:
             show_notes=estimate.show_notes,
         )
 
+        # Load attached photos
+        pdf_data.photo_images = self._load_document_photos(estimate_id, "estimate")
+
         # Generate PDF bytes
         pdf_bytes = build_pdf(pdf_data)
 
@@ -279,6 +323,9 @@ class PdfService:
             show_worksite_address=invoice.show_worksite_address,
             show_notes=invoice.show_notes,
         )
+
+        # Load attached photos
+        pdf_data.photo_images = self._load_document_photos(invoice_id, "invoice")
 
         # Generate PDF bytes
         pdf_bytes = build_pdf(pdf_data)

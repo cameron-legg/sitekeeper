@@ -105,4 +105,24 @@ class ConversionService:
                 )
                 self._invoice_repo.add_entry(new_entry)
 
+        # Copy document photo attachments
+        from ..models import DocumentPhoto
+        from ..extensions import db
+
+        src_photos = (
+            DocumentPhoto.query
+            .filter_by(document_id=estimate_id, document_type="estimate")
+            .order_by(DocumentPhoto.sort_order)
+            .all()
+        )
+        for dp in src_photos:
+            db.session.add(DocumentPhoto(
+                document_id=str(invoice.id),
+                document_type="invoice",
+                photo_id=str(dp.photo_id),
+                sort_order=dp.sort_order,
+            ))
+        if src_photos:
+            db.session.commit()
+
         return invoice

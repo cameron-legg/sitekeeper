@@ -13,6 +13,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import (
+    Image,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -71,6 +72,8 @@ class PdfData:
     document_date: str | None = None
     business_address: str | None = None
     notes: str | None = None
+    # Photo data (list of raw image bytes)
+    photo_images: list[bytes] | None = None
     # Visibility flags (all default True for backward compat)
     show_document_number: bool = True
     show_document_date: bool = True
@@ -471,7 +474,42 @@ def build_pdf(data: PdfData) -> bytes:
                 elements.append(Spacer(1, 6))
 
     # ------------------------------------------------------------------
-    # 10. Footer
+    # 10. Attached Photos
+    # ------------------------------------------------------------------
+    if data.photo_images:
+        elements.append(Spacer(1, 16))
+        elements.append(
+            Paragraph("<b>Photos</b>", style_bold)
+        )
+        elements.append(Spacer(1, 8))
+
+        max_width = page_width * 0.9
+        max_height = 5 * inch
+
+        for img_bytes in data.photo_images:
+            try:
+                img_buf = BytesIO(img_bytes)
+                img = Image(img_buf)
+                # Scale to fit within max dimensions while preserving aspect ratio
+                iw, ih = img.drawWidth, img.drawHeight
+                if iw > max_width:
+                    scale = max_width / iw
+                    iw *= scale
+                    ih *= scale
+                if ih > max_height:
+                    scale = max_height / ih
+                    iw *= scale
+                    ih *= scale
+                img.drawWidth = iw
+                img.drawHeight = ih
+                elements.append(img)
+                elements.append(Spacer(1, 8))
+            except Exception:
+                # Skip photos that can't be rendered (corrupt, unsupported format)
+                pass
+
+    # ------------------------------------------------------------------
+    # 11. Footer
     # ------------------------------------------------------------------
     elements.append(Spacer(1, 24))
     elements.append(

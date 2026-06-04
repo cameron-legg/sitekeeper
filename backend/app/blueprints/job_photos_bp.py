@@ -124,3 +124,78 @@ def delete_photo(photo_id: str):
         return server_error(str(exc))
     except Exception:
         return server_error()
+
+
+# ---------------------------------------------------------------------------
+# Document photo attachments (link existing job photos to estimates/invoices)
+# ---------------------------------------------------------------------------
+
+
+@job_photos_bp.get("/estimates/<document_id>/photos")
+@auth_required
+def list_estimate_photos(document_id: str):
+    """List photos attached to an estimate."""
+    user_id = g.current_user_id
+    try:
+        photos = _service.list_document_photos(document_id, "estimate", user_id)
+        return jsonify([_serialize_photo(p) for p in photos]), 200
+    except NotFoundError:
+        return not_found("Estimate")
+    except Exception:
+        return server_error()
+
+
+@job_photos_bp.put("/estimates/<document_id>/photos")
+@auth_required
+def set_estimate_photos(document_id: str):
+    """Set the photos attached to an estimate (replaces current set).
+
+    Body: {"photo_ids": ["uuid1", "uuid2", ...]}
+    """
+    user_id = g.current_user_id
+    data = request.get_json(silent=True) or {}
+    photo_ids = data.get("photo_ids", [])
+    if not isinstance(photo_ids, list):
+        return error_response("VALIDATION_ERROR", "photo_ids must be an array.", field="photo_ids")
+    try:
+        photos = _service.set_document_photos(document_id, "estimate", photo_ids, user_id)
+        return jsonify([_serialize_photo(p) for p in photos]), 200
+    except NotFoundError as exc:
+        return not_found(str(exc))
+    except Exception:
+        return server_error()
+
+
+@job_photos_bp.get("/invoices/<document_id>/photos")
+@auth_required
+def list_invoice_photos(document_id: str):
+    """List photos attached to an invoice."""
+    user_id = g.current_user_id
+    try:
+        photos = _service.list_document_photos(document_id, "invoice", user_id)
+        return jsonify([_serialize_photo(p) for p in photos]), 200
+    except NotFoundError:
+        return not_found("Invoice")
+    except Exception:
+        return server_error()
+
+
+@job_photos_bp.put("/invoices/<document_id>/photos")
+@auth_required
+def set_invoice_photos(document_id: str):
+    """Set the photos attached to an invoice (replaces current set).
+
+    Body: {"photo_ids": ["uuid1", "uuid2", ...]}
+    """
+    user_id = g.current_user_id
+    data = request.get_json(silent=True) or {}
+    photo_ids = data.get("photo_ids", [])
+    if not isinstance(photo_ids, list):
+        return error_response("VALIDATION_ERROR", "photo_ids must be an array.", field="photo_ids")
+    try:
+        photos = _service.set_document_photos(document_id, "invoice", photo_ids, user_id)
+        return jsonify([_serialize_photo(p) for p in photos]), 200
+    except NotFoundError as exc:
+        return not_found(str(exc))
+    except Exception:
+        return server_error()

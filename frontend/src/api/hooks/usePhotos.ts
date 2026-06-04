@@ -96,3 +96,46 @@ export function getPhotoUrl(photoId: string, token: string | null): string {
   }
   return url;
 }
+
+// ── Document photo attachments (estimate/invoice) ─────────────────────────────
+
+export function useDocumentPhotos(documentId: string, documentType: "estimate" | "invoice") {
+  const path = documentType === "estimate" ? "estimates" : "invoices";
+  return useQuery<JobPhoto[]>({
+    queryKey: ["document-photos", documentType, documentId] as const,
+    queryFn: () =>
+      apiClient
+        .get<JobPhoto[]>(`/api/v1/${path}/${documentId}/photos`)
+        .then((r) => r.data),
+    enabled: !!documentId,
+  });
+}
+
+export function useSetDocumentPhotos() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      documentId,
+      documentType,
+      photoIds,
+    }: {
+      documentId: string;
+      documentType: "estimate" | "invoice";
+      photoIds: string[];
+    }) => {
+      const path = documentType === "estimate" ? "estimates" : "invoices";
+      return apiClient
+        .put<JobPhoto[]>(`/api/v1/${path}/${documentId}/photos`, { photo_ids: photoIds })
+        .then((r) => r.data);
+    },
+    onSuccess: (_, { documentId, documentType }) => {
+      qc.invalidateQueries({ queryKey: ["document-photos", documentType, documentId] });
+      // Mark PDF as stale
+      if (documentType === "estimate") {
+        qc.invalidateQueries({ queryKey: ["estimates"] });
+      } else {
+        qc.invalidateQueries({ queryKey: ["invoices"] });
+      }
+    },
+  });
+}

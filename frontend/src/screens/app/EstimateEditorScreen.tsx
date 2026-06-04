@@ -15,6 +15,7 @@ import {
 import { useSavedItems, usePopulateSavedItem, useSaveEntryToLibrary, usePopulateSavedEntry, useAllSavedEntries } from "../../api/hooks/useSavedItems";
 import { useJob } from "../../api/hooks/useJobs";
 import LineItemEditor from "../../components/LineItemEditor";
+import DocumentPhotoPicker from "../../components/DocumentPhotoPicker";
 import type { LineItemEntry, SavedItem, SavedItemEntry } from "../../api/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "EstimateEditor">;
@@ -333,6 +334,9 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
             <TextInput style={[styles.input, styles.multiline]} value={notes}
               onChangeText={(v) => onFieldChange(setNotes, "notes", v)}
               placeholder="Additional notes (supports markdown)" multiline numberOfLines={4} />
+
+            {/* Document Photos */}
+            <DocumentPhotoPicker documentId={estimateId} documentType="estimate" jobId={jobId} />
 
             {/* Line Items */}
             <Text style={[styles.sectionHeader, { marginTop: 20 }]}>Line Items</Text>

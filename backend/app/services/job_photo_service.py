@@ -184,3 +184,91 @@ class JobPhotoService:
 
         # Delete from database
         self._photo_repo.delete(photo_id)
+
+    # ------------------------------------------------------------------
+    # Document photo attachments
+    # ------------------------------------------------------------------
+
+    def list_document_photos(
+        self, document_id: str, document_type: str, user_id: str
+    ) -> list[JobPhoto]:
+        """List photos attached to an estimate or invoice."""
+        from ..models import DocumentPhoto
+
+        # Verify document access
+        if document_type == "estimate":
+            from .estimate_service import EstimateService
+            EstimateService().get(document_id, user_id)
+        else:
+            from .invoice_service import InvoiceService
+            InvoiceService().get(document_id, user_id)
+
+        doc_photos = (
+            DocumentPhoto.query
+            .filter_by(document_id=document_id, document_type=document_type)
+            .order_by(DocumentPhoto.sort_order)
+            .all()
+        )
+        return [dp.photo for dp in doc_photos if dp.photo is not None]
+
+    def set_document_photos(
+        self, document_id: str, document_type: str, photo_ids: list[str], user_id: str
+    ) -> list[JobPhoto]:
+        """Replace the set of photos attached to a document.
+
+        Validates that all photo_ids belong to the same job as the document.
+        """
+        from ..models import DocumentPhoto, Estimate, Invoice
+        from ..extensions import db
+
+        # Verify document access and get job_id
+        if document_type == "estimate":
+            from .estimate_service import EstimateService
+            doc = EstimateService().get(document_id, user_id)
+            job_id = str(doc.job_id)
+        else:
+            from .invoice_service import InvoiceService
+            doc = InvoiceService().get(document_id, user_id)
+            job_id = str(doc.job_id)
+
+        # Validate all photo_ids belong to this job
+        if photo_ids:
+            photos = JobPhoto.query.filter(
+                JobPhoto.id.in_(photo_ids),
+                JobPhoto.job_id == job_id,
+            ).all()
+            found_ids = {str(p.id) for p in photos}
+            missing = set(photo_ids) - found_ids
+            if missing:
+                raise NotFoundError(
+                    f"Photos not found or don't belong to this job: {', '.join(missing)}"
+                )
+        else:
+            photos = []
+
+        # Remove existing attachments
+        DocumentPhoto.query.filter_by(
+            document_id=document_id, document_type=document_type
+        ).delete()
+
+        # Create new attachments in order
+        for idx, pid in enumerate(photo_ids):
+            db.session.add(DocumentPhoto(
+                document_id=document_id,
+                document_type=document_type,
+                photo_id=pid,
+                sort_order=idx,
+            ))
+
+        db.session.commit()
+
+        # Touch the document's updated_at to mark PDF as stale
+        if document_type == "estimate":
+            from .estimate_service import EstimateService
+            EstimateService()._touch_estimate(document_id)
+        else:
+            from .invoice_service import InvoiceService
+            InvoiceService()._touch_invoice(document_id)
+
+        # Return photos in order
+        return self.list_document_photos(document_id, document_type, user_id)
