@@ -30,7 +30,7 @@ Services started:
 |---------|-----------|---------|
 | `db` | **5434** | Development PostgreSQL |
 | `db_test` | **5433** | Integration test PostgreSQL |
-| `minio` | **9000** (API), **9001** (console) | PDF blob storage |
+| `minio` | **9000** (API), **9001** (console) | Blob storage (PDFs + media) |
 
 ### 2. Set up and run the backend
 
@@ -44,6 +44,7 @@ source backend/venv/bin/activate
 pip install -r backend/requirements.txt
 cp backend/.env.example backend/.env   # then edit JWT_SECRET
 backend/venv/bin/alembic -c backend/alembic.ini upgrade head
+./infra/init-minio-buckets.sh          # create all MinIO buckets
 flask --app backend/app run
 ```
 
@@ -114,7 +115,8 @@ Each client business gets a fully isolated environment:
 |-----------|-----------|
 | Subdomain | `<slug>.entouch.org` |
 | Database | `sk_<slug>` on shared PostgreSQL |
-| File storage | `<slug>-pdfs` bucket on shared MinIO |
+| PDF storage | `<slug>-pdfs` bucket on shared MinIO |
+| Media storage | `<slug>-media` bucket on shared MinIO |
 | Users | Completely separate per tenant |
 
 The backend resolves the tenant from the `Host` header and routes all queries to the correct database. See **[TENANTS.md](TENANTS.md)** for full documentation.
@@ -180,6 +182,7 @@ ssh awspantrypix "sudo nginx -t && sudo systemctl reload nginx"  # Reload nginx
 | Document | Contents |
 |----------|----------|
 | [TENANTS.md](TENANTS.md) | Tenant creation, deletion, architecture details |
+| [MEDIA.md](MEDIA.md) | Job photo uploads, MinIO media buckets, API reference |
 | [backend/README.md](backend/README.md) | Backend setup, testing, API reference |
 | `.kiro/steering/deployment.md` | Full deployment procedures and server details |
 | `.kiro/steering/backend-conventions.md` | Code conventions for the Flask backend |

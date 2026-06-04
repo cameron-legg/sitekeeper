@@ -32,7 +32,14 @@
       "backgroundColor": "#ffffff"
     },
     "plugins": [
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SiteKeeper needs access to your photos to upload job media.",
+          "cameraPermission": "SiteKeeper needs access to your camera to take photos for jobs."
+        }
+      ]
     ],
     "scheme": "sitekeeper"
   }

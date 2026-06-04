@@ -113,3 +113,15 @@ class MinioStorage:
             if response is not None:
                 response.close()
                 response.release_conn()
+
+    def delete(self, object_key: str) -> None:
+        """Delete an object from the bucket."""
+        try:
+            self.client.remove_object(self.bucket_name, object_key)
+            logger.info("Deleted '%s/%s'", self.bucket_name, object_key)
+        except S3Error:
+            logger.exception("S3 error deleting '%s/%s'", self.bucket_name, object_key)
+            raise
+        except Exception:
+            logger.exception("Failed to delete from MinIO at '%s/%s'", self.bucket_name, object_key)
+            raise

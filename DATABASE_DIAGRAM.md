@@ -203,6 +203,18 @@ erDiagram
         UUID contact_id FK
     }
 
+    %% ===== JOB PHOTOS (media uploads) =====
+    job_photos {
+        UUID id PK
+        UUID job_id FK
+        UUID uploaded_by FK "nullable, SET NULL on user delete"
+        TEXT object_key "MinIO path"
+        VARCHAR(255) filename
+        VARCHAR(100) content_type
+        INTEGER file_size "bytes"
+        TIMESTAMPTZ created_at
+    }
+
     %% ===== RELATIONSHIPS =====
 
     users ||--o{ job_sites : "creates"
@@ -214,6 +226,7 @@ erDiagram
     jobs ||--o{ notes : "has"
     jobs ||--o{ estimates : "has"
     jobs ||--o{ invoices : "has"
+    jobs ||--o{ job_photos : "has"
     jobs }o--o| contacts : "primary_contact"
 
     estimates ||--o{ line_items : "has (parent_type=estimate)"

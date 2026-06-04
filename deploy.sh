@@ -94,6 +94,12 @@ for t in tenants.values():
         '
     "
 
+    info "  Ensuring all MinIO buckets exist (PDFs + media)..."
+    ssh "$SSH_HOST" "
+        sudo -u sitekeeper bash $APP_DIR/infra/init-minio-buckets.sh 2>&1 | tail -10
+    " && info "  All buckets ready." \
+      || warn "  Bucket creation had issues (non-fatal, check logs)."
+
     info "  Restarting API service..."
     ssh "$SSH_HOST" "sudo systemctl restart $SERVICE"
     sleep 2

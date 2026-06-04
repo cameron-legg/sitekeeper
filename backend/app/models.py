@@ -232,6 +232,9 @@ class Job(db.Model):
     invoices = relationship(
         "Invoice", back_populates="job", cascade="all, delete-orphan"
     )
+    photos = relationship(
+        "JobPhoto", back_populates="job", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<Job {self.name} [{self.status}]>"
@@ -640,6 +643,40 @@ class TimeEntry(db.Model):
 
     def __repr__(self):
         return f"<TimeEntry job={self.job_id} user={self.user_id}>"
+
+
+# ---------------------------------------------------------------------------
+# JobPhoto  (media uploads per job, stored in MinIO)
+# ---------------------------------------------------------------------------
+
+
+class JobPhoto(db.Model):
+    __tablename__ = "job_photos"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("jobs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    uploaded_by = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    object_key = Column(Text, nullable=False)
+    filename = Column(String(255), nullable=False)
+    content_type = Column(String(100), nullable=False)
+    file_size = Column(Integer, nullable=False)
+    created_at = Column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    job = relationship("Job", back_populates="photos")
+    uploader = relationship("User", foreign_keys=[uploaded_by])
+
+    def __repr__(self):
+        return f"<JobPhoto {self.filename}>"
 
 
 # ---------------------------------------------------------------------------

@@ -89,15 +89,17 @@ for slug, cfg in tenants.items():
 cmd_create() {
     local db_name="sk_${SLUG}"
     local bucket="${SLUG}-pdfs"
+    local media_bucket="${SLUG}-media"
     local domain="${SLUG}.${BASE_DOMAIN}"
     local db_url="postgresql://${DB_USER}:${DB_PASS}@localhost:${DB_PORT}/${db_name}"
     [[ -z "$NAME" ]] && NAME=$(echo "$SLUG" | sed 's/-/ /g' | sed 's/\b\(.\)/\u\1/g')
 
     info "Creating tenant: $SLUG"
-    echo "  Domain:   $domain"
-    echo "  Database: $db_name"
-    echo "  Bucket:   $bucket"
-    echo "  Name:     $NAME"
+    echo "  Domain:       $domain"
+    echo "  Database:     $db_name"
+    echo "  PDF Bucket:   $bucket"
+    echo "  Media Bucket: $media_bucket"
+    echo "  Name:         $NAME"
     echo ""
 
     # 1. Check if tenant already exists
@@ -126,8 +128,8 @@ print(\\\"yes\\\" if \\\"$SLUG\\\" in tenants else \\\"no\\\")
         DATABASE_URL=$db_url $APP_DIR/backend/venv/bin/alembic upgrade head 2>&1
     '"
 
-    # 4. Create MinIO bucket
-    info "Creating MinIO bucket '$bucket'..."
+    # 4. Create MinIO buckets (PDFs + Media)
+    info "Creating MinIO buckets '$bucket' and '$media_bucket'..."
     ssh "$SSH_HOST" "sudo -u sitekeeper bash -c '
         cd $APP_DIR/backend &&
         set -a && source .env && set +a &&
@@ -140,14 +142,14 @@ client = Minio(
     secret_key=os.environ.get(\\\"MINIO_SECRET_KEY\\\", \\\"minioadmin\\\"),
     secure=False
 )
-bucket = \\\"$bucket\\\"
-if not client.bucket_exists(bucket):
-    client.make_bucket(bucket)
-    print(f\\\"Created bucket: {bucket}\\\")
-else:
-    print(f\\\"Bucket already exists: {bucket}\\\")
+for bkt in [\\\"$bucket\\\", \\\"$media_bucket\\\"]:
+    if not client.bucket_exists(bkt):
+        client.make_bucket(bkt)
+        print(f\\\"Created bucket: {bkt}\\\")
+    else:
+        print(f\\\"Bucket already exists: {bkt}\\\")
 \"
-    '" || warn "MinIO bucket creation failed — you can create it manually later."
+    '" || warn "MinIO bucket creation failed — you can create them manually later."
 
     # 5. Update tenants.json
     info "Registering tenant in tenants.json..."
@@ -160,6 +162,7 @@ with open(\\\"tenants.json\\\") as f:
 tenants[\\\"$SLUG\\\"] = {
     \\\"database_url\\\": \\\"$db_url\\\",
     \\\"bucket\\\": \\\"$bucket\\\",
+    \\\"media_bucket\\\": \\\"$media_bucket\\\",
     \\\"domain\\\": \\\"$domain\\\",
     \\\"name\\\": \\\"$NAME\\\"
 }
@@ -240,6 +243,7 @@ NGINX
 cmd_delete() {
     local db_name="sk_${SLUG}"
     local bucket="${SLUG}-pdfs"
+    local media_bucket="${SLUG}-media"
     local domain="${SLUG}.${BASE_DOMAIN}"
 
     [[ "$SLUG" == "default" ]] && die "Cannot delete the default tenant!"
@@ -286,8 +290,8 @@ print(\\\"Tenant removed from registry.\\\")
     info "Dropping database '$db_name'..."
     ssh "$SSH_HOST" "sudo -u sitekeeper docker exec app-db-1 psql -U $DB_USER -c \"DROP DATABASE IF EXISTS $db_name;\" 2>&1"
 
-    # 5. Remove MinIO bucket (requires emptying first)
-    info "Removing MinIO bucket '$bucket'..."
+    # 5. Remove MinIO buckets (requires emptying first)
+    info "Removing MinIO buckets '$bucket' and '$media_bucket'..."
     ssh "$SSH_HOST" "sudo -u sitekeeper bash -c '
         cd $APP_DIR/backend &&
         set -a && source .env && set +a &&
@@ -301,21 +305,20 @@ client = Minio(
     secret_key=os.environ.get(\\\"MINIO_SECRET_KEY\\\", \\\"minioadmin\\\"),
     secure=False
 )
-bucket = \\\"$bucket\\\"
-if client.bucket_exists(bucket):
-    # Delete all objects first
-    objects = client.list_objects(bucket, recursive=True)
-    delete_list = [DeleteObject(obj.object_name) for obj in objects]
-    if delete_list:
-        errors = client.remove_objects(bucket, delete_list)
-        for err in errors:
-            print(f\\\"Error deleting {err}\\\")
-    client.remove_bucket(bucket)
-    print(f\\\"Removed bucket: {bucket}\\\")
-else:
-    print(f\\\"Bucket not found: {bucket}\\\")
+for bucket in [\\\"$bucket\\\", \\\"$media_bucket\\\"]:
+    if client.bucket_exists(bucket):
+        objects = client.list_objects(bucket, recursive=True)
+        delete_list = [DeleteObject(obj.object_name) for obj in objects]
+        if delete_list:
+            errors = client.remove_objects(bucket, delete_list)
+            for err in errors:
+                print(f\\\"Error deleting {err}\\\")
+        client.remove_bucket(bucket)
+        print(f\\\"Removed bucket: {bucket}\\\")
+    else:
+        print(f\\\"Bucket not found: {bucket}\\\")
 \"
-    '" || warn "MinIO cleanup had issues — bucket may need manual removal."
+    '" || warn "MinIO cleanup had issues — buckets may need manual removal."
 
     # 6. Restart API
     info "Restarting API service..."

@@ -269,3 +269,13 @@ export interface ClockStatus {
   clocked_in: boolean;
   entry: TimeEntry | null;
 }
+
+export interface JobPhoto {
+  id: string;
+  job_id: string;
+  uploaded_by: string | null;
+  filename: string;
+  content_type: string;
+  file_size: number;
+  created_at: string;
+}

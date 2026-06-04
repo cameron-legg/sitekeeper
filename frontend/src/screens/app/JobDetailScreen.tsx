@@ -27,6 +27,7 @@ import NotesTab from "../../components/NotesTab";
 import ContactsTab from "../../components/ContactsTab";
 import EstimatesTab from "../../components/EstimatesTab";
 import InvoicesTab from "../../components/InvoicesTab";
+import MediaTab from "../../components/MediaTab";
 
 // Conditionally import DateTimePicker only on native
 let DateTimePicker: any = null;
@@ -36,13 +37,14 @@ if (Platform.OS !== "web") {
 
 type Props = NativeStackScreenProps<RootStackParamList, "JobDetail">;
 
-type TabKey = "notes" | "contacts" | "estimates" | "invoices";
+type TabKey = "notes" | "contacts" | "estimates" | "invoices" | "media";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "notes", label: "Notes" },
   { key: "contacts", label: "Contacts" },
   { key: "estimates", label: "Estimates" },
   { key: "invoices", label: "Invoices" },
+  { key: "media", label: "Media" },
 ];
 
 const STATUS_OPTIONS: Job["status"][] = [
@@ -450,6 +452,7 @@ export default function JobDetailScreen({ route, navigation }: Props) {
         {activeTab === "contacts" && <ContactsTab jobId={jobId} />}
         {activeTab === "estimates" && <EstimatesTab jobId={jobId} />}
         {activeTab === "invoices" && <InvoicesTab jobId={jobId} />}
+        {activeTab === "media" && <MediaTab jobId={jobId} />}
       </View>
 
       {/* Clear finished date confirmation */}

@@ -33,7 +33,16 @@ def auth_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         auth_header = request.headers.get("Authorization", "")
-        if not auth_header.startswith("Bearer "):
+        token = None
+
+        if auth_header.startswith("Bearer "):
+            token = auth_header[len("Bearer "):]
+        else:
+            # Fall back to ?token= query parameter (used by <Image> components
+            # that cannot set custom headers, e.g. React Native on web)
+            token = request.args.get("token")
+
+        if not token:
             return (
                 jsonify(
                     {
@@ -45,8 +54,6 @@ def auth_required(f):
                 ),
                 401,
             )
-
-        token = auth_header[len("Bearer "):]
         try:
             user_id = _auth_service.validate_token(token)
         except AuthError as exc:

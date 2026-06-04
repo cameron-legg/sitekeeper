@@ -2,12 +2,14 @@
     "default": {
         "database_url": "postgresql://sitekeeper:sitekeeper@localhost:5435/sitekeeper",
         "bucket": "sitekeeper-pdfs",
+        "media_bucket": "sitekeeper-media",
         "domain": "entouch.org",
         "name": "SiteKeeper (Default)"
     },
     "nocoresources": {
         "database_url": "postgresql://sitekeeper:sitekeeper@localhost:5435/sk_nocoresources",
         "bucket": "nocoresources-pdfs",
+        "media_bucket": "nocoresources-media",
         "domain": "nocoresources.entouch.org",
         "name": "NoCo Resources"
     }
