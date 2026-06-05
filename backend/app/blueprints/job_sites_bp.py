@@ -18,7 +18,7 @@ job_sites_bp = Blueprint("job_sites", __name__)
 _service = JobSiteService()
 
 
-def _serialize_site(site, job_count: int = 0, active_job_count: int = 0) -> dict:
+def _serialize_site(site, job_count: int = 0, active_job_count: int = 0, invoice_status_counts: dict | None = None) -> dict:
     return {
         "id": str(site.id),
         "user_id": str(site.user_id),
@@ -29,6 +29,7 @@ def _serialize_site(site, job_count: int = 0, active_job_count: int = 0) -> dict
         "primary_contact_id": str(site.primary_contact_id) if site.primary_contact_id else None,
         "job_count": job_count,
         "active_job_count": active_job_count,
+        "invoice_status_counts": invoice_status_counts or {"drafting": 0, "waiting_to_send": 0, "sent_awaiting_payment": 0, "paid": 0},
         "created_at": site.created_at.isoformat() if site.created_at else None,
         "updated_at": site.updated_at.isoformat() if site.updated_at else None,
     }
@@ -41,7 +42,18 @@ def list_job_sites():
     user_id = g.current_user_id
     try:
         entries = _service.list_for_user(user_id)
-        return jsonify([_serialize_site(e["site"], e["job_count"], e["active_job_count"]) for e in entries]), 200
+        result = []
+        for e in entries:
+            site = e["site"]
+            # Aggregate invoice status counts across all jobs in the site
+            counts = {"drafting": 0, "waiting_to_send": 0, "sent_awaiting_payment": 0, "paid": 0}
+            for job in site.jobs:
+                for inv in job.invoices:
+                    s = inv.status or "drafting"
+                    if s in counts:
+                        counts[s] += 1
+            result.append(_serialize_site(site, e["job_count"], e["active_job_count"], counts))
+        return jsonify(result), 200
     except Exception:
         return server_error()
 

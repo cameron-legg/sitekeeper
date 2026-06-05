@@ -94,13 +94,16 @@ class InvoiceService:
         return self._invoice_repo.create(invoice)
 
     def update(self, invoice_id: str, user_id: str, title: str | None = None,
-               delivered: bool | None = None, tax_rate: Decimal | None = None,
+               delivered: bool | None = None, status: str | None = None,
+               tax_rate: Decimal | None = None,
                clear_tax: bool = False, metadata: dict | None = None) -> Invoice:
         invoice = self._verify_invoice_access(invoice_id, user_id)
         if title is not None:
             invoice.title = title
         if delivered is not None:
             invoice.delivered = delivered
+        if status is not None:
+            invoice.status = status
         if clear_tax:
             invoice.tax_rate = None
         elif tax_rate is not None:

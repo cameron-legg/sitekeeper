@@ -51,6 +51,7 @@ class ConversionService:
             job_id=str(estimate.job_id),
             title=estimate.title,
             delivered=False,
+            status="drafting",
             source_estimate_id=estimate_id,
             tax_rate=estimate.tax_rate,
             document_number=invoice_number,

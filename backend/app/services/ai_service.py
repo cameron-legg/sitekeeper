@@ -1233,6 +1233,7 @@ class AIService:
                     "title": invoice.title,
                     "tax_rate": str(invoice.tax_rate) if invoice.tax_rate else None,
                     "delivered": invoice.delivered,
+                    "status": invoice.status,
                     "document_number": invoice.document_number,
                     "document_date": invoice.document_date.isoformat() if invoice.document_date else None,
                     "bill_to": invoice.bill_to,

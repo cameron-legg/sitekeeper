@@ -285,6 +285,8 @@ export default function AIChatBubble({ screenName, screenParams }: AIChatBubbleP
                 case "update_invoice":
                   queryClient.invalidateQueries({ queryKey: ["invoices"] });
                   queryClient.invalidateQueries({ queryKey: ["estimates"] });
+                  queryClient.invalidateQueries({ queryKey: ["jobs"] });
+                  queryClient.invalidateQueries({ queryKey: ["job-sites"] });
                   break;
                 case "create_note":
                   queryClient.invalidateQueries({ queryKey: ["notes"] });

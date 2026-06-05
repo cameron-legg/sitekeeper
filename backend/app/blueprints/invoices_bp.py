@@ -66,6 +66,7 @@ def _serialize_invoice(invoice, totals: dict | None = None) -> dict:
         "job_id": str(invoice.job_id),
         "title": invoice.title,
         "delivered": invoice.delivered,
+        "status": invoice.status,
         "source_estimate_id": str(invoice.source_estimate_id) if invoice.source_estimate_id else None,
         "tax_rate": str(invoice.tax_rate) if invoice.tax_rate is not None else None,
         "subtotal": str(t.get("subtotal", "0")),
@@ -217,6 +218,11 @@ def patch_invoice(invoice_id: str):
     delivered = data.get("delivered")
     if delivered is not None:
         delivered = bool(delivered)
+    status = data.get("status")
+    if status is not None:
+        valid_statuses = ("drafting", "waiting_to_send", "sent_awaiting_payment", "paid")
+        if status not in valid_statuses:
+            return error_response("VALIDATION_ERROR", f"status must be one of: {', '.join(valid_statuses)}.", field="status")
     tax_rate = None
     clear_tax = False
     if "tax_rate" in data:
@@ -241,7 +247,7 @@ def patch_invoice(invoice_id: str):
 
     try:
         inv = _service.update(invoice_id=invoice_id, user_id=user_id, title=title,
-                              delivered=delivered, tax_rate=tax_rate, clear_tax=clear_tax,
+                              delivered=delivered, status=status, tax_rate=tax_rate, clear_tax=clear_tax,
                               metadata=metadata or None)
         return jsonify(_serialize_invoice(inv, _service.calculate_totals(invoice_id, user_id))), 200
     except NotFoundError:

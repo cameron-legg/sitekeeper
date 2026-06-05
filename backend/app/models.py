@@ -368,6 +368,8 @@ class Invoice(db.Model):
         nullable=True,
     )
     delivered = Column(Boolean, nullable=False, default=False)
+    # Invoice workflow status: drafting → waiting_to_send → sent_awaiting_payment → paid
+    status = Column(String(30), nullable=False, default="drafting")
     # tax_rate is stored as a percentage (e.g. 8.5 = 8.5%). NULL = no tax.
     # Tax applies only to material entries, not hours.
     tax_rate = Column(Numeric(6, 4), nullable=True)

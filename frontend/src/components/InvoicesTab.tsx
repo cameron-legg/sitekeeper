@@ -10,11 +10,22 @@ import {
   useInvoices, useCreateInvoice, useUpdateInvoice, useDeleteInvoice,
 } from "../api/hooks/useInvoices";
 import { useGenerateInvoicePdf, downloadInvoicePdf } from "../api/hooks/usePdf";
-import type { Invoice } from "../api/types";
+import type { Invoice, InvoiceStatus } from "../api/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 interface Props { jobId: string; }
+
+const INVOICE_STATUS_OPTIONS: { value: InvoiceStatus; label: string; color: string; bg: string }[] = [
+  { value: "drafting", label: "Drafting", color: "#6b7280", bg: "#f3f4f6" },
+  { value: "waiting_to_send", label: "Waiting to be Sent", color: "#d97706", bg: "#fef3c7" },
+  { value: "sent_awaiting_payment", label: "Sent & Awaiting Payment", color: "#2563eb", bg: "#dbeafe" },
+  { value: "paid", label: "Paid", color: "#065f46", bg: "#d1fae5" },
+];
+
+function getStatusDisplay(status: InvoiceStatus) {
+  return INVOICE_STATUS_OPTIONS.find((o) => o.value === status) ?? INVOICE_STATUS_OPTIONS[0];
+}
 
 export default function InvoicesTab({ jobId }: Props) {
   const navigation = useNavigation<Nav>();
@@ -35,16 +46,19 @@ export default function InvoicesTab({ jobId }: Props) {
   // Confirm delete
   const [confirmDelete, setConfirmDelete] = useState<Invoice | null>(null);
 
+  // Status picker
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
+
   // PDF
   const generatePdf = useGenerateInvoicePdf();
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  // Keep selectedInvoice in sync when list data refreshes (e.g. after PDF generation)
+  // Keep selectedInvoice in sync when list data refreshes
   React.useEffect(() => {
     if (selectedInvoice && invoices) {
       const fresh = invoices.find((i) => i.id === selectedInvoice.id);
-      if (fresh && fresh.pdf_status !== selectedInvoice.pdf_status) {
+      if (fresh && (fresh.pdf_status !== selectedInvoice.pdf_status || fresh.status !== selectedInvoice.status)) {
         setSelectedInvoice(fresh);
       }
     }
@@ -78,9 +92,9 @@ export default function InvoicesTab({ jobId }: Props) {
     navigation.navigate("InvoiceEditor", { invoiceId: invoice.id, jobId });
   }
 
-  function handleToggleDelivered(invoice: Invoice) {
-    closeSheet();
-    updateInvoice.mutate({ invoiceId: invoice.id, delivered: !invoice.delivered });
+  function handleStatusChange(invoice: Invoice, newStatus: InvoiceStatus) {
+    setShowStatusPicker(false);
+    updateInvoice.mutate({ invoiceId: invoice.id, status: newStatus });
   }
 
   function handleDelete(invoice: Invoice) {
@@ -103,36 +117,39 @@ export default function InvoicesTab({ jobId }: Props) {
             <Text style={styles.emptySubtitle}>Tap "New Invoice" to create one, or convert an estimate.</Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => openSheet(item)} activeOpacity={0.7}>
-            <View style={styles.cardMain}>
-              <View style={styles.cardLeft}>
-                <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-                <View style={styles.cardBadgeRow}>
-                  <View style={[styles.badge, item.delivered ? styles.badgeGreen : styles.badgeGrey]}>
-                    <Text style={[styles.badgeText, item.delivered ? styles.badgeTextGreen : styles.badgeTextGrey]}>
-                      {item.delivered ? "Delivered" : "Draft"}
-                    </Text>
-                  </View>
-                  {item.source_estimate_id && (
-                    <View style={styles.badgePurple}>
-                      <Text style={styles.badgePurpleText}>From estimate</Text>
+        renderItem={({ item }) => {
+          const statusInfo = getStatusDisplay(item.status);
+          return (
+            <TouchableOpacity style={styles.card} onPress={() => openSheet(item)} activeOpacity={0.7}>
+              <View style={styles.cardMain}>
+                <View style={styles.cardLeft}>
+                  <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+                  <View style={styles.cardBadgeRow}>
+                    <View style={[styles.badge, { backgroundColor: statusInfo.bg }]}>
+                      <Text style={[styles.badgeText, { color: statusInfo.color }]}>
+                        {statusInfo.label}
+                      </Text>
                     </View>
-                  )}
+                    {item.source_estimate_id && (
+                      <View style={styles.badgePurple}>
+                        <Text style={styles.badgePurpleText}>From estimate</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                <View style={styles.cardRight}>
+                  <Text style={styles.cardTotal}>${parseFloat(item.total || "0").toFixed(2)}</Text>
+                  <Text style={styles.chevron}>›</Text>
                 </View>
               </View>
-              <View style={styles.cardRight}>
-                <Text style={styles.cardTotal}>${parseFloat(item.total || "0").toFixed(2)}</Text>
-                <Text style={styles.chevron}>›</Text>
-              </View>
-            </View>
-            {item.tax_rate && parseFloat(item.tax_rate) > 0 && (
-              <Text style={styles.cardSub}>
-                Subtotal ${parseFloat(item.subtotal || "0").toFixed(2)} + tax ${parseFloat(item.tax_amount || "0").toFixed(2)}
-              </Text>
-            )}
-          </TouchableOpacity>
-        )}
+              {item.tax_rate && parseFloat(item.tax_rate) > 0 && (
+                <Text style={styles.cardSub}>
+                  Subtotal ${parseFloat(item.subtotal || "0").toFixed(2)} + tax ${parseFloat(item.tax_amount || "0").toFixed(2)}
+                </Text>
+              )}
+            </TouchableOpacity>
+          );
+        }}
       />
 
       <TouchableOpacity style={styles.addBtn} onPress={openNew}>
@@ -155,11 +172,16 @@ export default function InvoicesTab({ jobId }: Props) {
               {/* Title + badges */}
               <Text style={styles.sheetTitle}>{selectedInvoice.title}</Text>
               <View style={styles.sheetBadgeRow}>
-                <View style={[styles.badge, selectedInvoice.delivered ? styles.badgeGreen : styles.badgeGrey]}>
-                  <Text style={[styles.badgeText, selectedInvoice.delivered ? styles.badgeTextGreen : styles.badgeTextGrey]}>
-                    {selectedInvoice.delivered ? "Delivered" : "Draft"}
-                  </Text>
-                </View>
+                {(() => {
+                  const si = getStatusDisplay(selectedInvoice.status);
+                  return (
+                    <View style={[styles.badge, { backgroundColor: si.bg }]}>
+                      <Text style={[styles.badgeText, { color: si.color }]}>
+                        {si.label}
+                      </Text>
+                    </View>
+                  );
+                })()}
                 {selectedInvoice.source_estimate_id && (
                   <View style={styles.badgePurple}>
                     <Text style={styles.badgePurpleText}>Converted from estimate</Text>
@@ -193,10 +215,8 @@ export default function InvoicesTab({ jobId }: Props) {
 
                 <View style={styles.menuDivider} />
 
-                <TouchableOpacity style={styles.menuItem} onPress={() => handleToggleDelivered(selectedInvoice)}>
-                  <Text style={styles.menuItemText}>
-                    {selectedInvoice.delivered ? "↩️  Mark as Draft" : "✅  Mark Delivered"}
-                  </Text>
+                <TouchableOpacity style={styles.menuItem} onPress={() => setShowStatusPicker(true)}>
+                  <Text style={styles.menuItemText}>📋  Invoice Status</Text>
                 </TouchableOpacity>
 
                 <View style={styles.menuDivider} />
@@ -281,6 +301,35 @@ export default function InvoicesTab({ jobId }: Props) {
             </ScrollView>
           </View>
         )}
+      </Modal>
+
+      {/* ── Status picker modal ── */}
+      <Modal visible={showStatusPicker && !!selectedInvoice} transparent animationType="fade" onRequestClose={() => setShowStatusPicker(false)}>
+        <View style={styles.overlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Invoice Status</Text>
+            <Text style={styles.statusPickerHint}>Select the current status of this invoice:</Text>
+            {INVOICE_STATUS_OPTIONS.map((opt) => {
+              const isSelected = selectedInvoice?.status === opt.value;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.statusOption, isSelected && { backgroundColor: opt.bg, borderColor: opt.color }]}
+                  onPress={() => selectedInvoice && handleStatusChange(selectedInvoice, opt.value)}
+                >
+                  <View style={[styles.statusDot, { backgroundColor: opt.color }]} />
+                  <Text style={[styles.statusOptionText, isSelected && { color: opt.color, fontWeight: "700" }]}>
+                    {opt.label}
+                  </Text>
+                  {isSelected && <Text style={styles.statusCheck}>✓</Text>}
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity style={styles.statusPickerCancel} onPress={() => setShowStatusPicker(false)}>
+              <Text style={styles.statusPickerCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
 
       {/* ── Create modal ── */}
@@ -382,11 +431,7 @@ const styles = StyleSheet.create({
   cardBadgeRow: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   chevron: { fontSize: 22, color: "#d1d5db" },
   badge: { alignSelf: "flex-start", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  badgeGreen: { backgroundColor: "#d1fae5" },
-  badgeGrey: { backgroundColor: "#f3f4f6" },
   badgeText: { fontSize: 11, fontWeight: "600" },
-  badgeTextGreen: { color: "#065f46" },
-  badgeTextGrey: { color: "#6b7280" },
   badgePurple: { alignSelf: "flex-start", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, backgroundColor: "#f3e8ff" },
   badgePurpleText: { fontSize: 11, fontWeight: "600", color: "#7c3aed" },
 
@@ -428,6 +473,19 @@ const styles = StyleSheet.create({
   menuDivider: { height: 1, backgroundColor: "#e5e7eb", marginHorizontal: 16 },
   cancelBtn: { backgroundColor: "#f3f4f6", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 8 },
   cancelBtnText: { fontSize: 15, fontWeight: "600", color: "#374151" },
+
+  // Status picker
+  statusPickerHint: { fontSize: 13, color: "#6b7280", marginBottom: 12 },
+  statusOption: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10,
+    borderWidth: 1, borderColor: "#e5e7eb", marginBottom: 8,
+  },
+  statusDot: { width: 10, height: 10, borderRadius: 5 },
+  statusOptionText: { fontSize: 15, color: "#374151", flex: 1 },
+  statusCheck: { fontSize: 16, color: "#2563eb", fontWeight: "700" },
+  statusPickerCancel: { marginTop: 4, paddingVertical: 12, alignItems: "center" },
+  statusPickerCancelText: { fontSize: 15, color: "#6b7280", fontWeight: "500" },
 
   // Create / confirm modals
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: 24 },

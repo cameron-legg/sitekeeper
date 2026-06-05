@@ -89,6 +89,14 @@ export default function HomeScreen({ navigation }: Props) {
   }
 
   function renderItem({ item }: { item: JobSite }) {
+    const c = item.invoice_status_counts;
+    const invoiceParts: string[] = [];
+    if (c) {
+      if (c.drafting > 0) invoiceParts.push(`${c.drafting} drafting`);
+      if (c.waiting_to_send > 0) invoiceParts.push(`${c.waiting_to_send} waiting to send`);
+      if (c.sent_awaiting_payment > 0) invoiceParts.push(`${c.sent_awaiting_payment} sent`);
+      if (c.paid > 0) invoiceParts.push(`${c.paid} paid`);
+    }
     return (
       <TouchableOpacity
         style={styles.siteRow}
@@ -114,6 +122,11 @@ export default function HomeScreen({ navigation }: Props) {
               </View>
             )}
           </View>
+          {invoiceParts.length > 0 && (
+            <Text style={styles.invoiceStatusText}>
+              Invoices: {invoiceParts.join(", ")}
+            </Text>
+          )}
         </View>
         <TouchableOpacity
           style={styles.deleteBtn}
@@ -534,6 +547,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: "#2563eb",
+  },
+  invoiceStatusText: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginTop: 3,
   },
   deleteBtn: {
     paddingHorizontal: 10,

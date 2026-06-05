@@ -344,6 +344,24 @@ export default function JobDetailScreen({ route, navigation }: Props) {
           ))}
         </View>
 
+        {/* Invoice status counts */}
+        {(() => {
+          const c = job.invoice_status_counts;
+          if (!c) return null;
+          const total = c.drafting + c.waiting_to_send + c.sent_awaiting_payment + c.paid;
+          if (total === 0) return null;
+          const parts: string[] = [];
+          if (c.drafting > 0) parts.push(`${c.drafting} drafting`);
+          if (c.waiting_to_send > 0) parts.push(`${c.waiting_to_send} waiting to send`);
+          if (c.sent_awaiting_payment > 0) parts.push(`${c.sent_awaiting_payment} sent`);
+          if (c.paid > 0) parts.push(`${c.paid} paid`);
+          return (
+            <Text style={styles.invoiceStatusSummary}>
+              Invoices: {parts.join(", ")}
+            </Text>
+          );
+        })()}
+
         {/* Finished at */}
         <Text style={styles.sectionLabel}>Finished</Text>
         <View style={styles.finishedRow}>
@@ -794,6 +812,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6,
+    marginBottom: 14,
+  },
+  invoiceStatusSummary: {
+    fontSize: 13,
+    color: "#6b7280",
     marginBottom: 14,
   },
   statusChip: {

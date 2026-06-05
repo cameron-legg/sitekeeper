@@ -20,6 +20,13 @@ _service = JobService()
 
 
 def _serialize_job(job) -> dict:
+    # Compute invoice status counts from the job's invoices
+    invoice_status_counts = {"drafting": 0, "waiting_to_send": 0, "sent_awaiting_payment": 0, "paid": 0}
+    if job.invoices:
+        for inv in job.invoices:
+            s = inv.status or "drafting"
+            if s in invoice_status_counts:
+                invoice_status_counts[s] += 1
     return {
         "id": str(job.id),
         "job_site_id": str(job.job_site_id),
@@ -31,6 +38,7 @@ def _serialize_job(job) -> dict:
         "finished_at": job.finished_at.isoformat() if job.finished_at else None,
         "created_at": job.created_at.isoformat() if job.created_at else None,
         "updated_at": job.updated_at.isoformat() if job.updated_at else None,
+        "invoice_status_counts": invoice_status_counts,
         "employees": [
             {"id": str(u.id), "name": u.name, "email": u.email}
             for u in job.employees

@@ -35,7 +35,11 @@ export function useCreateInvoice() {
   return useMutation({
     mutationFn: ({ jobId, title, tax_rate }: { jobId: string; title: string; tax_rate?: string }) =>
       apiClient.post<Invoice>(`/api/v1/jobs/${jobId}/invoices`, { title, tax_rate }).then((r) => r.data),
-    onSuccess: (inv) => qc.invalidateQueries({ queryKey: KEYS.forJob(inv.job_id) }),
+    onSuccess: (inv) => {
+      qc.invalidateQueries({ queryKey: KEYS.forJob(inv.job_id) });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      qc.invalidateQueries({ queryKey: ["job-sites"] });
+    },
   });
 }
 
@@ -47,6 +51,9 @@ export function useUpdateInvoice() {
     onSuccess: (inv) => {
       qc.invalidateQueries({ queryKey: KEYS.detail(inv.id) });
       qc.invalidateQueries({ queryKey: KEYS.forJob(inv.job_id) });
+      // Invoice status counts are also surfaced on jobs and job-sites
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      qc.invalidateQueries({ queryKey: ["job-sites"] });
     },
   });
 }
@@ -56,7 +63,11 @@ export function useDeleteInvoice() {
   return useMutation({
     mutationFn: ({ invoiceId, jobId }: { invoiceId: string; jobId: string }) =>
       apiClient.delete(`/api/v1/invoices/${invoiceId}`),
-    onSuccess: (_, { jobId }) => qc.invalidateQueries({ queryKey: KEYS.forJob(jobId) }),
+    onSuccess: (_, { jobId }) => {
+      qc.invalidateQueries({ queryKey: KEYS.forJob(jobId) });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      qc.invalidateQueries({ queryKey: ["job-sites"] });
+    },
   });
 }
 

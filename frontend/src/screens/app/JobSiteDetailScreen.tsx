@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   StyleSheet,
   TextInput,
   Modal,
-  ScrollView,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
@@ -148,6 +147,14 @@ export default function JobSiteDetailScreen({ route, navigation }: Props) {
 
   function renderItem({ item }: { item: Job }) {
     const color = STATUS_COLORS[item.status];
+    const c = item.invoice_status_counts;
+    const invoiceParts: string[] = [];
+    if (c) {
+      if (c.drafting > 0) invoiceParts.push(`${c.drafting} drafting`);
+      if (c.waiting_to_send > 0) invoiceParts.push(`${c.waiting_to_send} waiting to send`);
+      if (c.sent_awaiting_payment > 0) invoiceParts.push(`${c.sent_awaiting_payment} sent`);
+      if (c.paid > 0) invoiceParts.push(`${c.paid} paid`);
+    }
     return (
       <TouchableOpacity
         style={styles.jobRow}
@@ -174,6 +181,11 @@ export default function JobSiteDetailScreen({ route, navigation }: Props) {
               </Text>
             )}
           </View>
+          {invoiceParts.length > 0 && (
+            <Text style={styles.invoiceStatusText}>
+              Invoices: {invoiceParts.join(", ")}
+            </Text>
+          )}
         </View>
         <TouchableOpacity
           style={styles.deleteBtn}
@@ -498,6 +510,11 @@ const styles = StyleSheet.create({
   finishedAt: {
     fontSize: 12,
     color: "#6b7280",
+  },
+  invoiceStatusText: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginTop: 4,
   },
   deleteBtn: {
     paddingHorizontal: 10,

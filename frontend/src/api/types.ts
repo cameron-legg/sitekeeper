@@ -2,6 +2,15 @@
  * Shared API response types matching the Flask backend serializers (v2).
  */
 
+export type InvoiceStatus = "drafting" | "waiting_to_send" | "sent_awaiting_payment" | "paid";
+
+export interface InvoiceStatusCounts {
+  drafting: number;
+  waiting_to_send: number;
+  sent_awaiting_payment: number;
+  paid: number;
+}
+
 export interface JobSite {
   id: string;
   user_id: string;
@@ -12,6 +21,7 @@ export interface JobSite {
   primary_contact_id: string | null;
   job_count: number;
   active_job_count: number;
+  invoice_status_counts: InvoiceStatusCounts;
   created_at: string;
   updated_at: string;
 }
@@ -33,6 +43,7 @@ export interface Job {
   finished_at: string | null;
   created_at: string;
   updated_at: string;
+  invoice_status_counts: InvoiceStatusCounts;
   employees: JobEmployee[];
 }
 
@@ -141,6 +152,7 @@ export interface Invoice {
   job_id: string;
   title: string;
   delivered: boolean;
+  status: InvoiceStatus;
   source_estimate_id: string | null;
   /** Tax rate as a percentage string, e.g. "8.5" = 8.5%. Null = no tax. */
   tax_rate: string | null;
