@@ -18,11 +18,23 @@ type Props = NativeStackScreenProps<RootStackParamList, "InvoiceManagement">;
 
 type FilterStatus = "all" | InvoiceStatus;
 
+type TimePeriod = "ytd" | "past_year" | "mtd" | "past_30" | "wtd" | "past_7" | "all_time";
+
 const STATUS_OPTIONS: { value: InvoiceStatus; label: string; shortLabel: string; color: string; bg: string }[] = [
   { value: "drafting", label: "Drafting", shortLabel: "Drafting", color: "#6b7280", bg: "#f3f4f6" },
   { value: "waiting_to_send", label: "Waiting to be Sent", shortLabel: "Waiting", color: "#d97706", bg: "#fef3c7" },
   { value: "sent_awaiting_payment", label: "Sent & Awaiting Payment", shortLabel: "Sent", color: "#2563eb", bg: "#dbeafe" },
   { value: "paid", label: "Paid", shortLabel: "Paid", color: "#065f46", bg: "#d1fae5" },
+];
+
+const TIME_PERIODS: { value: TimePeriod; label: string }[] = [
+  { value: "wtd", label: "Week to Date" },
+  { value: "past_7", label: "Past 7 Days" },
+  { value: "mtd", label: "Month to Date" },
+  { value: "past_30", label: "Past 30 Days" },
+  { value: "ytd", label: "Year to Date" },
+  { value: "past_year", label: "Past Year" },
+  { value: "all_time", label: "All Time" },
 ];
 
 function getStatusDisplay(status: InvoiceStatus) {
@@ -59,6 +71,58 @@ function timeAgo(iso: string): string {
   return formatDate(iso);
 }
 
+function getStartDate(period: TimePeriod): Date | null {
+  const now = new Date();
+  switch (period) {
+    case "wtd": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - d.getDay()); // Start of week (Sunday)
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    case "past_7": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 7);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    case "mtd": {
+      const d = new Date(now.getFullYear(), now.getMonth(), 1);
+      return d;
+    }
+    case "past_30": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 30);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    case "ytd": {
+      return new Date(now.getFullYear(), 0, 1);
+    }
+    case "past_year": {
+      const d = new Date(now);
+      d.setFullYear(d.getFullYear() - 1);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    case "all_time":
+      return null;
+  }
+}
+
+function formatDuration(ms: number): string {
+  const hours = Math.floor(ms / 3600000);
+  const days = Math.floor(hours / 24);
+  if (days > 0) return `${days}d ${hours % 24}h`;
+  if (hours > 0) return `${hours}h`;
+  const mins = Math.floor(ms / 60000);
+  return `${mins}m`;
+}
+
+function formatMoney(amount: number): string {
+  return "$" + amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function InvoiceManagementScreen({ navigation }: Props) {
   const { data: invoices, isLoading, isError } = useAllInvoices();
   const updateInvoice = useUpdateInvoice();
@@ -67,6 +131,8 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceWithContext | null>(null);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [statusTarget, setStatusTarget] = useState<InvoiceWithContext | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryPeriod, setSummaryPeriod] = useState<TimePeriod>("mtd");
 
   const filteredInvoices = useMemo(() => {
     if (!invoices) return [];
@@ -83,6 +149,94 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
     }
     return c;
   }, [invoices]);
+
+  // Summary report metrics
+  const summaryMetrics = useMemo(() => {
+    if (!invoices) return null;
+    const startDate = getStartDate(summaryPeriod);
+
+    // Filter invoices by creation date within the period
+    const periodInvoices = startDate
+      ? invoices.filter((inv) => new Date(inv.created_at) >= startDate)
+      : invoices;
+
+    // Dollar amounts by status
+    const byStatus = { drafting: 0, waiting_to_send: 0, sent_awaiting_payment: 0, paid: 0 };
+    const countByStatus = { drafting: 0, waiting_to_send: 0, sent_awaiting_payment: 0, paid: 0 };
+    let totalAmount = 0;
+
+    for (const inv of periodInvoices) {
+      const amount = parseFloat(inv.total || "0");
+      totalAmount += amount;
+      if (inv.status in byStatus) {
+        (byStatus as any)[inv.status] += amount;
+        (countByStatus as any)[inv.status]++;
+      }
+    }
+
+    // Average time in each status (from status history)
+    // Calculate time spent in each status by looking at consecutive history entries
+    const statusDurations: Record<InvoiceStatus, number[]> = {
+      drafting: [],
+      waiting_to_send: [],
+      sent_awaiting_payment: [],
+      paid: [],
+    };
+
+    for (const inv of periodInvoices) {
+      const history = inv.status_history || [];
+      if (history.length === 0) continue;
+      for (let i = 0; i < history.length; i++) {
+        const entry = history[i];
+        const nextEntry = history[i + 1];
+        const start = new Date(entry.changed_at).getTime();
+        const end = nextEntry ? new Date(nextEntry.changed_at).getTime() : Date.now();
+        const duration = end - start;
+        if (entry.status in statusDurations) {
+          statusDurations[entry.status].push(duration);
+        }
+      }
+    }
+
+    const avgDurations: Record<InvoiceStatus, number | null> = {
+      drafting: null,
+      waiting_to_send: null,
+      sent_awaiting_payment: null,
+      paid: null,
+    };
+    for (const s of Object.keys(statusDurations) as InvoiceStatus[]) {
+      const durations = statusDurations[s];
+      if (durations.length > 0) {
+        avgDurations[s] = durations.reduce((a, b) => a + b, 0) / durations.length;
+      }
+    }
+
+    // Average time from creation to paid
+    const paidInvoices = periodInvoices.filter((inv) => inv.status === "paid");
+    let avgTimeToPaid: number | null = null;
+    if (paidInvoices.length > 0) {
+      const times = paidInvoices
+        .filter((inv) => inv.status_changed_at)
+        .map((inv) => new Date(inv.status_changed_at!).getTime() - new Date(inv.created_at).getTime());
+      if (times.length > 0) {
+        avgTimeToPaid = times.reduce((a, b) => a + b, 0) / times.length;
+      }
+    }
+
+    // Outstanding amount (sent + waiting)
+    const outstandingAmount = byStatus.sent_awaiting_payment + byStatus.waiting_to_send;
+
+    return {
+      periodInvoiceCount: periodInvoices.length,
+      totalAmount,
+      byStatus,
+      countByStatus,
+      avgDurations,
+      avgTimeToPaid,
+      outstandingAmount,
+      collectedAmount: byStatus.paid,
+    };
+  }, [invoices, summaryPeriod]);
 
   function openDetail(invoice: InvoiceWithContext) {
     setSelectedInvoice(invoice);
@@ -161,6 +315,11 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
         ))}
       </View>
 
+      {/* Summary button */}
+      <TouchableOpacity style={styles.summaryBtn} onPress={() => setShowSummary(true)}>
+        <Text style={styles.summaryBtnText}>📊  Summary</Text>
+      </TouchableOpacity>
+
       {/* Invoice list */}
       <FlatList
         data={filteredInvoices}
@@ -185,7 +344,7 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
                     {item.job_site_name} › {item.job_name}
                   </Text>
                 </View>
-                <Text style={styles.cardTotal}>${parseFloat(item.total || "0").toFixed(2)}</Text>
+                <Text style={styles.cardTotal}>{formatMoney(parseFloat(item.total || "0"))}</Text>
               </View>
               <View style={styles.cardFooter}>
                 <TouchableOpacity
@@ -204,6 +363,103 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
           );
         }}
       />
+
+      {/* ── Summary modal ── */}
+      <Modal visible={showSummary} transparent animationType="slide" onRequestClose={() => setShowSummary(false)}>
+        <TouchableOpacity style={styles.sheetOverlay} activeOpacity={1} onPress={() => setShowSummary(false)} />
+        <View style={styles.sheet}>
+          <View style={styles.sheetHandle} />
+          <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+            <Text style={styles.sheetTitle}>Invoice Summary</Text>
+
+            {/* Period selector */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.periodScroll} contentContainerStyle={styles.periodScrollContent}>
+              {TIME_PERIODS.map((tp) => (
+                <TouchableOpacity
+                  key={tp.value}
+                  style={[styles.periodChip, summaryPeriod === tp.value && styles.periodChipActive]}
+                  onPress={() => setSummaryPeriod(tp.value)}
+                >
+                  <Text style={[styles.periodChipText, summaryPeriod === tp.value && styles.periodChipTextActive]}>
+                    {tp.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {summaryMetrics && (
+              <>
+                {/* Overview */}
+                <View style={styles.reportSection}>
+                  <Text style={styles.reportSectionTitle}>Overview</Text>
+                  <View style={styles.reportRow}>
+                    <Text style={styles.reportLabel}>Total invoices</Text>
+                    <Text style={styles.reportValue}>{summaryMetrics.periodInvoiceCount}</Text>
+                  </View>
+                  <View style={styles.reportRow}>
+                    <Text style={styles.reportLabel}>Total value</Text>
+                    <Text style={styles.reportValueBold}>{formatMoney(summaryMetrics.totalAmount)}</Text>
+                  </View>
+                  <View style={styles.reportRow}>
+                    <Text style={styles.reportLabel}>Collected (paid)</Text>
+                    <Text style={[styles.reportValueBold, { color: "#065f46" }]}>{formatMoney(summaryMetrics.collectedAmount)}</Text>
+                  </View>
+                  <View style={styles.reportRow}>
+                    <Text style={styles.reportLabel}>Outstanding</Text>
+                    <Text style={[styles.reportValueBold, { color: "#2563eb" }]}>{formatMoney(summaryMetrics.outstandingAmount)}</Text>
+                  </View>
+                </View>
+
+                {/* Breakdown by status */}
+                <View style={styles.reportSection}>
+                  <Text style={styles.reportSectionTitle}>By Status</Text>
+                  {STATUS_OPTIONS.map((opt) => {
+                    const amount = (summaryMetrics.byStatus as any)[opt.value] || 0;
+                    const count = (summaryMetrics.countByStatus as any)[opt.value] || 0;
+                    return (
+                      <View key={opt.value} style={styles.reportRow}>
+                        <View style={styles.reportLabelRow}>
+                          <View style={[styles.reportDot, { backgroundColor: opt.color }]} />
+                          <Text style={styles.reportLabel}>{opt.label}</Text>
+                          <Text style={styles.reportCount}>({count})</Text>
+                        </View>
+                        <Text style={[styles.reportValueBold, { color: opt.color }]}>{formatMoney(amount)}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                {/* Timing metrics */}
+                <View style={styles.reportSection}>
+                  <Text style={styles.reportSectionTitle}>Average Time in Status</Text>
+                  {STATUS_OPTIONS.filter((opt) => opt.value !== "paid").map((opt) => {
+                    const avg = summaryMetrics.avgDurations[opt.value];
+                    return (
+                      <View key={opt.value} style={styles.reportRow}>
+                        <View style={styles.reportLabelRow}>
+                          <View style={[styles.reportDot, { backgroundColor: opt.color }]} />
+                          <Text style={styles.reportLabel}>{opt.label}</Text>
+                        </View>
+                        <Text style={styles.reportValue}>{avg ? formatDuration(avg) : "—"}</Text>
+                      </View>
+                    );
+                  })}
+                  <View style={[styles.reportRow, { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: "#e5e7eb" }]}>
+                    <Text style={styles.reportLabel}>Avg. time to get paid</Text>
+                    <Text style={styles.reportValueBold}>
+                      {summaryMetrics.avgTimeToPaid ? formatDuration(summaryMetrics.avgTimeToPaid) : "—"}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            )}
+
+            <TouchableOpacity style={styles.closeBtn} onPress={() => setShowSummary(false)}>
+              <Text style={styles.closeBtnText}>Close</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
 
       {/* ── Invoice detail modal ── */}
       <Modal visible={!!selectedInvoice} transparent animationType="slide" onRequestClose={() => setSelectedInvoice(null)}>
@@ -239,17 +495,17 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
               <View style={styles.totalsBlock}>
                 <View style={styles.totalRow}>
                   <Text style={styles.totalLabel}>Subtotal</Text>
-                  <Text style={styles.totalValue}>${parseFloat(selectedInvoice.subtotal || "0").toFixed(2)}</Text>
+                  <Text style={styles.totalValue}>{formatMoney(parseFloat(selectedInvoice.subtotal || "0"))}</Text>
                 </View>
                 {selectedInvoice.tax_rate && parseFloat(selectedInvoice.tax_rate) > 0 && (
                   <View style={styles.totalRow}>
                     <Text style={styles.totalLabel}>Tax ({selectedInvoice.tax_rate}%)</Text>
-                    <Text style={styles.totalValue}>${parseFloat(selectedInvoice.tax_amount || "0").toFixed(2)}</Text>
+                    <Text style={styles.totalValue}>{formatMoney(parseFloat(selectedInvoice.tax_amount || "0"))}</Text>
                   </View>
                 )}
                 <View style={[styles.totalRow, styles.grandRow]}>
                   <Text style={styles.grandLabel}>Total</Text>
-                  <Text style={styles.grandValue}>${parseFloat(selectedInvoice.total || "0").toFixed(2)}</Text>
+                  <Text style={styles.grandValue}>{formatMoney(parseFloat(selectedInvoice.total || "0"))}</Text>
                 </View>
               </View>
 
@@ -259,12 +515,19 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
                   <Text style={styles.historySectionTitle}>Status History</Text>
                   {selectedInvoice.status_history.map((entry, idx) => {
                     const si = getStatusDisplay(entry.status);
+                    const nextEntry = selectedInvoice.status_history[idx + 1];
+                    const start = new Date(entry.changed_at).getTime();
+                    const end = nextEntry ? new Date(nextEntry.changed_at).getTime() : Date.now();
+                    const duration = end - start;
                     return (
                       <View key={idx} style={styles.historyRow}>
                         <View style={[styles.historyDot, { backgroundColor: si.color }]} />
                         <View style={styles.historyInfo}>
                           <Text style={styles.historyStatus}>{si.label}</Text>
-                          <Text style={styles.historyDate}>{formatDateTime(entry.changed_at)}</Text>
+                          <Text style={styles.historyDate}>
+                            {formatDateTime(entry.changed_at)}
+                            {!nextEntry ? " (current)" : ` · ${formatDuration(duration)}`}
+                          </Text>
                         </View>
                       </View>
                     );
@@ -354,6 +617,16 @@ const styles = StyleSheet.create({
   summaryCountActive: { color: "#2563eb" },
   summaryLabel: { fontSize: 10, fontWeight: "600", color: "#6b7280", marginTop: 2 },
   summaryLabelActive: { color: "#2563eb" },
+
+  // Summary button
+  summaryBtn: {
+    backgroundColor: "#fff",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  summaryBtnText: { fontSize: 15, fontWeight: "600", color: "#2563eb" },
 
   // List
   listContent: { padding: 12, gap: 8 },
@@ -448,6 +721,52 @@ const styles = StyleSheet.create({
   actionBtnText: { fontSize: 15, color: "#1a1a1a" },
   closeBtn: { backgroundColor: "#f3f4f6", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 8 },
   closeBtnText: { fontSize: 15, fontWeight: "600", color: "#374151" },
+
+  // Period selector
+  periodScroll: { marginBottom: 16 },
+  periodScrollContent: { gap: 8, paddingRight: 8 },
+  periodChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    backgroundColor: "#f9fafb",
+  },
+  periodChipActive: {
+    backgroundColor: "#2563eb",
+    borderColor: "#2563eb",
+  },
+  periodChipText: { fontSize: 13, color: "#6b7280", fontWeight: "500" },
+  periodChipTextActive: { color: "#fff", fontWeight: "600" },
+
+  // Report sections
+  reportSection: {
+    backgroundColor: "#f9fafb",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+  },
+  reportSectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#9ca3af",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  reportRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  reportLabelRow: { flexDirection: "row", alignItems: "center", gap: 6, flex: 1 },
+  reportDot: { width: 8, height: 8, borderRadius: 4 },
+  reportLabel: { fontSize: 14, color: "#374151" },
+  reportCount: { fontSize: 12, color: "#9ca3af" },
+  reportValue: { fontSize: 14, color: "#374151" },
+  reportValueBold: { fontSize: 15, fontWeight: "700", color: "#1a1a1a" },
 
   // Status picker modal
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: 24 },
