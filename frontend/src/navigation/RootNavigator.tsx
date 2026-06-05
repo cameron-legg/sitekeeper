@@ -33,6 +33,7 @@ import SavedItemEditorScreen from "../screens/app/SavedItemEditorScreen";
 import ProfileSettingsScreen from "../screens/app/ProfileSettingsScreen";
 import BusinessInfoScreen from "../screens/app/BusinessInfoScreen";
 import MaterialsLibraryScreen from "../screens/app/MaterialsLibraryScreen";
+import InvoiceManagementScreen from "../screens/app/InvoiceManagementScreen";
 import AdminUsersScreen from "../screens/app/AdminUsersScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -60,6 +61,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       SavedItems: "saved-items",
       SavedItemEditor: "saved-items/:itemId?",
       MaterialsLibrary: "materials",
+      InvoiceManagement: "invoices/manage",
       AdminUsers: "admin/users",
     },
   },
@@ -145,6 +147,11 @@ export default function RootNavigator() {
               name="MaterialsLibrary"
               component={MaterialsLibraryScreen}
               options={{ headerShown: true, title: "Materials Library" }}
+            />
+            <Stack.Screen
+              name="InvoiceManagement"
+              component={InvoiceManagementScreen}
+              options={{ headerShown: true, title: "Invoice Management" }}
             />
             <Stack.Screen
               name="AdminUsers"

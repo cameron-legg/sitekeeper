@@ -4,13 +4,23 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import apiClient from "../client";
-import type { Invoice, LineItem, LineItemEntry } from "../types";
+import type { Invoice, InvoiceWithContext, LineItem, LineItemEntry } from "../types";
 
 const KEYS = {
+  all: ["invoices", "all"] as const,
   forJob: (jobId: string) => ["invoices", "job", jobId] as const,
   detail: (id: string) => ["invoices", id] as const,
   lineItems: (id: string) => ["invoices", id, "line-items"] as const,
 };
+
+/** Fetch all invoices across all jobs/sites (for Invoice Management screen). */
+export function useAllInvoices() {
+  return useQuery({
+    queryKey: KEYS.all,
+    queryFn: () =>
+      apiClient.get<InvoiceWithContext[]>("/api/v1/invoices").then((r) => r.data),
+  });
+}
 
 export function useInvoices(jobId: string) {
   return useQuery({
@@ -37,6 +47,7 @@ export function useCreateInvoice() {
       apiClient.post<Invoice>(`/api/v1/jobs/${jobId}/invoices`, { title, tax_rate }).then((r) => r.data),
     onSuccess: (inv) => {
       qc.invalidateQueries({ queryKey: KEYS.forJob(inv.job_id) });
+      qc.invalidateQueries({ queryKey: KEYS.all });
       qc.invalidateQueries({ queryKey: ["jobs"] });
       qc.invalidateQueries({ queryKey: ["job-sites"] });
     },
@@ -51,6 +62,7 @@ export function useUpdateInvoice() {
     onSuccess: (inv) => {
       qc.invalidateQueries({ queryKey: KEYS.detail(inv.id) });
       qc.invalidateQueries({ queryKey: KEYS.forJob(inv.job_id) });
+      qc.invalidateQueries({ queryKey: KEYS.all });
       // Invoice status counts are also surfaced on jobs and job-sites
       qc.invalidateQueries({ queryKey: ["jobs"] });
       qc.invalidateQueries({ queryKey: ["job-sites"] });
@@ -65,6 +77,7 @@ export function useDeleteInvoice() {
       apiClient.delete(`/api/v1/invoices/${invoiceId}`),
     onSuccess: (_, { jobId }) => {
       qc.invalidateQueries({ queryKey: KEYS.forJob(jobId) });
+      qc.invalidateQueries({ queryKey: KEYS.all });
       qc.invalidateQueries({ queryKey: ["jobs"] });
       qc.invalidateQueries({ queryKey: ["job-sites"] });
     },

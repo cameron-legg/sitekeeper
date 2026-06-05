@@ -67,6 +67,7 @@ def _serialize_invoice(invoice, totals: dict | None = None) -> dict:
         "title": invoice.title,
         "delivered": invoice.delivered,
         "status": invoice.status,
+        "status_changed_at": invoice.status_changed_at.isoformat() if invoice.status_changed_at else None,
         "source_estimate_id": str(invoice.source_estimate_id) if invoice.source_estimate_id else None,
         "tax_rate": str(invoice.tax_rate) if invoice.tax_rate is not None else None,
         "subtotal": str(t.get("subtotal", "0")),
@@ -100,6 +101,56 @@ def _serialize_invoice(invoice, totals: dict | None = None) -> dict:
         "show_worksite_address": invoice.show_worksite_address,
         "show_notes": invoice.show_notes,
     }
+
+
+# ---------------------------------------------------------------------------
+# All invoices (across all jobs/sites) — for Invoice Management screen
+# ---------------------------------------------------------------------------
+
+@invoices_bp.get("/invoices")
+@auth_required
+def list_all_invoices():
+    """List all invoices across all jobs/sites for the tenant, with job and site context."""
+    user_id = g.current_user_id
+    try:
+        from ..models import Invoice, Job, JobSite, InvoiceStatusHistory
+        from ..repositories.job_site_repo import SQLAlchemyJobSiteRepository
+        from sqlalchemy.orm import joinedload
+
+        # Get all accessible sites (approved users see all)
+        site_repo = SQLAlchemyJobSiteRepository()
+        sites = site_repo.get_all_for_user(user_id)
+        site_ids = [str(s.id) for s in sites]
+
+        # Fetch all invoices for jobs within those sites, newest first
+        invoices = (
+            Invoice.query
+            .join(Job, Invoice.job_id == Job.id)
+            .filter(Job.job_site_id.in_(site_ids))
+            .options(joinedload(Invoice.status_history))
+            .order_by(Invoice.created_at.desc())
+            .all()
+        )
+
+        result = []
+        for inv in invoices:
+            totals = _service.calculate_totals(str(inv.id), user_id)
+            job = inv.job
+            site_name = job.job_site.name if job.job_site else None
+            history = sorted(inv.status_history, key=lambda h: h.changed_at)
+            result.append({
+                **_serialize_invoice(inv, totals),
+                "job_name": job.name if job else None,
+                "job_site_id": str(job.job_site_id) if job else None,
+                "job_site_name": site_name,
+                "status_history": [
+                    {"status": h.status, "changed_at": h.changed_at.isoformat()}
+                    for h in history
+                ],
+            })
+        return jsonify(result), 200
+    except Exception:
+        return server_error()
 
 
 # ---------------------------------------------------------------------------
@@ -198,7 +249,20 @@ def get_invoice(invoice_id: str):
     user_id = g.current_user_id
     try:
         inv = _service.get(invoice_id, user_id)
-        return jsonify(_serialize_invoice(inv, _service.calculate_totals(invoice_id, user_id))), 200
+        data = _serialize_invoice(inv, _service.calculate_totals(invoice_id, user_id))
+        # Include status history
+        from ..models import InvoiceStatusHistory
+        history = (
+            InvoiceStatusHistory.query
+            .filter_by(invoice_id=invoice_id)
+            .order_by(InvoiceStatusHistory.changed_at.asc())
+            .all()
+        )
+        data["status_history"] = [
+            {"status": h.status, "changed_at": h.changed_at.isoformat()}
+            for h in history
+        ]
+        return jsonify(data), 200
     except NotFoundError:
         return not_found("Invoice")
     except Exception:

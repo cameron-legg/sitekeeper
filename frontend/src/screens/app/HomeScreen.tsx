@@ -337,6 +337,13 @@ export default function HomeScreen({ navigation }: Props) {
             >
               <Text style={styles.menuItemText}>🧱  Materials</Text>
             </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { setShowMenu(false); navigation.navigate("InvoiceManagement"); }}
+            >
+              <Text style={styles.menuItemText}>📄  Invoice Management</Text>
+            </TouchableOpacity>
             {role === "admin" && (
               <>
                 <View style={styles.menuDivider} />

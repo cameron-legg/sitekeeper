@@ -75,9 +75,11 @@ class InvoiceService:
                source_estimate_id: str | None = None,
                tax_rate: Decimal | None = None, metadata: dict | None = None) -> Invoice:
         job = self._verify_job_access(job_id, user_id)
+        now = datetime.now(tz=timezone.utc)
         invoice = Invoice(
             job_id=job_id, title=title, delivered=delivered,
             source_estimate_id=source_estimate_id, tax_rate=tax_rate,
+            status_changed_at=now,
         )
         # Auto-assign document number
         doc_num_row = DocumentNumber.query.filter_by(document_type="invoice").first()
@@ -91,7 +93,17 @@ class InvoiceService:
             self._apply_metadata(invoice, metadata)
         # Auto-populate any remaining None fields from profile and job context
         self._populate_defaults(invoice, user_id, job)
-        return self._invoice_repo.create(invoice)
+        created = self._invoice_repo.create(invoice)
+        # Record initial status in history
+        from ..models import InvoiceStatusHistory
+        history = InvoiceStatusHistory(
+            invoice_id=str(created.id),
+            status="drafting",
+            changed_at=now,
+        )
+        db.session.add(history)
+        db.session.commit()
+        return created
 
     def update(self, invoice_id: str, user_id: str, title: str | None = None,
                delivered: bool | None = None, status: str | None = None,
@@ -102,8 +114,18 @@ class InvoiceService:
             invoice.title = title
         if delivered is not None:
             invoice.delivered = delivered
-        if status is not None:
+        if status is not None and status != invoice.status:
+            from ..models import InvoiceStatusHistory
+            now = datetime.now(tz=timezone.utc)
             invoice.status = status
+            invoice.status_changed_at = now
+            # Record in history
+            history = InvoiceStatusHistory(
+                invoice_id=invoice_id,
+                status=status,
+                changed_at=now,
+            )
+            db.session.add(history)
         if clear_tax:
             invoice.tax_rate = None
         elif tax_rate is not None:

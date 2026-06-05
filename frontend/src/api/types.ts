@@ -147,12 +147,18 @@ export interface Estimate {
   show_notes: boolean;
 }
 
+export interface InvoiceStatusHistoryEntry {
+  status: InvoiceStatus;
+  changed_at: string;
+}
+
 export interface Invoice {
   id: string;
   job_id: string;
   title: string;
   delivered: boolean;
   status: InvoiceStatus;
+  status_changed_at: string | null;
   source_estimate_id: string | null;
   /** Tax rate as a percentage string, e.g. "8.5" = 8.5%. Null = no tax. */
   tax_rate: string | null;
@@ -190,6 +196,14 @@ export interface Invoice {
   show_business_address: boolean;
   show_worksite_address: boolean;
   show_notes: boolean;
+}
+
+/** Invoice with job/site context and status history — used by Invoice Management screen. */
+export interface InvoiceWithContext extends Invoice {
+  job_name: string | null;
+  job_site_id: string | null;
+  job_site_name: string | null;
+  status_history: InvoiceStatusHistoryEntry[];
 }
 
 /** A sub-entry under a SavedItem, or a standalone entry in the Materials Library. */

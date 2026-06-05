@@ -370,6 +370,8 @@ class Invoice(db.Model):
     delivered = Column(Boolean, nullable=False, default=False)
     # Invoice workflow status: drafting → waiting_to_send → sent_awaiting_payment → paid
     status = Column(String(30), nullable=False, default="drafting")
+    # When the current status was set
+    status_changed_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=func.now())
     # tax_rate is stored as a percentage (e.g. 8.5 = 8.5%). NULL = no tax.
     # Tax applies only to material entries, not hours.
     tax_rate = Column(Numeric(6, 4), nullable=True)
@@ -428,6 +430,31 @@ class Invoice(db.Model):
 
     def __repr__(self):
         return f"<Invoice {self.title}>"
+
+
+# ---------------------------------------------------------------------------
+# InvoiceStatusHistory
+# ---------------------------------------------------------------------------
+
+
+class InvoiceStatusHistory(db.Model):
+    __tablename__ = "invoice_status_history"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    invoice_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("invoices.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    status = Column(String(30), nullable=False)
+    changed_at = Column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    invoice = relationship("Invoice", backref="status_history")
+
+    def __repr__(self):
+        return f"<InvoiceStatusHistory {self.status} @ {self.changed_at}>"
 
 
 # ---------------------------------------------------------------------------
