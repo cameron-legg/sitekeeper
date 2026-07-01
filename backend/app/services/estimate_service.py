@@ -72,12 +72,15 @@ def compute_totals_with_tax(items: list[LineItem], tax_rate: Decimal | None) -> 
     """
     subtotal = Decimal("0")
     taxable_amount = Decimal("0")
+    total_hours = Decimal("0")
 
     for item in items:
         totals = compute_line_item_totals(item)
         subtotal += totals["total_cost"]
         taxable_amount += totals["material_cost"]
+        total_hours += totals["total_hours"]
 
+    labor_cost = subtotal - taxable_amount
     rate = tax_rate or Decimal("0")
     tax_amount = (taxable_amount * rate / Decimal("100")).quantize(Decimal("0.0001"))
     total = subtotal + tax_amount
@@ -85,6 +88,8 @@ def compute_totals_with_tax(items: list[LineItem], tax_rate: Decimal | None) -> 
     return {
         "subtotal": subtotal,
         "taxable_amount": taxable_amount,
+        "labor_cost": labor_cost,
+        "total_hours": total_hours,
         "tax_rate": rate,
         "tax_amount": tax_amount,
         "total": total,

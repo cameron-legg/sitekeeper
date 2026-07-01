@@ -192,15 +192,25 @@ export default function InvoicesTab({ jobId }: Props) {
               {/* Totals breakdown */}
               <View style={styles.totalsBlock}>
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Subtotal</Text>
-                  <Text style={styles.totalValue}>${parseFloat(selectedInvoice.subtotal || "0").toFixed(2)}</Text>
+                  <Text style={styles.totalLabel}>Materials</Text>
+                  <Text style={styles.totalValue}>${parseFloat(selectedInvoice.materials_cost || "0").toFixed(2)}</Text>
                 </View>
                 {selectedInvoice.tax_rate && parseFloat(selectedInvoice.tax_rate) > 0 && (
                   <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>Tax ({selectedInvoice.tax_rate}% on materials)</Text>
+                    <Text style={styles.totalLabel}>Tax ({selectedInvoice.tax_rate}%)</Text>
                     <Text style={styles.totalValue}>${parseFloat(selectedInvoice.tax_amount || "0").toFixed(2)}</Text>
                   </View>
                 )}
+                {selectedInvoice.tax_rate && parseFloat(selectedInvoice.tax_rate) > 0 && (
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>Materials + Tax</Text>
+                    <Text style={styles.totalValue}>${(parseFloat(selectedInvoice.materials_cost || "0") + parseFloat(selectedInvoice.tax_amount || "0")).toFixed(2)}</Text>
+                  </View>
+                )}
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Labor ({parseFloat(selectedInvoice.labor_hours || "0").toFixed(2)}h)</Text>
+                  <Text style={styles.totalValue}>${parseFloat(selectedInvoice.labor_cost || "0").toFixed(2)}</Text>
+                </View>
                 <View style={[styles.totalRow, styles.grandRow]}>
                   <Text style={styles.grandLabel}>Total</Text>
                   <Text style={styles.grandValue}>${parseFloat(selectedInvoice.total || "0").toFixed(2)}</Text>

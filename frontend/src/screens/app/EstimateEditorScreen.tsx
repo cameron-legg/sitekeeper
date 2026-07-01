@@ -212,6 +212,17 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
   }
 
   const grandTotal = (lineItems ?? []).reduce((sum, item) => sum + parseFloat(item.total_cost || "0"), 0);
+  const totalHours = (lineItems ?? []).reduce((sum, item) => sum + parseFloat(item.total_hours || "0"), 0);
+  const materialsCost = (lineItems ?? []).reduce((sum, item) => {
+    let mat = 0;
+    for (const entry of item.entries) {
+      if (entry.entry_type === "material") {
+        mat += parseFloat(entry.unit_price || "0") * parseFloat(entry.quantity || "0");
+      }
+    }
+    return sum + mat;
+  }, 0);
+  const laborCost = grandTotal - materialsCost;
 
   if (!isNew && (loadingEst || loadingItems)) {
     return <View style={styles.centered}><ActivityIndicator size="large" color="#2563eb" /></View>;
@@ -376,15 +387,25 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
             {(lineItems ?? []).length > 0 && (
               <View style={styles.grandTotalBlock}>
                 <View style={styles.grandTotalRow}>
-                  <Text style={styles.grandTotalLabel}>Subtotal</Text>
-                  <Text style={styles.grandTotalValue}>${grandTotal.toFixed(2)}</Text>
+                  <Text style={styles.grandTotalLabel}>Materials</Text>
+                  <Text style={styles.grandTotalValue}>${materialsCost.toFixed(2)}</Text>
                 </View>
                 {estimate?.tax_rate && parseFloat(estimate.tax_rate) > 0 && (
                   <View style={styles.grandTotalRow}>
-                    <Text style={styles.grandTotalLabel}>Tax ({estimate.tax_rate}% on materials)</Text>
+                    <Text style={styles.grandTotalLabel}>Tax ({estimate.tax_rate}%)</Text>
                     <Text style={styles.grandTotalValue}>${parseFloat(estimate.tax_amount || "0").toFixed(2)}</Text>
                   </View>
                 )}
+                {estimate?.tax_rate && parseFloat(estimate.tax_rate) > 0 && (
+                  <View style={styles.grandTotalRow}>
+                    <Text style={styles.grandTotalLabel}>Materials + Tax</Text>
+                    <Text style={styles.grandTotalValue}>${(materialsCost + parseFloat(estimate.tax_amount || "0")).toFixed(2)}</Text>
+                  </View>
+                )}
+                <View style={[styles.grandTotalRow, { borderTopWidth: 1, borderTopColor: "#e5e7eb", paddingTop: 6, marginTop: 2 }]}>
+                  <Text style={styles.grandTotalLabel}>Labor ({totalHours.toFixed(2)}h)</Text>
+                  <Text style={styles.grandTotalValue}>${laborCost.toFixed(2)}</Text>
+                </View>
                 <View style={[styles.grandTotalRow, styles.grandTotalFinal]}>
                   <Text style={styles.grandTotalFinalLabel}>Total</Text>
                   <Text style={styles.grandTotalFinalValue}>

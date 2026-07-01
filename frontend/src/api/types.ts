@@ -117,6 +117,12 @@ export interface Estimate {
   tax_amount: string;
   /** subtotal + tax_amount */
   total: string;
+  /** Total cost of material entries only */
+  materials_cost: string;
+  /** Total cost of labor (hours) entries only */
+  labor_cost: string;
+  /** Total labor hours */
+  labor_hours: string;
   created_at: string;
   updated_at: string;
   /** Computed PDF status: "none" if never generated, "current" if up-to-date, "stale" if document changed since last generation */
@@ -168,6 +174,12 @@ export interface Invoice {
   tax_amount: string;
   /** subtotal + tax_amount */
   total: string;
+  /** Total cost of material entries only */
+  materials_cost: string;
+  /** Total cost of labor (hours) entries only */
+  labor_cost: string;
+  /** Total labor hours */
+  labor_hours: string;
   created_at: string;
   updated_at: string;
   /** Computed PDF status: "none" if never generated, "current" if up-to-date, "stale" if document changed since last generation */

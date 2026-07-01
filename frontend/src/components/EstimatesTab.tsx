@@ -166,15 +166,25 @@ export default function EstimatesTab({ jobId }: Props) {
               {/* Totals breakdown */}
               <View style={styles.totalsBlock}>
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Subtotal</Text>
-                  <Text style={styles.totalValue}>${parseFloat(selectedEstimate.subtotal || "0").toFixed(2)}</Text>
+                  <Text style={styles.totalLabel}>Materials</Text>
+                  <Text style={styles.totalValue}>${parseFloat(selectedEstimate.materials_cost || "0").toFixed(2)}</Text>
                 </View>
                 {selectedEstimate.tax_rate && parseFloat(selectedEstimate.tax_rate) > 0 && (
                   <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>Tax ({selectedEstimate.tax_rate}% on materials)</Text>
+                    <Text style={styles.totalLabel}>Tax ({selectedEstimate.tax_rate}%)</Text>
                     <Text style={styles.totalValue}>${parseFloat(selectedEstimate.tax_amount || "0").toFixed(2)}</Text>
                   </View>
                 )}
+                {selectedEstimate.tax_rate && parseFloat(selectedEstimate.tax_rate) > 0 && (
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>Materials + Tax</Text>
+                    <Text style={styles.totalValue}>${(parseFloat(selectedEstimate.materials_cost || "0") + parseFloat(selectedEstimate.tax_amount || "0")).toFixed(2)}</Text>
+                  </View>
+                )}
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Labor ({parseFloat(selectedEstimate.labor_hours || "0").toFixed(2)}h)</Text>
+                  <Text style={styles.totalValue}>${parseFloat(selectedEstimate.labor_cost || "0").toFixed(2)}</Text>
+                </View>
                 <View style={[styles.totalRow, styles.grandRow]}>
                   <Text style={styles.grandLabel}>Total</Text>
                   <Text style={styles.grandValue}>${parseFloat(selectedEstimate.total || "0").toFixed(2)}</Text>
