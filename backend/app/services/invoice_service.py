@@ -93,6 +93,8 @@ class InvoiceService:
             self._apply_metadata(invoice, metadata)
         # Auto-populate any remaining None fields from profile and job context
         self._populate_defaults(invoice, user_id, job)
+        # Apply tenant-level PDF visibility defaults for show_* flags
+        self._apply_pdf_visibility_defaults(invoice, "invoice")
         created = self._invoice_repo.create(invoice)
         # Record initial status in history
         from ..models import InvoiceStatusHistory
@@ -198,6 +200,31 @@ class InvoiceService:
                 doc.bill_to = job.job_site.primary_contact.name
         if doc.worksite_address is None and job and job.job_site:
             doc.worksite_address = job.job_site.address
+
+    @staticmethod
+    def _apply_pdf_visibility_defaults(doc, document_type: str) -> None:
+        """Apply tenant-level pdf_visible defaults to show_* flags on a new document."""
+        from ..models import DocumentFieldSettings
+
+        FIELD_TO_SHOW_ATTR = {
+            "document_number": "show_document_number",
+            "document_date": "show_document_date",
+            "bill_to": "show_bill_to",
+            "company_name": "show_company_name",
+            "user_name": "show_user_name",
+            "user_phone": "show_user_phone",
+            "user_email": "show_user_email",
+            "payment_method": "show_payment_method",
+            "business_address": "show_business_address",
+            "worksite_address": "show_worksite_address",
+            "notes": "show_notes",
+        }
+
+        settings = DocumentFieldSettings.query.filter_by(document_type=document_type).all()
+        for setting in settings:
+            attr = FIELD_TO_SHOW_ATTR.get(setting.field_key)
+            if attr and not setting.pdf_visible:
+                setattr(doc, attr, False)
 
     def populate_defaults(self, invoice_id: str, user_id: str) -> Invoice:
         """Re-populate all metadata fields from business info, profile, and job context (overwrites current values)."""

@@ -34,6 +34,11 @@ import ProfileSettingsScreen from "../screens/app/ProfileSettingsScreen";
 import BusinessInfoScreen from "../screens/app/BusinessInfoScreen";
 import MaterialsLibraryScreen from "../screens/app/MaterialsLibraryScreen";
 import InvoiceManagementScreen from "../screens/app/InvoiceManagementScreen";
+import SettingsScreen from "../screens/app/SettingsScreen";
+import InvoiceSettingsScreen from "../screens/app/InvoiceSettingsScreen";
+import EstimateSettingsScreen from "../screens/app/EstimateSettingsScreen";
+import EditInvoiceOptionsScreen from "../screens/app/EditInvoiceOptionsScreen";
+import EditEstimateOptionsScreen from "../screens/app/EditEstimateOptionsScreen";
 import AdminUsersScreen from "../screens/app/AdminUsersScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -62,6 +67,11 @@ const linking: LinkingOptions<RootStackParamList> = {
       SavedItemEditor: "saved-items/:itemId?",
       MaterialsLibrary: "materials",
       InvoiceManagement: "invoices/manage",
+      Settings: "settings",
+      InvoiceSettings: "settings/invoices",
+      EstimateSettings: "settings/estimates",
+      EditInvoiceOptions: "settings/invoices/options",
+      EditEstimateOptions: "settings/estimates/options",
       AdminUsers: "admin/users",
     },
   },
@@ -152,6 +162,31 @@ export default function RootNavigator() {
               name="InvoiceManagement"
               component={InvoiceManagementScreen}
               options={{ headerShown: true, title: "Invoice Management" }}
+            />
+            <Stack.Screen
+              name="Settings"
+              component={SettingsScreen}
+              options={{ headerShown: true, title: "Settings" }}
+            />
+            <Stack.Screen
+              name="InvoiceSettings"
+              component={InvoiceSettingsScreen}
+              options={{ headerShown: true, title: "Invoice Settings" }}
+            />
+            <Stack.Screen
+              name="EstimateSettings"
+              component={EstimateSettingsScreen}
+              options={{ headerShown: true, title: "Estimate Settings" }}
+            />
+            <Stack.Screen
+              name="EditInvoiceOptions"
+              component={EditInvoiceOptionsScreen}
+              options={{ headerShown: true, title: "Edit Invoice Options" }}
+            />
+            <Stack.Screen
+              name="EditEstimateOptions"
+              component={EditEstimateOptionsScreen}
+              options={{ headerShown: true, title: "Edit Estimate Options" }}
             />
             <Stack.Screen
               name="AdminUsers"

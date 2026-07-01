@@ -34,6 +34,11 @@ export type RootStackParamList = {
   SavedItemEditor: { itemId?: string };
   MaterialsLibrary: undefined;
   InvoiceManagement: undefined;
+  Settings: undefined;
+  InvoiceSettings: undefined;
+  EstimateSettings: undefined;
+  EditInvoiceOptions: undefined;
+  EditEstimateOptions: undefined;
   AdminUsers: undefined;
 };
 

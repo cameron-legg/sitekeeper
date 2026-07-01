@@ -743,6 +743,32 @@ class DocumentPhoto(db.Model):
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# DocumentFieldSettings  (tenant-level field visibility config)
+# ---------------------------------------------------------------------------
+
+
+class DocumentFieldSettings(db.Model):
+    __tablename__ = "document_field_settings"
+    __table_args__ = (
+        db.UniqueConstraint("document_type", "field_key", name="uq_doc_field_settings_type_key"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_type = Column(String(20), nullable=False)  # 'estimate' or 'invoice'
+    field_key = Column(String(50), nullable=False)
+    visibility = Column(String(20), nullable=False, default="always_show")  # 'always_show', 'additional', 'disabled'
+    pdf_visible = Column(Boolean, nullable=False, default=True)
+
+    def __repr__(self):
+        return f"<DocumentFieldSettings {self.document_type}.{self.field_key}={self.visibility}>"
+
+
+# ---------------------------------------------------------------------------
+# BusinessInfo  (tenant-level settings — one row per tenant database)
+# ---------------------------------------------------------------------------
+
+
 class BusinessInfo(db.Model):
     __tablename__ = "business_info"
 

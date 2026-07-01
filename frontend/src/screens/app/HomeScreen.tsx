@@ -312,20 +312,6 @@ export default function HomeScreen({ navigation }: Props) {
           <View style={styles.menuCard}>
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => { setShowMenu(false); navigation.navigate("ProfileSettings"); }}
-            >
-              <Text style={styles.menuItemText}>⚙️  Profile</Text>
-            </TouchableOpacity>
-            <View style={styles.menuDivider} />
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => { setShowMenu(false); navigation.navigate("BusinessInfo"); }}
-            >
-              <Text style={styles.menuItemText}>🏢  Business Info</Text>
-            </TouchableOpacity>
-            <View style={styles.menuDivider} />
-            <TouchableOpacity
-              style={styles.menuItem}
               onPress={() => { setShowMenu(false); navigation.navigate("SavedItems", {}); }}
             >
               <Text style={styles.menuItemText}>📚  Item Library</Text>
@@ -344,17 +330,13 @@ export default function HomeScreen({ navigation }: Props) {
             >
               <Text style={styles.menuItemText}>📄  Invoice Management</Text>
             </TouchableOpacity>
-            {role === "admin" && (
-              <>
-                <View style={styles.menuDivider} />
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={() => { setShowMenu(false); navigation.navigate("AdminUsers"); }}
-                >
-                  <Text style={styles.menuItemText}>👥  Manage Users</Text>
-                </TouchableOpacity>
-              </>
-            )}
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { setShowMenu(false); navigation.navigate("Settings"); }}
+            >
+              <Text style={styles.menuItemText}>⚙️  Settings</Text>
+            </TouchableOpacity>
             <View style={styles.menuDivider} />
             <TouchableOpacity
               style={styles.menuItem}

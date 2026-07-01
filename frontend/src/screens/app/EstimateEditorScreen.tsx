@@ -14,6 +14,7 @@ import {
 } from "../../api/hooks/useEstimates";
 import { useSavedItems, usePopulateSavedItem, useSaveEntryToLibrary, usePopulateSavedEntry, useAllSavedEntries } from "../../api/hooks/useSavedItems";
 import { useJob } from "../../api/hooks/useJobs";
+import { useDocumentFieldSettings, type FieldVisibility } from "../../api/hooks/useDocumentSettings";
 import LineItemEditor from "../../components/LineItemEditor";
 import DocumentPhotoPicker from "../../components/DocumentPhotoPicker";
 import type { LineItemEntry, SavedItem, SavedItemEntry } from "../../api/types";
@@ -88,6 +89,27 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
   const populateSavedEntry = usePopulateSavedEntry();
   const { data: savedItems } = useSavedItems();
   const { data: allSavedEntries } = useAllSavedEntries();
+
+  // Document field settings (tenant-level visibility config)
+  const { data: fieldSettings } = useDocumentFieldSettings("estimate");
+  const [showAdditional, setShowAdditional] = useState(false);
+
+  function fieldVisibility(key: string): FieldVisibility {
+    const setting = fieldSettings?.find((f) => f.key === key);
+    return setting?.visibility ?? "always_show";
+  }
+
+  function isFieldVisible(key: string): boolean {
+    return fieldVisibility(key) !== "disabled";
+  }
+
+  function isFieldAlwaysShow(key: string): boolean {
+    return fieldVisibility(key) === "always_show";
+  }
+
+  function isFieldAdditional(key: string): boolean {
+    return fieldVisibility(key) === "additional";
+  }
 
   const [showAddItem, setShowAddItem] = useState(false);
   const [addItemMode, setAddItemMode] = useState<"new" | "library">("new");
@@ -187,6 +209,18 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
         setPaymentMethod(est.payment_method ?? "");
         setBusinessAddress(est.business_address ?? "");
         setWorksiteAddress(est.worksite_address ?? "");
+        // Apply PDF visibility defaults from settings
+        setShowDocumentNumber(est.show_document_number);
+        setShowDocumentDate(est.show_document_date);
+        setShowBillTo(est.show_bill_to);
+        setShowCompanyName(est.show_company_name);
+        setShowUserName(est.show_user_name);
+        setShowUserPhone(est.show_user_phone);
+        setShowUserEmail(est.show_user_email);
+        setShowPaymentMethod(est.show_payment_method);
+        setShowBusinessAddress(est.show_business_address);
+        setShowWorksiteAddress(est.show_worksite_address);
+        setShowNotes(est.show_notes);
       },
       onError: () => { setIsCreating(false); setTitleError("Failed to create estimate."); },
     });
@@ -252,11 +286,15 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
         {estimateId && (
           <>
             {/* Tax Rate */}
-            <Text style={styles.sectionLabel}>Sales Tax Rate %</Text>
-            <TextInput style={styles.input} value={taxRate}
-              onChangeText={(v) => onFieldChange(setTaxRate, "tax_rate", v)}
-              placeholder="e.g. 8.5 (leave blank for no tax)" keyboardType="decimal-pad" />
-            <Text style={styles.taxHint}>Tax applies to material items only, not labour hours.</Text>
+            {isFieldAlwaysShow("tax_rate") && (
+              <>
+                <Text style={styles.sectionLabel}>Sales Tax Rate %</Text>
+                <TextInput style={styles.input} value={taxRate}
+                  onChangeText={(v) => onFieldChange(setTaxRate, "tax_rate", v)}
+                  placeholder="e.g. 8.5 (leave blank for no tax)" keyboardType="decimal-pad" />
+                <Text style={styles.taxHint}>Tax applies to material items only, not labour hours.</Text>
+              </>
+            )}
 
             {/* Document Details Section */}
             <View style={styles.sectionHeaderRow}>
@@ -272,82 +310,222 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
               </TouchableOpacity>
             </View>
 
-            <MetadataField label="Document #" value={documentNumber}
-              onChangeText={(v) => onFieldChange(setDocumentNumber, "document_number", v)}
-              showToggle={showDocumentNumber}
-              onToggle={(v) => onToggleChange(setShowDocumentNumber, "show_document_number", v)} />
+            {isFieldAlwaysShow("document_number") && (
+              <MetadataField label="Document #" value={documentNumber}
+                onChangeText={(v) => onFieldChange(setDocumentNumber, "document_number", v)}
+                showToggle={showDocumentNumber}
+                onToggle={(v) => onToggleChange(setShowDocumentNumber, "show_document_number", v)} />
+            )}
 
-            <MetadataField label="Date" value={documentDate}
-              onChangeText={(v) => onFieldChange(setDocumentDate, "document_date", v)}
-              placeholder="YYYY-MM-DD"
-              showToggle={showDocumentDate}
-              onToggle={(v) => onToggleChange(setShowDocumentDate, "show_document_date", v)}
-              extraButton={
-                <TouchableOpacity style={styles.todayBtn} onPress={() => {
-                  const today = new Date().toISOString().split("T")[0];
-                  setDocumentDate(today);
-                  if (estimateId) debouncedSave({ document_date: today });
-                }}>
-                  <Text style={styles.todayBtnText}>Today</Text>
-                </TouchableOpacity>
-              } />
+            {isFieldAlwaysShow("document_date") && (
+              <MetadataField label="Date" value={documentDate}
+                onChangeText={(v) => onFieldChange(setDocumentDate, "document_date", v)}
+                placeholder="YYYY-MM-DD"
+                showToggle={showDocumentDate}
+                onToggle={(v) => onToggleChange(setShowDocumentDate, "show_document_date", v)}
+                extraButton={
+                  <TouchableOpacity style={styles.todayBtn} onPress={() => {
+                    const today = new Date().toISOString().split("T")[0];
+                    setDocumentDate(today);
+                    if (estimateId) debouncedSave({ document_date: today });
+                  }}>
+                    <Text style={styles.todayBtnText}>Today</Text>
+                  </TouchableOpacity>
+                } />
+            )}
 
-            <MetadataField label="Bill To" value={billTo}
-              onChangeText={(v) => onFieldChange(setBillTo, "bill_to", v)}
-              showToggle={showBillTo}
-              onToggle={(v) => onToggleChange(setShowBillTo, "show_bill_to", v)} />
+            {isFieldAlwaysShow("bill_to") && (
+              <MetadataField label="Bill To" value={billTo}
+                onChangeText={(v) => onFieldChange(setBillTo, "bill_to", v)}
+                showToggle={showBillTo}
+                onToggle={(v) => onToggleChange(setShowBillTo, "show_bill_to", v)} />
+            )}
 
-            <MetadataField label="Worksite Address" value={worksiteAddress}
-              onChangeText={(v) => onFieldChange(setWorksiteAddress, "worksite_address", v)}
-              showToggle={showWorksiteAddress}
-              onToggle={(v) => onToggleChange(setShowWorksiteAddress, "show_worksite_address", v)} />
+            {isFieldAlwaysShow("worksite_address") && (
+              <MetadataField label="Worksite Address" value={worksiteAddress}
+                onChangeText={(v) => onFieldChange(setWorksiteAddress, "worksite_address", v)}
+                showToggle={showWorksiteAddress}
+                onToggle={(v) => onToggleChange(setShowWorksiteAddress, "show_worksite_address", v)} />
+            )}
 
             {/* Business Details Section */}
             <Text style={[styles.sectionHeader, { marginTop: 20 }]}>Business Details</Text>
 
-            <MetadataField label="Business Name" value={companyName}
-              onChangeText={(v) => onFieldChange(setCompanyName, "company_name", v)}
-              showToggle={showCompanyName}
-              onToggle={(v) => onToggleChange(setShowCompanyName, "show_company_name", v)} />
+            {isFieldAlwaysShow("company_name") && (
+              <MetadataField label="Business Name" value={companyName}
+                onChangeText={(v) => onFieldChange(setCompanyName, "company_name", v)}
+                showToggle={showCompanyName}
+                onToggle={(v) => onToggleChange(setShowCompanyName, "show_company_name", v)} />
+            )}
 
-            <MetadataField label="Owner / Worker Name" value={userName}
-              onChangeText={(v) => onFieldChange(setUserName, "user_name", v)}
-              showToggle={showUserName}
-              onToggle={(v) => onToggleChange(setShowUserName, "show_user_name", v)} />
+            {isFieldAlwaysShow("user_name") && (
+              <MetadataField label="Owner / Worker Name" value={userName}
+                onChangeText={(v) => onFieldChange(setUserName, "user_name", v)}
+                showToggle={showUserName}
+                onToggle={(v) => onToggleChange(setShowUserName, "show_user_name", v)} />
+            )}
 
-            <MetadataField label="Business Address" value={businessAddress}
-              onChangeText={(v) => onFieldChange(setBusinessAddress, "business_address", v)}
-              showToggle={showBusinessAddress}
-              onToggle={(v) => onToggleChange(setShowBusinessAddress, "show_business_address", v)} />
+            {isFieldAlwaysShow("business_address") && (
+              <MetadataField label="Business Address" value={businessAddress}
+                onChangeText={(v) => onFieldChange(setBusinessAddress, "business_address", v)}
+                showToggle={showBusinessAddress}
+                onToggle={(v) => onToggleChange(setShowBusinessAddress, "show_business_address", v)} />
+            )}
 
-            <MetadataField label="Phone" value={userPhone}
-              onChangeText={(v) => onFieldChange(setUserPhone, "user_phone", v)}
-              showToggle={showUserPhone}
-              onToggle={(v) => onToggleChange(setShowUserPhone, "show_user_phone", v)} />
+            {isFieldAlwaysShow("user_phone") && (
+              <MetadataField label="Phone" value={userPhone}
+                onChangeText={(v) => onFieldChange(setUserPhone, "user_phone", v)}
+                showToggle={showUserPhone}
+                onToggle={(v) => onToggleChange(setShowUserPhone, "show_user_phone", v)} />
+            )}
 
-            <MetadataField label="Email" value={userEmail}
-              onChangeText={(v) => onFieldChange(setUserEmail, "user_email", v)}
-              showToggle={showUserEmail}
-              onToggle={(v) => onToggleChange(setShowUserEmail, "show_user_email", v)} />
+            {isFieldAlwaysShow("user_email") && (
+              <MetadataField label="Email" value={userEmail}
+                onChangeText={(v) => onFieldChange(setUserEmail, "user_email", v)}
+                showToggle={showUserEmail}
+                onToggle={(v) => onToggleChange(setShowUserEmail, "show_user_email", v)} />
+            )}
 
-            <MetadataField label="Payment Method" value={paymentMethod}
-              onChangeText={(v) => onFieldChange(setPaymentMethod, "payment_method", v)}
-              showToggle={showPaymentMethod}
-              onToggle={(v) => onToggleChange(setShowPaymentMethod, "show_payment_method", v)} />
+            {isFieldAlwaysShow("payment_method") && (
+              <MetadataField label="Payment Method" value={paymentMethod}
+                onChangeText={(v) => onFieldChange(setPaymentMethod, "payment_method", v)}
+                showToggle={showPaymentMethod}
+                onToggle={(v) => onToggleChange(setShowPaymentMethod, "show_payment_method", v)} />
+            )}
 
             {/* Additional Notes */}
-            <Text style={[styles.sectionHeader, { marginTop: 20 }]}>Additional Notes</Text>
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>Show in PDF</Text>
-              <Switch value={showNotes} onValueChange={(v) => onToggleChange(setShowNotes, "show_notes", v)}
-                trackColor={{ true: "#2563eb" }} />
-            </View>
-            <TextInput style={[styles.input, styles.multiline]} value={notes}
-              onChangeText={(v) => onFieldChange(setNotes, "notes", v)}
-              placeholder="Additional notes (supports markdown)" multiline numberOfLines={4} />
+            {isFieldAlwaysShow("notes") && (
+              <>
+                <Text style={[styles.sectionHeader, { marginTop: 20 }]}>Additional Notes</Text>
+                <View style={styles.toggleRow}>
+                  <Text style={styles.toggleLabel}>Show in PDF</Text>
+                  <Switch value={showNotes} onValueChange={(v) => onToggleChange(setShowNotes, "show_notes", v)}
+                    trackColor={{ true: "#2563eb" }} />
+                </View>
+                <TextInput style={[styles.input, styles.multiline]} value={notes}
+                  onChangeText={(v) => onFieldChange(setNotes, "notes", v)}
+                  placeholder="Additional notes (supports markdown)" multiline numberOfLines={4} />
+              </>
+            )}
 
             {/* Document Photos */}
-            <DocumentPhotoPicker documentId={estimateId} documentType="estimate" jobId={jobId} />
+            {isFieldAlwaysShow("photos") && (
+              <DocumentPhotoPicker documentId={estimateId} documentType="estimate" jobId={jobId} />
+            )}
+
+            {/* Additional Options accordion */}
+            {fieldSettings?.some((f) => f.visibility === "additional") && (
+              <>
+                <TouchableOpacity
+                  style={styles.additionalToggle}
+                  onPress={() => setShowAdditional((v) => !v)}
+                >
+                  <Text style={styles.additionalToggleText}>
+                    {showAdditional ? "▲ Hide Additional Options" : "▼ Show Additional Options"}
+                  </Text>
+                </TouchableOpacity>
+
+                {showAdditional && (
+                  <View style={styles.additionalSection}>
+                    {isFieldAdditional("tax_rate") && (
+                      <>
+                        <Text style={styles.sectionLabel}>Sales Tax Rate %</Text>
+                        <TextInput style={styles.input} value={taxRate}
+                          onChangeText={(v) => onFieldChange(setTaxRate, "tax_rate", v)}
+                          placeholder="e.g. 8.5 (leave blank for no tax)" keyboardType="decimal-pad" />
+                        <Text style={styles.taxHint}>Tax applies to material items only, not labour hours.</Text>
+                      </>
+                    )}
+                    {isFieldAdditional("document_number") && (
+                      <MetadataField label="Document #" value={documentNumber}
+                        onChangeText={(v) => onFieldChange(setDocumentNumber, "document_number", v)}
+                        showToggle={showDocumentNumber}
+                        onToggle={(v) => onToggleChange(setShowDocumentNumber, "show_document_number", v)} />
+                    )}
+                    {isFieldAdditional("document_date") && (
+                      <MetadataField label="Date" value={documentDate}
+                        onChangeText={(v) => onFieldChange(setDocumentDate, "document_date", v)}
+                        placeholder="YYYY-MM-DD"
+                        showToggle={showDocumentDate}
+                        onToggle={(v) => onToggleChange(setShowDocumentDate, "show_document_date", v)}
+                        extraButton={
+                          <TouchableOpacity style={styles.todayBtn} onPress={() => {
+                            const today = new Date().toISOString().split("T")[0];
+                            setDocumentDate(today);
+                            if (estimateId) debouncedSave({ document_date: today });
+                          }}>
+                            <Text style={styles.todayBtnText}>Today</Text>
+                          </TouchableOpacity>
+                        } />
+                    )}
+                    {isFieldAdditional("bill_to") && (
+                      <MetadataField label="Bill To" value={billTo}
+                        onChangeText={(v) => onFieldChange(setBillTo, "bill_to", v)}
+                        showToggle={showBillTo}
+                        onToggle={(v) => onToggleChange(setShowBillTo, "show_bill_to", v)} />
+                    )}
+                    {isFieldAdditional("worksite_address") && (
+                      <MetadataField label="Worksite Address" value={worksiteAddress}
+                        onChangeText={(v) => onFieldChange(setWorksiteAddress, "worksite_address", v)}
+                        showToggle={showWorksiteAddress}
+                        onToggle={(v) => onToggleChange(setShowWorksiteAddress, "show_worksite_address", v)} />
+                    )}
+                    {isFieldAdditional("company_name") && (
+                      <MetadataField label="Business Name" value={companyName}
+                        onChangeText={(v) => onFieldChange(setCompanyName, "company_name", v)}
+                        showToggle={showCompanyName}
+                        onToggle={(v) => onToggleChange(setShowCompanyName, "show_company_name", v)} />
+                    )}
+                    {isFieldAdditional("user_name") && (
+                      <MetadataField label="Owner / Worker Name" value={userName}
+                        onChangeText={(v) => onFieldChange(setUserName, "user_name", v)}
+                        showToggle={showUserName}
+                        onToggle={(v) => onToggleChange(setShowUserName, "show_user_name", v)} />
+                    )}
+                    {isFieldAdditional("business_address") && (
+                      <MetadataField label="Business Address" value={businessAddress}
+                        onChangeText={(v) => onFieldChange(setBusinessAddress, "business_address", v)}
+                        showToggle={showBusinessAddress}
+                        onToggle={(v) => onToggleChange(setShowBusinessAddress, "show_business_address", v)} />
+                    )}
+                    {isFieldAdditional("user_phone") && (
+                      <MetadataField label="Phone" value={userPhone}
+                        onChangeText={(v) => onFieldChange(setUserPhone, "user_phone", v)}
+                        showToggle={showUserPhone}
+                        onToggle={(v) => onToggleChange(setShowUserPhone, "show_user_phone", v)} />
+                    )}
+                    {isFieldAdditional("user_email") && (
+                      <MetadataField label="Email" value={userEmail}
+                        onChangeText={(v) => onFieldChange(setUserEmail, "user_email", v)}
+                        showToggle={showUserEmail}
+                        onToggle={(v) => onToggleChange(setShowUserEmail, "show_user_email", v)} />
+                    )}
+                    {isFieldAdditional("payment_method") && (
+                      <MetadataField label="Payment Method" value={paymentMethod}
+                        onChangeText={(v) => onFieldChange(setPaymentMethod, "payment_method", v)}
+                        showToggle={showPaymentMethod}
+                        onToggle={(v) => onToggleChange(setShowPaymentMethod, "show_payment_method", v)} />
+                    )}
+                    {isFieldAdditional("notes") && (
+                      <>
+                        <Text style={[styles.sectionHeader, { marginTop: 12 }]}>Additional Notes</Text>
+                        <View style={styles.toggleRow}>
+                          <Text style={styles.toggleLabel}>Show in PDF</Text>
+                          <Switch value={showNotes} onValueChange={(v) => onToggleChange(setShowNotes, "show_notes", v)}
+                            trackColor={{ true: "#2563eb" }} />
+                        </View>
+                        <TextInput style={[styles.input, styles.multiline]} value={notes}
+                          onChangeText={(v) => onFieldChange(setNotes, "notes", v)}
+                          placeholder="Additional notes (supports markdown)" multiline numberOfLines={4} />
+                      </>
+                    )}
+                    {isFieldAdditional("photos") && (
+                      <DocumentPhotoPicker documentId={estimateId} documentType="estimate" jobId={jobId} />
+                    )}
+                  </View>
+                )}
+              </>
+            )}
 
             {/* Line Items */}
             <Text style={[styles.sectionHeader, { marginTop: 20 }]}>Line Items</Text>
@@ -514,6 +692,9 @@ const styles = StyleSheet.create({
   createBtnText: { color: "#fff", fontSize: 14, fontWeight: "600" },
   btnDisabled: { opacity: 0.6 },
   taxHint: { fontSize: 12, color: "#9ca3af", marginTop: -4, marginBottom: 12 },
+  additionalToggle: { backgroundColor: "#f0f9ff", borderRadius: 8, paddingVertical: 12, alignItems: "center", marginTop: 16, marginBottom: 8, borderWidth: 1, borderColor: "#bfdbfe" },
+  additionalToggleText: { fontSize: 14, fontWeight: "600", color: "#2563eb" },
+  additionalSection: { backgroundColor: "#f9fafb", borderRadius: 10, padding: 12, marginTop: 4, marginBottom: 8, borderWidth: 1, borderColor: "#e5e7eb" },
   emptyText: { fontSize: 14, color: "#9ca3af", textAlign: "center", paddingVertical: 20 },
   grandTotalBlock: { backgroundColor: "#f9fafb", borderRadius: 10, padding: 14, borderTopWidth: 2, borderTopColor: "#e5e7eb", marginTop: 8 },
   grandTotalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
