@@ -12,7 +12,7 @@ import {
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { useAllInvoices, useUpdateInvoice } from "../../api/hooks/useInvoices";
-import type { InvoiceWithContext, InvoiceStatus, InvoiceStatusHistoryEntry } from "../../api/types";
+import type { InvoiceWithContext, InvoiceStatus } from "../../api/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "InvoiceManagement">;
 
@@ -163,14 +163,30 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
     // Dollar amounts by status
     const byStatus = { drafting: 0, waiting_to_send: 0, sent_awaiting_payment: 0, paid: 0 };
     const countByStatus = { drafting: 0, waiting_to_send: 0, sent_awaiting_payment: 0, paid: 0 };
+    // Per-status revenue breakdown
+    const materialsByStatus = { drafting: 0, waiting_to_send: 0, sent_awaiting_payment: 0, paid: 0 };
+    const taxByStatus = { drafting: 0, waiting_to_send: 0, sent_awaiting_payment: 0, paid: 0 };
+    const laborByStatus = { drafting: 0, waiting_to_send: 0, sent_awaiting_payment: 0, paid: 0 };
     let totalAmount = 0;
+    let totalMaterials = 0;
+    let totalTax = 0;
+    let totalLabor = 0;
 
     for (const inv of periodInvoices) {
       const amount = parseFloat(inv.total || "0");
+      const materials = parseFloat(inv.materials_cost || "0");
+      const tax = parseFloat(inv.tax_amount || "0");
+      const labor = parseFloat(inv.labor_cost || "0");
       totalAmount += amount;
+      totalMaterials += materials;
+      totalTax += tax;
+      totalLabor += labor;
       if (inv.status in byStatus) {
         (byStatus as any)[inv.status] += amount;
         (countByStatus as any)[inv.status]++;
+        (materialsByStatus as any)[inv.status] += materials;
+        (taxByStatus as any)[inv.status] += tax;
+        (laborByStatus as any)[inv.status] += labor;
       }
     }
 
@@ -226,6 +242,9 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
     // Outstanding amount (sent + waiting)
     const outstandingAmount = byStatus.sent_awaiting_payment + byStatus.waiting_to_send;
 
+    // Revenue breakdown: materials + tax is pass-through cost, labor is profit
+    const materialsPlusTax = totalMaterials + totalTax;
+
     return {
       periodInvoiceCount: periodInvoices.length,
       totalAmount,
@@ -235,6 +254,13 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
       avgTimeToPaid,
       outstandingAmount,
       collectedAmount: byStatus.paid,
+      totalMaterials,
+      totalTax,
+      materialsPlusTax,
+      totalLabor,
+      materialsByStatus,
+      taxByStatus,
+      laborByStatus,
     };
   }, [invoices, summaryPeriod]);
 
@@ -408,6 +434,61 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
                     <Text style={styles.reportLabel}>Outstanding</Text>
                     <Text style={[styles.reportValueBold, { color: "#2563eb" }]}>{formatMoney(summaryMetrics.outstandingAmount)}</Text>
                   </View>
+                </View>
+
+                {/* Revenue Breakdown */}
+                <View style={styles.reportSection}>
+                  <Text style={styles.reportSectionTitle}>Revenue Breakdown</Text>
+                  {/* All invoices totals */}
+                  <View style={styles.breakdownGroup}>
+                    <View style={styles.breakdownHeader}>
+                      <Text style={styles.breakdownHeaderText}>All Invoices</Text>
+                      <Text style={styles.breakdownHeaderCount}>({summaryMetrics.periodInvoiceCount})</Text>
+                    </View>
+                    <View style={styles.reportRow}>
+                      <Text style={styles.reportLabel}>Materials + tax</Text>
+                      <Text style={styles.reportValue}>{formatMoney(summaryMetrics.materialsPlusTax)}</Text>
+                    </View>
+                    <View style={styles.reportRow}>
+                      <Text style={styles.reportLabel}>Labor revenue</Text>
+                      <Text style={[styles.reportValue, { color: "#065f46" }]}>{formatMoney(summaryMetrics.totalLabor)}</Text>
+                    </View>
+                    <View style={[styles.reportRow, { paddingTop: 6, borderTopWidth: 1, borderTopColor: "#e5e7eb", marginTop: 4 }]}>
+                      <Text style={[styles.reportLabel, { fontWeight: "600" }]}>Total</Text>
+                      <Text style={styles.reportValueBold}>{formatMoney(summaryMetrics.totalAmount)}</Text>
+                    </View>
+                  </View>
+
+                  {/* Per-status breakdowns */}
+                  {STATUS_OPTIONS.map((opt) => {
+                    const count = (summaryMetrics.countByStatus as any)[opt.value] || 0;
+                    if (count === 0) return null;
+                    const materials = (summaryMetrics.materialsByStatus as any)[opt.value] || 0;
+                    const tax = (summaryMetrics.taxByStatus as any)[opt.value] || 0;
+                    const labor = (summaryMetrics.laborByStatus as any)[opt.value] || 0;
+                    const total = (summaryMetrics.byStatus as any)[opt.value] || 0;
+                    return (
+                      <View key={opt.value} style={styles.breakdownGroup}>
+                        <View style={styles.breakdownHeader}>
+                          <View style={[styles.reportDot, { backgroundColor: opt.color }]} />
+                          <Text style={[styles.breakdownHeaderText, { color: opt.color }]}>{opt.label}</Text>
+                          <Text style={styles.breakdownHeaderCount}>({count})</Text>
+                        </View>
+                        <View style={styles.reportRow}>
+                          <Text style={styles.reportLabel}>Materials + tax</Text>
+                          <Text style={styles.reportValue}>{formatMoney(materials + tax)}</Text>
+                        </View>
+                        <View style={styles.reportRow}>
+                          <Text style={styles.reportLabel}>Labor revenue</Text>
+                          <Text style={[styles.reportValue, { color: "#065f46" }]}>{formatMoney(labor)}</Text>
+                        </View>
+                        <View style={[styles.reportRow, { paddingTop: 6, borderTopWidth: 1, borderTopColor: "#e5e7eb", marginTop: 4 }]}>
+                          <Text style={[styles.reportLabel, { fontWeight: "600" }]}>Total</Text>
+                          <Text style={[styles.reportValueBold, { color: opt.color }]}>{formatMoney(total)}</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
                 </View>
 
                 {/* Breakdown by status */}
@@ -767,6 +848,22 @@ const styles = StyleSheet.create({
   reportCount: { fontSize: 12, color: "#9ca3af" },
   reportValue: { fontSize: 14, color: "#374151" },
   reportValueBold: { fontSize: 15, fontWeight: "700", color: "#1a1a1a" },
+
+  // Breakdown groups (per-status)
+  breakdownGroup: {
+    paddingTop: 10,
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+  },
+  breakdownHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+  },
+  breakdownHeaderText: { fontSize: 14, fontWeight: "700", color: "#374151" },
+  breakdownHeaderCount: { fontSize: 12, color: "#9ca3af" },
 
   // Status picker modal
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: 24 },
