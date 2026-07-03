@@ -35,7 +35,7 @@ function entryFingerprint(e: { entry_type: string; name: string; unit_price?: st
 // ── Entry form modal ──────────────────────────────────────────────────────────
 
 interface EntryFormValues {
-  entry_type: "material" | "hours";
+  entry_type: "material" | "hours" | "fee";
   name: string;
   notes: string;
   url: string;
@@ -81,9 +81,9 @@ function EntryModal({ visible, initial, onClose, onSave, isSaving, lineItemName 
 
   function handleSave() {
     const errs: Partial<Record<keyof EntryFormValues, string>> = {};
-    if (values.entry_type === "material" && !values.name.trim()) errs.name = "Name is required.";
-    if (values.entry_type === "material") {
-      if (!values.unit_price.trim()) errs.unit_price = "Unit price is required.";
+    if ((values.entry_type === "material" || values.entry_type === "fee") && !values.name.trim()) errs.name = "Name is required.";
+    if (values.entry_type === "material" || values.entry_type === "fee") {
+      if (!values.unit_price.trim()) errs.unit_price = values.entry_type === "fee" ? "Amount is required." : "Unit price is required.";
       else if (isNaN(parseFloat(values.unit_price))) errs.unit_price = "Must be a number.";
       if (values.quantity.trim() && isNaN(parseFloat(values.quantity)))
         errs.quantity = "Must be a number.";
@@ -101,7 +101,7 @@ function EntryModal({ visible, initial, onClose, onSave, isSaving, lineItemName 
       name: values.entry_type === "hours" && !values.name.trim()
         ? `${lineItemName ?? "Item"} Labor`
         : values.name,
-      quantity: values.entry_type === "material" && !values.quantity.trim() ? "1" : values.quantity,
+      quantity: (values.entry_type === "material" || values.entry_type === "fee") && !values.quantity.trim() ? "1" : values.quantity,
     };
     onSave(finalValues);
   }
@@ -131,31 +131,53 @@ function EntryModal({ visible, initial, onClose, onSave, isSaving, lineItemName 
             {/* Type toggle */}
             <Text style={styles.fieldLabel}>Type</Text>
             <View style={styles.typeRow}>
-              {(["material", "hours"] as const).map((t) => (
+              {(["material", "hours", "fee"] as const).map((t) => (
                 <TouchableOpacity
                   key={t}
                   style={[styles.typeBtn, values.entry_type === t && styles.typeBtnActive]}
                   onPress={() => set("entry_type", t)}
                 >
                   <Text style={[styles.typeBtnText, values.entry_type === t && styles.typeBtnTextActive]}>
-                    {t === "material" ? "Material" : "Hours"}
+                    {t === "material" ? "Material" : t === "hours" ? "Hours" : "Fee"}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={styles.fieldLabel}>Name {values.entry_type === "material" && <Text style={styles.req}>*</Text>}{values.entry_type === "hours" && <Text style={styles.optional}>(default: {lineItemName ?? "Item"} Labor)</Text>}</Text>
+            <Text style={styles.fieldLabel}>Name {(values.entry_type === "material" || values.entry_type === "fee") && <Text style={styles.req}>*</Text>}{values.entry_type === "hours" && <Text style={styles.optional}>(default: {lineItemName ?? "Item"} Labor)</Text>}</Text>
             <TextInput
               style={[styles.input, errors.name && styles.inputError]}
               value={values.name}
               onChangeText={(v) => set("name", v)}
-              placeholder={values.entry_type === "material" ? "e.g. Toilet" : `${lineItemName ?? "Item"} Labor`}
+              placeholder={values.entry_type === "material" ? "e.g. Toilet" : values.entry_type === "fee" ? "e.g. Disposal Fee" : `${lineItemName ?? "Item"} Labor`}
             />
             {errors.name && <Text style={styles.fieldError}>{errors.name}</Text>}
 
             {values.entry_type === "material" ? (
               <>
                 <Text style={styles.fieldLabel}>Unit Price <Text style={styles.req}>*</Text></Text>
+                <TextInput
+                  style={[styles.input, errors.unit_price && styles.inputError]}
+                  value={values.unit_price}
+                  onChangeText={(v) => set("unit_price", v)}
+                  placeholder="0.00"
+                  keyboardType="decimal-pad"
+                />
+                {errors.unit_price && <Text style={styles.fieldError}>{errors.unit_price}</Text>}
+
+                <Text style={styles.fieldLabel}>Quantity <Text style={styles.optional}>(default: 1)</Text></Text>
+                <TextInput
+                  style={[styles.input, errors.quantity && styles.inputError]}
+                  value={values.quantity}
+                  onChangeText={(v) => set("quantity", v)}
+                  placeholder="1"
+                  keyboardType="decimal-pad"
+                />
+                {errors.quantity && <Text style={styles.fieldError}>{errors.quantity}</Text>}
+              </>
+            ) : values.entry_type === "fee" ? (
+              <>
+                <Text style={styles.fieldLabel}>Amount <Text style={styles.req}>*</Text></Text>
                 <TextInput
                   style={[styles.input, errors.unit_price && styles.inputError]}
                   value={values.unit_price}
@@ -312,9 +334,9 @@ export default function LineItemEditor({
   }
 
   function entryTotal(entry: LineItemEntry): string {
-    if (entry.entry_type === "material") {
+    if (entry.entry_type === "material" || entry.entry_type === "fee") {
       const up = parseFloat(entry.unit_price ?? "0");
-      const qty = parseFloat(entry.quantity ?? "0");
+      const qty = parseFloat(entry.quantity ?? "1");
       return isNaN(up) || isNaN(qty) ? "—" : `$${(up * qty).toFixed(2)}`;
     } else {
       const hrs = parseFloat(entry.hours ?? "0");
@@ -401,7 +423,7 @@ export default function LineItemEditor({
               <View style={styles.entryInfo}>
                 <View style={styles.entryTypeTag}>
                   <Text style={styles.entryTypeText}>
-                    {entry.entry_type === "material" ? "MAT" : "HRS"}
+                    {entry.entry_type === "material" ? "MAT" : entry.entry_type === "hours" ? "HRS" : "FEE"}
                   </Text>
                 </View>
                 <View style={styles.entryDetails}>
@@ -409,6 +431,10 @@ export default function LineItemEditor({
                   {entry.entry_type === "material" ? (
                     <Text style={styles.entrySub}>
                       {entry.quantity} × ${entry.unit_price}
+                    </Text>
+                  ) : entry.entry_type === "fee" ? (
+                    <Text style={styles.entrySub}>
+                      {parseFloat(entry.quantity || "1") > 1 ? `${entry.quantity} × $${entry.unit_price}` : `$${entry.unit_price}`}
                     </Text>
                   ) : (
                     <Text style={styles.entrySub}>{entry.hours}h</Text>
@@ -432,7 +458,7 @@ export default function LineItemEditor({
 
           <View style={styles.addEntryRow}>
             <TouchableOpacity style={styles.addEntryBtn} onPress={openAddEntry}>
-              <Text style={styles.addEntryText}>+ Add Material or Hours</Text>
+              <Text style={styles.addEntryText}>+ Add Entry</Text>
             </TouchableOpacity>
             {onPickSavedEntry && savedItems && savedItems.length > 0 && (
               <TouchableOpacity style={styles.addFromLibBtn} onPress={() => setShowLibraryPicker(true)}>
@@ -552,7 +578,7 @@ export default function LineItemEditor({
                     <View style={styles.pickerEntryInfo}>
                       <View style={styles.entryTypeTag}>
                         <Text style={styles.entryTypeText}>
-                          {entry.entry_type === "material" ? "MAT" : "HRS"}
+                          {entry.entry_type === "material" ? "MAT" : entry.entry_type === "hours" ? "HRS" : "FEE"}
                         </Text>
                       </View>
                       <View style={styles.pickerEntryDetails}>
@@ -560,6 +586,10 @@ export default function LineItemEditor({
                         {entry.entry_type === "material" ? (
                           <Text style={styles.entrySub}>
                             {entry.quantity ?? "1"} × ${entry.unit_price ?? "0"}
+                          </Text>
+                        ) : entry.entry_type === "fee" ? (
+                          <Text style={styles.entrySub}>
+                            ${entry.unit_price ?? "0"}
                           </Text>
                         ) : (
                           <Text style={styles.entrySub}>{entry.hours}h</Text>

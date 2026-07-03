@@ -66,7 +66,7 @@ export function useAddSavedItemEntry() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ itemId, ...data }: {
-      itemId: string; entry_type: "material" | "hours"; name: string;
+      itemId: string; entry_type: "material" | "hours" | "fee"; name: string;
       notes?: string; url?: string; unit_price?: string; quantity?: string;
       hours?: string; sort_order?: number;
     }) =>
@@ -139,7 +139,7 @@ export function useSaveEntryToLibrary() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: {
-      entry_type: "material" | "hours";
+      entry_type: "material" | "hours" | "fee";
       name: string;
       notes?: string;
       url?: string;

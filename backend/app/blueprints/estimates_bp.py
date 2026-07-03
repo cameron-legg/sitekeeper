@@ -78,6 +78,8 @@ def _serialize_estimate(estimate, totals: dict | None = None) -> dict:
         "materials_cost": str(t.get("taxable_amount", "0")),
         "labor_cost": str(t.get("labor_cost", "0")),
         "labor_hours": str(t.get("total_hours", "0")),
+        "fee_cost": str(t.get("fee_cost", "0")),
+        "labor_and_fees": str(t.get("labor_and_fees", "0")),
         "created_at": estimate.created_at.isoformat() if estimate.created_at else None,
         "updated_at": estimate.updated_at.isoformat() if estimate.updated_at else None,
         "pdf_status": _compute_pdf_status(estimate),
@@ -434,11 +436,11 @@ def add_entry(estimate_id: str, item_id: str):
     if not name:
         return error_response("VALIDATION_ERROR", "Name is required.", field="name")
     entry_type = data.get("entry_type", "")
-    if entry_type not in ("material", "hours"):
-        return error_response("VALIDATION_ERROR", "entry_type must be 'material' or 'hours'.", field="entry_type")
+    if entry_type not in ("material", "hours", "fee"):
+        return error_response("VALIDATION_ERROR", "entry_type must be 'material', 'hours', or 'fee'.", field="entry_type")
 
     unit_price = hours = quantity = None
-    if entry_type == "material":
+    if entry_type == "material" or entry_type == "fee":
         if data.get("unit_price") is not None:
             unit_price, err = _parse_decimal(data["unit_price"], "unit_price")
             if err:
@@ -447,7 +449,7 @@ def add_entry(estimate_id: str, item_id: str):
             quantity, err = _parse_decimal(data["quantity"], "quantity")
             if err:
                 return err
-    else:
+    if entry_type == "hours":
         if data.get("hours") is not None:
             hours, err = _parse_decimal(data["hours"], "hours")
             if err:

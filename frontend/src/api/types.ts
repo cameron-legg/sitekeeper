@@ -76,11 +76,11 @@ export interface Note {
 export interface LineItemEntry {
   id: string;
   line_item_id: string;
-  entry_type: "material" | "hours";
+  entry_type: "material" | "hours" | "fee";
   name: string;
   notes: string | null;
   url: string | null;
-  /** Material only */
+  /** Material and Fee */
   unit_price: string | null;
   quantity: string | null;
   /** Hours only */
@@ -123,6 +123,10 @@ export interface Estimate {
   labor_cost: string;
   /** Total labor hours */
   labor_hours: string;
+  /** Total cost of fee entries only */
+  fee_cost: string;
+  /** Labor + fees combined (profit portion) */
+  labor_and_fees: string;
   created_at: string;
   updated_at: string;
   /** Computed PDF status: "none" if never generated, "current" if up-to-date, "stale" if document changed since last generation */
@@ -180,6 +184,10 @@ export interface Invoice {
   labor_cost: string;
   /** Total labor hours */
   labor_hours: string;
+  /** Total cost of fee entries only */
+  fee_cost: string;
+  /** Labor + fees combined (profit portion) */
+  labor_and_fees: string;
   created_at: string;
   updated_at: string;
   /** Computed PDF status: "none" if never generated, "current" if up-to-date, "stale" if document changed since last generation */
@@ -222,7 +230,7 @@ export interface InvoiceWithContext extends Invoice {
 export interface SavedItemEntry {
   id: string;
   saved_item_id: string | null;
-  entry_type: "material" | "hours";
+  entry_type: "material" | "hours" | "fee";
   name: string;
   notes: string | null;
   url: string | null;

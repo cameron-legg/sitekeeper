@@ -167,26 +167,31 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
     const materialsByStatus = { drafting: 0, waiting_to_send: 0, sent_awaiting_payment: 0, paid: 0 };
     const taxByStatus = { drafting: 0, waiting_to_send: 0, sent_awaiting_payment: 0, paid: 0 };
     const laborByStatus = { drafting: 0, waiting_to_send: 0, sent_awaiting_payment: 0, paid: 0 };
+    const feesByStatus = { drafting: 0, waiting_to_send: 0, sent_awaiting_payment: 0, paid: 0 };
     let totalAmount = 0;
     let totalMaterials = 0;
     let totalTax = 0;
     let totalLabor = 0;
+    let totalFees = 0;
 
     for (const inv of periodInvoices) {
       const amount = parseFloat(inv.total || "0");
       const materials = parseFloat(inv.materials_cost || "0");
       const tax = parseFloat(inv.tax_amount || "0");
       const labor = parseFloat(inv.labor_cost || "0");
+      const fees = parseFloat(inv.fee_cost || "0");
       totalAmount += amount;
       totalMaterials += materials;
       totalTax += tax;
       totalLabor += labor;
+      totalFees += fees;
       if (inv.status in byStatus) {
         (byStatus as any)[inv.status] += amount;
         (countByStatus as any)[inv.status]++;
         (materialsByStatus as any)[inv.status] += materials;
         (taxByStatus as any)[inv.status] += tax;
         (laborByStatus as any)[inv.status] += labor;
+        (feesByStatus as any)[inv.status] += fees;
       }
     }
 
@@ -242,8 +247,9 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
     // Outstanding amount (sent + waiting)
     const outstandingAmount = byStatus.sent_awaiting_payment + byStatus.waiting_to_send;
 
-    // Revenue breakdown: materials + tax is pass-through cost, labor is profit
+    // Revenue breakdown: materials + tax is pass-through cost, labor + fees is profit
     const materialsPlusTax = totalMaterials + totalTax;
+    const laborAndFees = totalLabor + totalFees;
 
     return {
       periodInvoiceCount: periodInvoices.length,
@@ -258,9 +264,12 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
       totalTax,
       materialsPlusTax,
       totalLabor,
+      totalFees,
+      laborAndFees,
       materialsByStatus,
       taxByStatus,
       laborByStatus,
+      feesByStatus,
     };
   }, [invoices, summaryPeriod]);
 
@@ -450,8 +459,18 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
                       <Text style={styles.reportValue}>{formatMoney(summaryMetrics.materialsPlusTax)}</Text>
                     </View>
                     <View style={styles.reportRow}>
-                      <Text style={styles.reportLabel}>Labor revenue</Text>
-                      <Text style={[styles.reportValue, { color: "#065f46" }]}>{formatMoney(summaryMetrics.totalLabor)}</Text>
+                      <Text style={styles.reportLabel}>Labor</Text>
+                      <Text style={styles.reportValue}>{formatMoney(summaryMetrics.totalLabor)}</Text>
+                    </View>
+                    {summaryMetrics.totalFees > 0 && (
+                      <View style={styles.reportRow}>
+                        <Text style={styles.reportLabel}>Fees</Text>
+                        <Text style={styles.reportValue}>{formatMoney(summaryMetrics.totalFees)}</Text>
+                      </View>
+                    )}
+                    <View style={styles.reportRow}>
+                      <Text style={styles.reportLabel}>Labor & Fees (Profit)</Text>
+                      <Text style={[styles.reportValue, { color: "#065f46", fontWeight: "600" }]}>{formatMoney(summaryMetrics.laborAndFees)}</Text>
                     </View>
                     <View style={[styles.reportRow, { paddingTop: 6, borderTopWidth: 1, borderTopColor: "#e5e7eb", marginTop: 4 }]}>
                       <Text style={[styles.reportLabel, { fontWeight: "600" }]}>Total</Text>
@@ -466,6 +485,7 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
                     const materials = (summaryMetrics.materialsByStatus as any)[opt.value] || 0;
                     const tax = (summaryMetrics.taxByStatus as any)[opt.value] || 0;
                     const labor = (summaryMetrics.laborByStatus as any)[opt.value] || 0;
+                    const fees = (summaryMetrics.feesByStatus as any)[opt.value] || 0;
                     const total = (summaryMetrics.byStatus as any)[opt.value] || 0;
                     return (
                       <View key={opt.value} style={styles.breakdownGroup}>
@@ -479,8 +499,18 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
                           <Text style={styles.reportValue}>{formatMoney(materials + tax)}</Text>
                         </View>
                         <View style={styles.reportRow}>
-                          <Text style={styles.reportLabel}>Labor revenue</Text>
-                          <Text style={[styles.reportValue, { color: "#065f46" }]}>{formatMoney(labor)}</Text>
+                          <Text style={styles.reportLabel}>Labor</Text>
+                          <Text style={styles.reportValue}>{formatMoney(labor)}</Text>
+                        </View>
+                        {fees > 0 && (
+                          <View style={styles.reportRow}>
+                            <Text style={styles.reportLabel}>Fees</Text>
+                            <Text style={styles.reportValue}>{formatMoney(fees)}</Text>
+                          </View>
+                        )}
+                        <View style={styles.reportRow}>
+                          <Text style={styles.reportLabel}>Labor & Fees (Profit)</Text>
+                          <Text style={[styles.reportValue, { color: "#065f46", fontWeight: "600" }]}>{formatMoney(labor + fees)}</Text>
                         </View>
                         <View style={[styles.reportRow, { paddingTop: 6, borderTopWidth: 1, borderTopColor: "#e5e7eb", marginTop: 4 }]}>
                           <Text style={[styles.reportLabel, { fontWeight: "600" }]}>Total</Text>
@@ -575,8 +605,8 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
               {/* Totals */}
               <View style={styles.totalsBlock}>
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Subtotal</Text>
-                  <Text style={styles.totalValue}>{formatMoney(parseFloat(selectedInvoice.subtotal || "0"))}</Text>
+                  <Text style={styles.totalLabel}>Materials</Text>
+                  <Text style={styles.totalValue}>{formatMoney(parseFloat(selectedInvoice.materials_cost || "0"))}</Text>
                 </View>
                 {selectedInvoice.tax_rate && parseFloat(selectedInvoice.tax_rate) > 0 && (
                   <View style={styles.totalRow}>
@@ -584,6 +614,26 @@ export default function InvoiceManagementScreen({ navigation }: Props) {
                     <Text style={styles.totalValue}>{formatMoney(parseFloat(selectedInvoice.tax_amount || "0"))}</Text>
                   </View>
                 )}
+                {selectedInvoice.tax_rate && parseFloat(selectedInvoice.tax_rate) > 0 && (
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>Materials + Tax</Text>
+                    <Text style={styles.totalValue}>{formatMoney(parseFloat(selectedInvoice.materials_cost || "0") + parseFloat(selectedInvoice.tax_amount || "0"))}</Text>
+                  </View>
+                )}
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Labor ({parseFloat(selectedInvoice.labor_hours || "0").toFixed(2)}h)</Text>
+                  <Text style={styles.totalValue}>{formatMoney(parseFloat(selectedInvoice.labor_cost || "0"))}</Text>
+                </View>
+                {parseFloat(selectedInvoice.fee_cost || "0") > 0 && (
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>Fees</Text>
+                    <Text style={styles.totalValue}>{formatMoney(parseFloat(selectedInvoice.fee_cost || "0"))}</Text>
+                  </View>
+                )}
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Labor & Fees (Profit)</Text>
+                  <Text style={[styles.totalValue, { color: "#065f46", fontWeight: "600" }]}>{formatMoney(parseFloat(selectedInvoice.labor_and_fees || "0"))}</Text>
+                </View>
                 <View style={[styles.totalRow, styles.grandRow]}>
                   <Text style={styles.grandLabel}>Total</Text>
                   <Text style={styles.grandValue}>{formatMoney(parseFloat(selectedInvoice.total || "0"))}</Text>

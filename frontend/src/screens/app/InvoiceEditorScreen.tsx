@@ -250,7 +250,17 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
     }
     return sum + mat;
   }, 0);
-  const laborCost = grandTotal - materialsCost;
+  const feeCost = (lineItems ?? []).reduce((sum, item) => {
+    let fee = 0;
+    for (const entry of item.entries) {
+      if (entry.entry_type === "fee") {
+        fee += parseFloat(entry.unit_price || "0") * parseFloat(entry.quantity || "1");
+      }
+    }
+    return sum + fee;
+  }, 0);
+  const laborCost = grandTotal - materialsCost - feeCost;
+  const laborAndFees = laborCost + feeCost;
 
   if (!isNew && (loadingInv || loadingItems)) {
     return <View style={styles.centered}><ActivityIndicator size="large" color="#2563eb" /></View>;
@@ -581,6 +591,16 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
                 <View style={[styles.grandTotalRow, { borderTopWidth: 1, borderTopColor: "#e5e7eb", paddingTop: 6, marginTop: 2 }]}>
                   <Text style={styles.grandTotalLabel}>Labor ({totalHours.toFixed(2)}h)</Text>
                   <Text style={styles.grandTotalValue}>${laborCost.toFixed(2)}</Text>
+                </View>
+                {feeCost > 0 && (
+                  <View style={styles.grandTotalRow}>
+                    <Text style={styles.grandTotalLabel}>Fees</Text>
+                    <Text style={styles.grandTotalValue}>${feeCost.toFixed(2)}</Text>
+                  </View>
+                )}
+                <View style={styles.grandTotalRow}>
+                  <Text style={styles.grandTotalLabel}>Labor & Fees (Profit)</Text>
+                  <Text style={[styles.grandTotalValue, { color: "#065f46", fontWeight: "600" }]}>${laborAndFees.toFixed(2)}</Text>
                 </View>
                 <View style={[styles.grandTotalRow, styles.grandTotalFinal]}>
                   <Text style={styles.grandTotalFinalLabel}>Total</Text>

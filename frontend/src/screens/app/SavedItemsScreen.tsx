@@ -28,7 +28,7 @@ import type { SavedItem, SavedItemEntry } from "../../api/types";
 type Props = NativeStackScreenProps<RootStackParamList, "SavedItems">;
 
 interface EntryForm {
-  entry_type: "material" | "hours";
+  entry_type: "material" | "hours" | "fee";
   name: string;
   notes: string;
   url: string;
@@ -80,7 +80,14 @@ export default function SavedItemsScreen({ route, navigation }: Props) {
 
   function handleSelect(item: SavedItem) {
     if (pickerMode && onSelect) {
-      onSelect(item);
+      onSelect({
+        id: item.id,
+        name: item.name,
+        notes: item.notes,
+        url: null,
+        hours: null,
+        price: item.hourly_rate,
+      });
     }
   }
 
@@ -146,7 +153,7 @@ export default function SavedItemsScreen({ route, navigation }: Props) {
     if (!entryModalItemId) return;
 
     const payload = {
-      entry_type: entryForm.entry_type as "material" | "hours",
+      entry_type: entryForm.entry_type as "material" | "hours" | "fee",
       name: entryForm.name.trim(),
       notes: entryForm.notes.trim() || undefined,
       url: entryForm.url.trim() || undefined,
@@ -394,7 +401,7 @@ export default function SavedItemsScreen({ route, navigation }: Props) {
                     onPress={() => setEntryForm((v) => ({ ...v, entry_type: t }))}
                   >
                     <Text style={[styles.typeBtnText, entryForm.entry_type === t && styles.typeBtnTextActive]}>
-                      {t === "material" ? "Material" : "Hours"}
+                      {t === "material" ? "Material" : t === "hours" ? "Hours" : "Fee"}
                     </Text>
                   </TouchableOpacity>
                 ))}

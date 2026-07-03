@@ -148,7 +148,7 @@ export function useAddInvoiceEntry() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ invoiceId, itemId, ...data }: {
-      invoiceId: string; itemId: string; entry_type: "material" | "hours";
+      invoiceId: string; itemId: string; entry_type: "material" | "hours" | "fee";
       name: string; notes?: string; url?: string;
       unit_price?: string; quantity?: string; hours?: string; sort_order?: number;
     }) =>

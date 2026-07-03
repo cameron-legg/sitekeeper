@@ -24,6 +24,10 @@ def _entry_cost(entry: LineItemEntry, hourly_rate: Decimal) -> Decimal:
         up = entry.unit_price or Decimal("0")
         qty = entry.quantity or Decimal("0")
         return up * qty
+    elif entry.entry_type == "fee":
+        up = entry.unit_price or Decimal("0")
+        qty = entry.quantity or Decimal("1")
+        return up * qty
     else:  # hours
         hrs = entry.hours or Decimal("0")
         return hrs * hourly_rate
@@ -39,21 +43,27 @@ def _entry_material_cost(entry: LineItemEntry) -> Decimal:
 
 
 def compute_line_item_totals(item: LineItem) -> dict:
-    """Return total_cost, total_hours, and material_cost for a LineItem."""
+    """Return total_cost, total_hours, material_cost, and fee_cost for a LineItem."""
     rate = item.hourly_rate or Decimal("0")
     total_cost = Decimal("0")
     total_hours = Decimal("0")
     material_cost = Decimal("0")
+    fee_cost = Decimal("0")
     for entry in item.entries:
         total_cost += _entry_cost(entry, rate)
         if entry.entry_type == "hours":
             total_hours += entry.hours or Decimal("0")
-        else:
+        elif entry.entry_type == "material":
             material_cost += _entry_material_cost(entry)
+        elif entry.entry_type == "fee":
+            up = entry.unit_price or Decimal("0")
+            qty = entry.quantity or Decimal("1")
+            fee_cost += up * qty
     return {
         "total_cost": total_cost,
         "total_hours": total_hours,
         "material_cost": material_cost,
+        "fee_cost": fee_cost,
     }
 
 
@@ -73,14 +83,16 @@ def compute_totals_with_tax(items: list[LineItem], tax_rate: Decimal | None) -> 
     subtotal = Decimal("0")
     taxable_amount = Decimal("0")
     total_hours = Decimal("0")
+    fee_cost = Decimal("0")
 
     for item in items:
         totals = compute_line_item_totals(item)
         subtotal += totals["total_cost"]
         taxable_amount += totals["material_cost"]
         total_hours += totals["total_hours"]
+        fee_cost += totals["fee_cost"]
 
-    labor_cost = subtotal - taxable_amount
+    labor_cost = subtotal - taxable_amount - fee_cost
     rate = tax_rate or Decimal("0")
     tax_amount = (taxable_amount * rate / Decimal("100")).quantize(Decimal("0.0001"))
     total = subtotal + tax_amount
@@ -89,6 +101,8 @@ def compute_totals_with_tax(items: list[LineItem], tax_rate: Decimal | None) -> 
         "subtotal": subtotal,
         "taxable_amount": taxable_amount,
         "labor_cost": labor_cost,
+        "fee_cost": fee_cost,
+        "labor_and_fees": labor_cost + fee_cost,
         "total_hours": total_hours,
         "tax_rate": rate,
         "tax_amount": tax_amount,
@@ -391,8 +405,8 @@ class EstimateService:
                   sort_order: int = 0) -> LineItemEntry:
         self._verify_estimate_access(estimate_id, user_id)
         self._verify_line_item(estimate_id, item_id)
-        if entry_type not in ("material", "hours"):
-            raise ValidationError("entry_type must be 'material' or 'hours'.")
+        if entry_type not in ("material", "hours", "fee"):
+            raise ValidationError("entry_type must be 'material', 'hours', or 'fee'.")
         entry = LineItemEntry(
             line_item_id=item_id, entry_type=entry_type, name=name,
             notes=notes, url=url, unit_price=unit_price, quantity=quantity,

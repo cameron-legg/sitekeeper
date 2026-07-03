@@ -44,11 +44,20 @@ class PdfHoursEntry:
 
 
 @dataclass
+class PdfFeeEntry:
+    name: str
+    unit_price: Decimal
+    quantity: Decimal
+    total: Decimal
+
+
+@dataclass
 class PdfLineItem:
     name: str
     hourly_rate: Decimal | None
     material_entries: list[PdfMaterialEntry]
     hours_entries: list[PdfHoursEntry]
+    fee_entries: list[PdfFeeEntry]
 
 
 @dataclass
@@ -409,6 +418,80 @@ def build_pdf(data: PdfData) -> bytes:
         tbl_h = Table(table_data_h, colWidths=col_widths_h)
         tbl_h.setStyle(TableStyle(tbl_style_cmds_h))
         elements.append(tbl_h)
+        elements.append(Spacer(1, 12))
+
+    # ------------------------------------------------------------------
+    # 7b. Fees Table
+    # ------------------------------------------------------------------
+    all_fee_entries: list[tuple[str, PdfFeeEntry]] = []
+    for item in data.line_items:
+        for entry in item.fee_entries:
+            all_fee_entries.append((item.name, entry))
+
+    if all_fee_entries:
+        elements.append(
+            Paragraph("<b>Fees</b>", style_bold)
+        )
+        elements.append(Spacer(1, 4))
+
+        col_widths_f = [
+            page_width * 0.40,
+            page_width * 0.20,
+            page_width * 0.15,
+            page_width * 0.25,
+        ]
+
+        table_data_f = [["Description", "Amount", "Qty", "Total"]]
+
+        current_group = None
+        for group_name, entry in all_fee_entries:
+            if group_name != current_group:
+                table_data_f.append([group_name, "", "", ""])
+                current_group = group_name
+            table_data_f.append([
+                f"  {entry.name}",
+                _fmt(entry.unit_price),
+                _fmt_qty(entry.quantity),
+                _fmt(entry.total),
+            ])
+
+        fees_total = sum(
+            (e.total for _, e in all_fee_entries), Decimal("0")
+        )
+        table_data_f.append([
+            "Fees Total", "", "", _fmt(fees_total)
+        ])
+
+        tbl_style_cmds_f = [
+            ("BACKGROUND", (0, 0), (-1, 0), header_bg),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, 0), 9),
+            ("FONTSIZE", (0, 1), (-1, -1), 9),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("GRID", (0, 0), (-1, -1), 0.5, line_color),
+        ]
+
+        row_idx = 1
+        current_group = None
+        for group_name, _ in all_fee_entries:
+            if group_name != current_group:
+                tbl_style_cmds_f.append(
+                    ("BACKGROUND", (0, row_idx), (-1, row_idx), subheader_bg)
+                )
+                tbl_style_cmds_f.append(
+                    ("FONTNAME", (0, row_idx), (-1, row_idx), "Helvetica-Bold")
+                )
+                row_idx += 1
+                current_group = group_name
+            row_idx += 1
+
+        tbl_f = Table(table_data_f, colWidths=col_widths_f)
+        tbl_f.setStyle(TableStyle(tbl_style_cmds_f))
+        elements.append(tbl_f)
         elements.append(Spacer(1, 12))
 
     # ------------------------------------------------------------------

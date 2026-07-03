@@ -153,8 +153,8 @@ def add_entry(item_id: str):
     if not name:
         return error_response("VALIDATION_ERROR", "Name is required.", field="name")
     entry_type = data.get("entry_type", "")
-    if entry_type not in ("material", "hours"):
-        return error_response("VALIDATION_ERROR", "entry_type must be 'material' or 'hours'.", field="entry_type")
+    if entry_type not in ("material", "hours", "fee"):
+        return error_response("VALIDATION_ERROR", "entry_type must be 'material', 'hours', or 'fee'.", field="entry_type")
 
     unit_price, err = _parse_decimal_optional(data.get("unit_price"), "unit_price")
     if err:
@@ -318,8 +318,8 @@ def save_entry_to_library():
     if not name:
         return error_response("VALIDATION_ERROR", "Name is required.", field="name")
     entry_type = data.get("entry_type", "")
-    if entry_type not in ("material", "hours"):
-        return error_response("VALIDATION_ERROR", "entry_type must be 'material' or 'hours'.", field="entry_type")
+    if entry_type not in ("material", "hours", "fee"):
+        return error_response("VALIDATION_ERROR", "entry_type must be 'material', 'hours', or 'fee'.", field="entry_type")
 
     unit_price, err = _parse_decimal_optional(data.get("unit_price"), "unit_price")
     if err:

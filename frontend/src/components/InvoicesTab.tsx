@@ -211,6 +211,16 @@ export default function InvoicesTab({ jobId }: Props) {
                   <Text style={styles.totalLabel}>Labor ({parseFloat(selectedInvoice.labor_hours || "0").toFixed(2)}h)</Text>
                   <Text style={styles.totalValue}>${parseFloat(selectedInvoice.labor_cost || "0").toFixed(2)}</Text>
                 </View>
+                {parseFloat(selectedInvoice.fee_cost || "0") > 0 && (
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>Fees</Text>
+                    <Text style={styles.totalValue}>${parseFloat(selectedInvoice.fee_cost || "0").toFixed(2)}</Text>
+                  </View>
+                )}
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Labor & Fees (Profit)</Text>
+                  <Text style={[styles.totalValue, { color: "#065f46", fontWeight: "600" }]}>${parseFloat(selectedInvoice.labor_and_fees || "0").toFixed(2)}</Text>
+                </View>
                 <View style={[styles.totalRow, styles.grandRow]}>
                   <Text style={styles.grandLabel}>Total</Text>
                   <Text style={styles.grandValue}>${parseFloat(selectedInvoice.total || "0").toFixed(2)}</Text>

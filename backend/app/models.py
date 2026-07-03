@@ -502,7 +502,7 @@ class LineItemEntry(db.Model):
     __tablename__ = "line_item_entries"
     __table_args__ = (
         CheckConstraint(
-            "entry_type IN ('material', 'hours')",
+            "entry_type IN ('material', 'hours', 'fee')",
             name="ck_line_item_entries_type",
         ),
     )
@@ -581,7 +581,7 @@ class SavedItemEntry(db.Model):
     __tablename__ = "saved_item_entries"
     __table_args__ = (
         CheckConstraint(
-            "entry_type IN ('material', 'hours')",
+            "entry_type IN ('material', 'hours', 'fee')",
             name="ck_saved_item_entries_type",
         ),
     )

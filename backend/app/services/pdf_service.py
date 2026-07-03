@@ -11,6 +11,7 @@ from ..minio_client import MinioStorage
 from ..models import Estimate, Invoice
 from ..pdf_generator import (
     PdfData,
+    PdfFeeEntry,
     PdfHoursEntry,
     PdfLineItem,
     PdfMaterialEntry,
@@ -140,6 +141,7 @@ class PdfService:
             hourly_rate = item.hourly_rate or Decimal("0")
             material_entries = []
             hours_entries = []
+            fee_entries = []
 
             for entry in item.entries:
                 if entry.entry_type == "material":
@@ -163,6 +165,17 @@ class PdfService:
                             total=hrs * hourly_rate,
                         )
                     )
+                elif entry.entry_type == "fee":
+                    up = entry.unit_price or Decimal("0")
+                    qty = entry.quantity or Decimal("1")
+                    fee_entries.append(
+                        PdfFeeEntry(
+                            name=entry.name,
+                            unit_price=up,
+                            quantity=qty,
+                            total=up * qty,
+                        )
+                    )
 
             pdf_items.append(
                 PdfLineItem(
@@ -170,6 +183,7 @@ class PdfService:
                     hourly_rate=item.hourly_rate,
                     material_entries=material_entries,
                     hours_entries=hours_entries,
+                    fee_entries=fee_entries,
                 )
             )
         return pdf_items

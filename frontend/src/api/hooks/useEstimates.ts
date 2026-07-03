@@ -130,7 +130,7 @@ export function useAddEstimateEntry() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ estimateId, itemId, ...data }: {
-      estimateId: string; itemId: string; entry_type: "material" | "hours";
+      estimateId: string; itemId: string; entry_type: "material" | "hours" | "fee";
       name: string; notes?: string; url?: string;
       unit_price?: string; quantity?: string; hours?: string; sort_order?: number;
     }) =>

@@ -15,7 +15,7 @@ import type { SavedItemEntry } from "../../api/types";
 type Props = NativeStackScreenProps<RootStackParamList, "SavedItemEditor">;
 
 interface EntryForm {
-  entry_type: "material" | "hours";
+  entry_type: "material" | "hours" | "fee";
   name: string;
   notes: string;
   url: string;
@@ -240,7 +240,7 @@ export default function SavedItemEditorScreen({ route, navigation }: Props) {
                   <TouchableOpacity key={t} style={[styles.typeBtn, entryForm.entry_type === t && styles.typeBtnActive]}
                     onPress={() => setEntryForm((v) => ({ ...v, entry_type: t }))}>
                     <Text style={[styles.typeBtnText, entryForm.entry_type === t && styles.typeBtnTextActive]}>
-                      {t === "material" ? "Material" : "Hours"}
+                      {t === "material" ? "Material" : t === "hours" ? "Hours" : "Fee"}
                     </Text>
                   </TouchableOpacity>
                 ))}

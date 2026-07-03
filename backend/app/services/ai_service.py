@@ -100,7 +100,7 @@ TOOLS = [
                                     "items": {
                                         "type": "object",
                                         "properties": {
-                                            "entry_type": {"type": "string", "enum": ["material", "hours"]},
+                                            "entry_type": {"type": "string", "enum": ["material", "hours", "fee"]},
                                             "name": {"type": "string", "description": "Name of the material or labor task"},
                                             "unit_price": {"type": "number", "description": "Price per unit (materials only)"},
                                             "quantity": {"type": "number", "description": "Quantity (materials only)"},
@@ -153,7 +153,7 @@ TOOLS = [
                                     "items": {
                                         "type": "object",
                                         "properties": {
-                                            "entry_type": {"type": "string", "enum": ["material", "hours"]},
+                                            "entry_type": {"type": "string", "enum": ["material", "hours", "fee"]},
                                             "name": {"type": "string"},
                                             "unit_price": {"type": "number"},
                                             "quantity": {"type": "number"},
@@ -271,7 +271,7 @@ TOOLS = [
                         "items": {
                             "type": "object",
                             "properties": {
-                                "entry_type": {"type": "string", "enum": ["material", "hours"]},
+                                "entry_type": {"type": "string", "enum": ["material", "hours", "fee"]},
                                 "name": {"type": "string", "description": "Name of the material or labor task"},
                                 "unit_price": {"type": "number", "description": "Price per unit (materials only)"},
                                 "quantity": {"type": "number", "description": "Quantity (materials only)"},
@@ -329,7 +329,7 @@ TOOLS = [
                 "properties": {
                     "estimate_id": {"type": "string", "description": "ID of the estimate"},
                     "line_item_id": {"type": "string", "description": "ID of the line item to add the entry to"},
-                    "entry_type": {"type": "string", "enum": ["material", "hours"], "description": "Type of entry"},
+                    "entry_type": {"type": "string", "enum": ["material", "hours", "fee"], "description": "Type of entry"},
                     "name": {"type": "string", "description": "Name of the material or labor task"},
                     "unit_price": {"type": "number", "description": "Price per unit (materials only)"},
                     "quantity": {"type": "number", "description": "Quantity (materials only)"},

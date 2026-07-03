@@ -81,8 +81,8 @@ class SavedItemService:
         item = self._saved_item_repo.get_by_id(item_id, user_id)
         if item is None:
             raise NotFoundError(f"Saved item {item_id} not found.")
-        if entry_type not in ("material", "hours"):
-            raise ValidationError("entry_type must be 'material' or 'hours'.")
+        if entry_type not in ("material", "hours", "fee"):
+            raise ValidationError("entry_type must be 'material', 'hours', or 'fee'.")
         entry = SavedItemEntry(
             saved_item_id=item_id, entry_type=entry_type, name=name,
             notes=notes, url=url, unit_price=unit_price, quantity=quantity,
@@ -241,8 +241,8 @@ class SavedItemService:
                               quantity: Decimal | None = None,
                               hours: Decimal | None = None) -> SavedItemEntry:
         """Create a standalone SavedItemEntry (no parent SavedItem)."""
-        if entry_type not in ("material", "hours"):
-            raise ValidationError("entry_type must be 'material' or 'hours'.")
+        if entry_type not in ("material", "hours", "fee"):
+            raise ValidationError("entry_type must be 'material', 'hours', or 'fee'.")
         entry = SavedItemEntry(
             saved_item_id=None,
             user_id=user_id,

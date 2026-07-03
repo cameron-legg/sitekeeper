@@ -332,8 +332,8 @@ class InvoiceService:
                   sort_order: int = 0) -> LineItemEntry:
         self._verify_invoice_access(invoice_id, user_id)
         self._verify_line_item(invoice_id, item_id)
-        if entry_type not in ("material", "hours"):
-            raise ValidationError("entry_type must be 'material' or 'hours'.")
+        if entry_type not in ("material", "hours", "fee"):
+            raise ValidationError("entry_type must be 'material', 'hours', or 'fee'.")
         entry = LineItemEntry(
             line_item_id=item_id, entry_type=entry_type, name=name,
             notes=notes, url=url, unit_price=unit_price, quantity=quantity,

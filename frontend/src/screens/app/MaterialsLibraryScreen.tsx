@@ -25,7 +25,7 @@ import type { SavedItemEntry } from "../../api/types";
 type Props = NativeStackScreenProps<RootStackParamList, "MaterialsLibrary">;
 
 interface EntryForm {
-  entry_type: "material" | "hours";
+  entry_type: "material" | "hours" | "fee";
   name: string;
   notes: string;
   url: string;
@@ -309,7 +309,7 @@ export default function MaterialsLibraryScreen({ navigation }: Props) {
               onPress={() => setEntryForm((v) => ({ ...v, entry_type: t }))}
             >
               <Text style={[styles.typeBtnText, entryForm.entry_type === t && styles.typeBtnTextActive]}>
-                {t === "material" ? "Material" : "Hours"}
+                {t === "material" ? "Material" : t === "hours" ? "Hours" : "Fee"}
               </Text>
             </TouchableOpacity>
           ))}
