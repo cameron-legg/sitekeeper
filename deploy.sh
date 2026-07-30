@@ -46,14 +46,32 @@ TARGET="${1:-all}"
 # PRE-DEPLOY TESTS
 # =============================================================================
 run_tests() {
-    info "Running test suite (tests must pass before deployment)..."
-    local test_db_url="postgresql://sitekeeper:sitekeeper@localhost:5433/sitekeeper_test"
+    info "Running full test suite (all tests must pass before deployment)..."
 
+    # 1. Backend tests (pytest)
+    info "  [1/3] Backend tests (pytest)..."
+    local test_db_url="postgresql://sitekeeper:sitekeeper@localhost:5433/sitekeeper_test"
     if ! (cd backend && DATABASE_URL="$test_db_url" JWT_SECRET="test-secret" \
         venv/bin/python -m pytest tests/ --tb=short -q); then
-        die "Tests failed — aborting deployment. Fix the failing tests and try again."
+        die "Backend tests failed — aborting deployment."
     fi
-    info "  All tests passed."
+    info "  Backend tests passed ✓"
+
+    # 2. Frontend tests (jest)
+    info "  [2/3] Frontend tests (jest)..."
+    if ! (cd frontend && npx jest --no-coverage --passWithNoTests); then
+        die "Frontend tests failed — aborting deployment."
+    fi
+    info "  Frontend tests passed ✓"
+
+    # 3. E2E tests (playwright)
+    info "  [3/3] E2E tests (playwright)..."
+    if ! (cd e2e && npx playwright test --reporter=line); then
+        die "E2E tests failed — aborting deployment."
+    fi
+    info "  E2E tests passed ✓"
+
+    info "  All tests passed!"
 
     info "Seeding dev database with sample data..."
     ./seed.sh
