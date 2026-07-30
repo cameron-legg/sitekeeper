@@ -31,3 +31,6 @@ yarn-error.log*
 # ── Kiro ─────────────────────────────────────────────────────────────────────
 # Spec files are intentionally committed; ignore only local hook overrides
 .kiro/hooks/
+
+
+.hypothesis/
