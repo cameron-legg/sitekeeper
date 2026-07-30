@@ -49,11 +49,14 @@ run_tests() {
     info "Running test suite (tests must pass before deployment)..."
     local test_db_url="postgresql://sitekeeper:sitekeeper@localhost:5433/sitekeeper_test"
 
-    if ! DATABASE_URL="$test_db_url" JWT_SECRET="test-secret" \
-        backend/venv/bin/python -m pytest backend/tests/ --tb=short -q; then
+    if ! (cd backend && DATABASE_URL="$test_db_url" JWT_SECRET="test-secret" \
+        venv/bin/python -m pytest tests/ --tb=short -q); then
         die "Tests failed — aborting deployment. Fix the failing tests and try again."
     fi
     info "  All tests passed."
+
+    info "Seeding dev database with sample data..."
+    ./seed.sh
 }
 
 # =============================================================================
