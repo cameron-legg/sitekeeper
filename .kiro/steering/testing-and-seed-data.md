@@ -200,3 +200,88 @@ frontend/src/__tests__/
 3. Import factories from `./test-utils`
 4. Add a npm script in `package.json`: `"test:<alias>": "jest <module-name>.test"`
 5. Group tests by concern: data structures, calculations, API calls, UI behavior
+
+---
+
+## E2E Browser Tests (Playwright)
+
+End-to-end tests that drive a real browser against the running app. They test the full stack: frontend + backend + database working together.
+
+### Prerequisites
+
+Before running E2E tests:
+1. Docker containers running (`docker compose up -d`)
+2. Dev DB seeded with sample data (`./seed.sh`)
+3. Backend running (`cd backend && source venv/bin/activate && flask run`)
+4. Frontend running (`cd frontend && npx expo start --web`)
+
+### Running E2E Tests
+
+```bash
+cd e2e
+
+# All tests
+npx playwright test
+
+# Single spec
+npx playwright test auth.spec.ts
+npx playwright test job-sites.spec.ts
+npx playwright test estimates.spec.ts
+npx playwright test invoices.spec.ts
+npx playwright test contacts.spec.ts
+npx playwright test navigation.spec.ts
+
+# Headed (see the browser)
+npx playwright test --headed
+
+# Debug mode (step through)
+npx playwright test --debug
+
+# View HTML report after a run
+npx playwright show-report
+```
+
+Or via npm scripts:
+```bash
+npm run test:auth
+npm run test:sites
+npm run test:estimates
+npm run test:invoices
+npm run test:contacts
+npm run test:nav
+```
+
+### Test Structure
+
+```
+e2e/
+├── playwright.config.ts   # Config (baseURL, timeout, browser)
+├── tsconfig.json
+├── package.json           # Scripts for each spec
+├── helpers/
+│   └── auth.ts            # loginAsDemo(), logout() helpers
+└── specs/
+    ├── auth.spec.ts       # Login, logout, protected routes
+    ├── job-sites.spec.ts  # Sites list, create, navigate to jobs
+    ├── estimates.spec.ts  # View estimates, line items, create
+    ├── invoices.spec.ts   # Invoice management, status workflow
+    ├── contacts.spec.ts   # Contact display, inheritance
+    └── navigation.spec.ts # Screen transitions, back button, deep links
+```
+
+### How It Works
+
+- Tests run against `http://localhost:8081` (Expo web dev server)
+- The backend must be running on port 5000 (the frontend proxies API calls)
+- Tests use the seeded demo account (`demo@sitekeeper.com` / `demo1234`)
+- Each spec file is independent — run one at a time for focused testing
+- Screenshots are captured on failure for debugging
+- Tests run in headless Chromium by default
+
+### Adding a New E2E Spec
+
+1. Create `e2e/specs/<module>.spec.ts`
+2. Import helpers from `../helpers/auth` if the test needs login
+3. Add an npm script in `e2e/package.json`
+4. Tests should be resilient to timing (use `waitForSelector`, `toBeVisible` with timeouts)
+5. Don't hardcode UUIDs — find elements by visible text or role

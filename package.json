@@ -1,0 +1,21 @@
+{
+  "name": "sitekeeper",
+  "version": "1.0.0",
+  "description": "A multi-tenant, mobile-first app for small contractors to manage job sites, jobs, contacts, estimates, and invoices. Each client business gets their own isolated environment at `<client>.entouch.org`.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cameron-legg/sitekeeper.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/cameron-legg/sitekeeper/issues"
+  },
+  "homepage": "https://github.com/cameron-legg/sitekeeper#readme"
+}
