@@ -135,3 +135,68 @@ Run `./seed.sh` anytime to reset to a fresh state. It's idempotent — truncates
 DATABASE_URL=postgresql://sitekeeper:sitekeeper@localhost:5434/some_other_db \
     backend/venv/bin/python backend/seed_data.py
 ```
+
+---
+
+## Frontend Tests
+
+### Running All Frontend Tests
+
+```bash
+cd frontend && npx jest
+```
+
+### Running a Single Module
+
+```bash
+cd frontend
+npx jest auth.test          # Auth store, login/register
+npx jest estimates.test     # Estimates, line items, tax, PDF status
+npx jest invoices.test      # Invoices, status workflow, financials
+npx jest time-entries.test  # Clock in/out, manual hours, calculations
+npx jest contacts.test      # Contacts, inheritance, primary resolution
+npx jest saved-items.test   # Item Library, Materials Library, fingerprints
+npx jest job-sites.test     # Job sites, jobs, status transitions
+```
+
+Or via npm scripts:
+```bash
+npm run test:auth
+npm run test:estimates
+npm run test:invoices
+npm run test:time
+npm run test:contacts
+npm run test:library
+npm run test:sites
+```
+
+### Test Structure
+
+```
+frontend/src/__tests__/
+├── setup.ts              # Shared mocks (AsyncStorage, apiClient)
+├── test-utils.tsx        # renderWithProviders, data factories
+├── auth.test.ts          # Auth module
+├── estimates.test.ts     # Estimates module
+├── invoices.test.ts      # Invoices module
+├── time-entries.test.ts  # Time tracking module
+├── contacts.test.ts      # Contacts module
+├── saved-items.test.ts   # Library module
+└── job-sites.test.ts     # Job sites & jobs module
+```
+
+### How It Works
+
+- Uses `jest-expo` preset (React Native compatible)
+- API calls are mocked via `jest.mock("../api/client")` — tests don't hit a real server
+- Each test file imports `./setup` which configures the mocks
+- `test-utils.tsx` provides `createMockXxx()` factories for typed test data
+- `renderWithProviders()` wraps components with QueryClientProvider for hook tests
+
+### Adding Tests for a New Module
+
+1. Create `frontend/src/__tests__/<module-name>.test.ts`
+2. Import `./setup` at the top
+3. Import factories from `./test-utils`
+4. Add a npm script in `package.json`: `"test:<alias>": "jest <module-name>.test"`
+5. Group tests by concern: data structures, calculations, API calls, UI behavior
