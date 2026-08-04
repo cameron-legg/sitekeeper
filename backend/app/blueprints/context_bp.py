@@ -9,7 +9,7 @@ Routes:
 
 from flask import Blueprint, current_app, g, jsonify
 
-from ..tenant import get_tenant_config, resolve_tenant_slug, _load_tenants
+from ..tenant import get_tenant_config, resolve_tenant_slug
 
 context_bp = Blueprint("context", __name__)
 
@@ -29,21 +29,10 @@ def get_context():
     landing_mode = current_app.config.get("LANDING_MODE", False)
 
     # If the request resolved to the default tenant AND landing mode is on,
-    # return landing mode with a list of available tenants for the directory.
+    # return landing mode (no tenant list exposed for privacy).
     if slug == default_tenant and landing_mode:
-        tenants = _load_tenants()
-        tenant_list = []
-        for t_slug, t_config in tenants.items():
-            if t_slug == "default":
-                continue
-            tenant_list.append({
-                "slug": t_slug,
-                "name": t_config.get("name", t_slug),
-                "domain": t_config.get("domain", ""),
-            })
         return jsonify({
             "mode": "landing",
-            "tenants": tenant_list,
         })
 
     # Otherwise, return tenant mode

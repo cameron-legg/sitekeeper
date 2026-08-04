@@ -342,7 +342,6 @@ export interface AppContextTenant {
 
 export interface AppContextLanding {
   mode: "landing";
-  tenants: TenantInfo[];
 }
 
 export type AppContextResponse = AppContextTenant | AppContextLanding;

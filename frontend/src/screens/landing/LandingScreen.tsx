@@ -1,11 +1,11 @@
 /**
- * LandingScreen — public-facing page shown when the app is in landing mode.
+ * LandingScreen — professional public-facing page for JobSyte.
  *
- * Displays app information and a directory of tenants with login links.
- * Each tenant link navigates the user to their subdomain's login page.
+ * Shown when the app is in landing mode (bare domain in production).
+ * Features app screenshots, functionality overview, and tenant login directory.
  */
 
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -13,19 +13,55 @@ import {
   StyleSheet,
   ScrollView,
   SafeAreaView,
+  Image,
+  TextInput,
   Linking,
   Platform,
+  useWindowDimensions,
 } from "react-native";
-import type { TenantInfo } from "../../api/types";
 
-interface Props {
-  tenants: TenantInfo[];
-}
+// Screenshot assets
+const screenshots = {
+  home: require("../../../assets/landing/home-job-sites.png"),
+  jobSite: require("../../../assets/landing/job-site-detail.png"),
+  jobDetail: require("../../../assets/landing/job-detail-notes.png"),
+  estimates: require("../../../assets/landing/estimates-tab.png"),
+  estimateEditor: require("../../../assets/landing/estimate-editor.png"),
+  invoices: require("../../../assets/landing/invoices-tab.png"),
+  invoiceManagement: require("../../../assets/landing/invoice-management.png"),
+  contacts: require("../../../assets/landing/contacts-tab.png"),
+};
 
-export default function LandingScreen({ tenants }: Props) {
-  function handleTenantPress(tenant: TenantInfo) {
-    const protocol = Platform.OS === "web" ? window.location.protocol : "https:";
-    const url = `${protocol}//${tenant.domain}/login`;
+export default function LandingScreen() {
+  const { width } = useWindowDimensions();
+  const isWide = width >= 768;
+  const [tenantInput, setTenantInput] = useState("");
+  const [inputError, setInputError] = useState<string | null>(null);
+
+  function handleGoToTenant() {
+    const slug = tenantInput.trim().toLowerCase().replace(/\s+/g, "");
+    if (!slug) {
+      setInputError("Please enter your organization name.");
+      return;
+    }
+    setInputError(null);
+
+    // Build the tenant URL using the current domain's base
+    let baseHost = "entouch.org";
+    let protocol = "https:";
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const hostname = window.location.hostname;
+      protocol = window.location.protocol;
+      // Extract the base domain (e.g. "entouch.org" from "entouch.org" or "www.entouch.org")
+      const parts = hostname.split(".");
+      if (parts.length >= 2) {
+        baseHost = parts.slice(-2).join(".");
+      } else {
+        baseHost = hostname;
+      }
+    }
+
+    const url = `${protocol}//${slug}.${baseHost}/login`;
 
     if (Platform.OS === "web") {
       window.location.href = url;
@@ -37,66 +73,196 @@ export default function LandingScreen({ tenants }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Hero Section */}
+        {/* ─── Hero ─────────────────────────────────────────────────── */}
         <View style={styles.hero}>
-          <Text style={styles.heroTitle}>JobSyte</Text>
-          <Text style={styles.heroSubtitle}>
-            Contractor management made simple. Manage job sites, create
-            estimates, track invoices, and keep your team organized — all in
-            one place.
+          <View style={styles.heroContent}>
+            <Text style={styles.heroTitle}>JobSyte</Text>
+            <Text style={styles.heroTagline}>
+              The contractor management app that keeps your jobs, estimates, and
+              invoices organized — so you can focus on the work.
+            </Text>
+            <Text style={styles.heroDescription}>
+              Built for plumbers, electricians, remodelers, and trades
+              professionals who need a simple way to run their business from
+              their phone.
+            </Text>
+            {/* Sign-in CTA scrolls to login section */}
+            <TouchableOpacity
+              style={styles.heroCta}
+              onPress={() => {
+                if (Platform.OS === "web") {
+                  document.getElementById("login-section")?.scrollIntoView({ behavior: "smooth" });
+                }
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.heroCtaText}>Sign In</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ─── Feature: Job Management ──────────────────────────────── */}
+        <FeatureSection
+          isWide={isWide}
+          title="Manage All Your Job Sites"
+          description="See every active project at a glance. Track job status, view invoice summaries, and stay on top of what needs your attention today."
+          bullets={[
+            "Organize jobs by site with status tracking",
+            "Filter to active jobs or view your full history",
+            "See invoice status summaries per site",
+          ]}
+          image={screenshots.home}
+          imageAlt="Home screen showing job sites"
+          reverse={false}
+        />
+
+        <FeatureSection
+          isWide={isWide}
+          title="Detailed Job Tracking"
+          description="Each job has everything you need in one place — notes, contacts, estimates, invoices, and photos. Switch between tabs to find what you need instantly."
+          bullets={[
+            "Status workflow: Pending, In Progress, Completed",
+            "Time tracking with clock in/out and manual entry",
+            "Markdown notes for detailed job documentation",
+          ]}
+          image={screenshots.jobDetail}
+          imageAlt="Job detail screen with notes"
+          reverse={true}
+        />
+
+        {/* ─── Feature: Estimates ───────────────────────────────────── */}
+        <FeatureSection
+          isWide={isWide}
+          title="Professional Estimates in Minutes"
+          description="Create detailed, itemized estimates with materials, labor hours, and fees. Calculate totals automatically including tax. Deliver to clients or convert directly to an invoice."
+          bullets={[
+            "Line items with materials, labor hours, and fees",
+            "Automatic tax calculation on materials",
+            "One-tap conversion from estimate to invoice",
+            "Generate professional PDFs to send to clients",
+          ]}
+          image={screenshots.estimateEditor}
+          imageAlt="Estimate editor with line items and totals"
+          reverse={false}
+        />
+
+        {/* ─── Feature: Invoices ────────────────────────────────────── */}
+        <FeatureSection
+          isWide={isWide}
+          title="Invoice Management & Tracking"
+          description="Track every invoice from drafting through payment. See which invoices are waiting to be sent, which are outstanding, and which have been paid — all in one dashboard."
+          bullets={[
+            "Status workflow: Drafting, Waiting to Send, Sent, Paid",
+            "Dashboard view across all jobs and sites",
+            "Status history with timestamps",
+            "PDF generation for professional delivery",
+          ]}
+          image={screenshots.invoiceManagement}
+          imageAlt="Invoice management dashboard"
+          reverse={true}
+        />
+
+        {/* ─── Feature: Contacts ────────────────────────────────────── */}
+        <FeatureSection
+          isWide={isWide}
+          title="Client Contacts at Your Fingertips"
+          description="Attach contacts to job sites or individual jobs. Set primary contacts so you always know who to call. Contact details are shared across your team."
+          bullets={[
+            "Contacts linked to sites and jobs",
+            "Primary contact designation",
+            "Phone, email, mailing address, and notes",
+            "Inherited contacts from parent job site",
+          ]}
+          image={screenshots.contacts}
+          imageAlt="Contacts tab on a job"
+          reverse={false}
+        />
+
+        {/* ─── Additional Features Grid ─────────────────────────────── */}
+        <View style={styles.gridSection}>
+          <Text style={styles.gridSectionTitle}>Everything Else You Need</Text>
+          <Text style={styles.gridSectionSubtitle}>
+            Built by contractors, for contractors.
+          </Text>
+          <View style={[styles.featureGrid, isWide && styles.featureGridWide]}>
+            <MiniFeatureCard
+              icon="🤖"
+              title="AI Assistant"
+              description="An in-app AI that understands your current screen and can create estimates, notes, contacts, and more through natural conversation."
+            />
+            <MiniFeatureCard
+              icon="📷"
+              title="Job Photos"
+              description="Upload photos directly to jobs for before/after documentation, progress tracking, and client communication."
+            />
+            <MiniFeatureCard
+              icon="📚"
+              title="Item Library"
+              description="Save frequently used line items as templates. Reuse them across estimates and invoices to save time on repetitive work."
+            />
+            <MiniFeatureCard
+              icon="⏱"
+              title="Time Tracking"
+              description="Clock in and out on jobs, add manual time entries, and track labor hours per job for accurate invoicing."
+            />
+            <MiniFeatureCard
+              icon="👥"
+              title="Team Access"
+              description="Invite team members to your organization. Everyone sees the same job sites, estimates, and invoices — no data silos."
+            />
+            <MiniFeatureCard
+              icon="📄"
+              title="PDF Documents"
+              description="Generate professional estimate and invoice PDFs with your company branding, customizable fields, and clean formatting."
+            />
+          </View>
+        </View>
+
+        {/* ─── Tenant Login ─────────────────────────────────────────── */}
+        <View style={styles.loginSection} nativeID="login-section">
+          <Text style={styles.loginTitle}>Sign In to Your Account</Text>
+          <Text style={styles.loginSubtitle}>
+            Enter your organization name to go to your login page:
+          </Text>
+          <View style={[styles.loginForm, isWide && styles.loginFormWide]}>
+            <TextInput
+              style={styles.loginInput}
+              placeholder="e.g. mycompany"
+              placeholderTextColor="#94a3b8"
+              value={tenantInput}
+              onChangeText={(text) => {
+                setTenantInput(text);
+                setInputError(null);
+              }}
+              onSubmitEditing={handleGoToTenant}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="go"
+            />
+            <TouchableOpacity
+              style={styles.loginButton}
+              onPress={handleGoToTenant}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.loginButtonText}>Go</Text>
+            </TouchableOpacity>
+          </View>
+          {inputError && (
+            <Text style={styles.loginError}>{inputError}</Text>
+          )}
+          <Text style={styles.loginHint}>
+            This will take you to your organization's sign-in page.
           </Text>
         </View>
 
-        {/* Features */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>What You Can Do</Text>
-          <View style={styles.featureGrid}>
-            <FeatureCard
-              title="Job Sites & Jobs"
-              description="Organize work by site and track job status from pending to completed."
-            />
-            <FeatureCard
-              title="Estimates & Invoices"
-              description="Create detailed estimates with line items, convert to invoices with one tap."
-            />
-            <FeatureCard
-              title="Contacts & Notes"
-              description="Keep client contacts and job notes together where your team can find them."
-            />
-            <FeatureCard
-              title="AI Assistant"
-              description="Let AI help you create estimates, notes, and manage your workflow."
-            />
-          </View>
-        </View>
-
-        {/* Tenant Directory */}
-        {tenants.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Log In to Your Account</Text>
-            <Text style={styles.sectionDescription}>
-              Select your organization to sign in:
-            </Text>
-            <View style={styles.tenantList}>
-              {tenants.map((tenant) => (
-                <TouchableOpacity
-                  key={tenant.slug}
-                  style={styles.tenantCard}
-                  onPress={() => handleTenantPress(tenant)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.tenantName}>{tenant.name}</Text>
-                  <Text style={styles.tenantDomain}>{tenant.domain}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Footer */}
+        {/* ─── Footer ───────────────────────────────────────────────── */}
         <View style={styles.footer}>
+          <Text style={styles.footerBrand}>JobSyte</Text>
           <Text style={styles.footerText}>
-            Interested in using JobSyte for your business? Get in touch.
+            Contractor management made simple. Built with care for the trades.
+          </Text>
+          <Text style={styles.footerContact}>
+            Interested in JobSyte for your business? Reach out at cameron.legg@gmail.com
           </Text>
         </View>
       </ScrollView>
@@ -104,110 +270,364 @@ export default function LandingScreen({ tenants }: Props) {
   );
 }
 
-function FeatureCard({ title, description }: { title: string; description: string }) {
-  return (
-    <View style={styles.featureCard}>
+/* ─── Sub-components ──────────────────────────────────────────────────────── */
+
+function FeatureSection({
+  isWide,
+  title,
+  description,
+  bullets,
+  image,
+  imageAlt,
+  reverse,
+}: {
+  isWide: boolean;
+  title: string;
+  description: string;
+  bullets: string[];
+  image: any;
+  imageAlt: string;
+  reverse: boolean;
+}) {
+  const content = (
+    <View style={[styles.featureText, isWide && styles.featureTextWide]}>
       <Text style={styles.featureTitle}>{title}</Text>
       <Text style={styles.featureDescription}>{description}</Text>
+      <View style={styles.bulletList}>
+        {bullets.map((b, i) => (
+          <View key={i} style={styles.bulletRow}>
+            <Text style={styles.bulletDot}>•</Text>
+            <Text style={styles.bulletText}>{b}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+
+  const imageEl = (
+    <View style={[styles.featureImageContainer, isWide && styles.featureImageContainerWide]}>
+      <Image
+        source={image}
+        style={styles.featureImage}
+        resizeMode="contain"
+        accessibilityLabel={imageAlt}
+      />
+    </View>
+  );
+
+  return (
+    <View style={[styles.featureRow, isWide && styles.featureRowWide]}>
+      {isWide && reverse ? (
+        <>
+          {imageEl}
+          {content}
+        </>
+      ) : isWide ? (
+        <>
+          {content}
+          {imageEl}
+        </>
+      ) : (
+        <>
+          {content}
+          {imageEl}
+        </>
+      )}
     </View>
   );
 }
 
+function MiniFeatureCard({
+  icon,
+  title,
+  description,
+}: {
+  icon: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <View style={styles.miniCard}>
+      <Text style={styles.miniCardIcon}>{icon}</Text>
+      <Text style={styles.miniCardTitle}>{title}</Text>
+      <Text style={styles.miniCardDescription}>{description}</Text>
+    </View>
+  );
+}
+
+/* ─── Styles ──────────────────────────────────────────────────────────────── */
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#ffffff",
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 0,
   },
+
+  // Hero
   hero: {
+    backgroundColor: "#0f172a",
     paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 40,
-    backgroundColor: "#1e40af",
+    paddingTop: 72,
+    paddingBottom: 56,
+    alignItems: "center",
+  },
+  heroContent: {
+    maxWidth: 600,
     alignItems: "center",
   },
   heroTitle: {
-    fontSize: 36,
+    fontSize: 44,
     fontWeight: "800",
     color: "#ffffff",
+    marginBottom: 16,
+    letterSpacing: -1,
+  },
+  heroTagline: {
+    fontSize: 20,
+    fontWeight: "500",
+    color: "#e2e8f0",
+    textAlign: "center",
+    lineHeight: 30,
     marginBottom: 12,
   },
-  heroSubtitle: {
+  heroDescription: {
     fontSize: 16,
-    color: "#dbeafe",
+    color: "#94a3b8",
     textAlign: "center",
-    maxWidth: 500,
     lineHeight: 24,
+    marginBottom: 28,
   },
-  section: {
+  heroCta: {
+    backgroundColor: "#2563eb",
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 8,
+  },
+  heroCtaText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+
+  // Feature sections
+  featureRow: {
     paddingHorizontal: 24,
-    paddingTop: 32,
+    paddingVertical: 48,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
   },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#1e293b",
-    marginBottom: 8,
+  featureRowWide: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 48,
+    paddingHorizontal: 48,
+    maxWidth: 1100,
+    alignSelf: "center",
+    width: "100%",
   },
-  sectionDescription: {
-    fontSize: 15,
-    color: "#64748b",
-    marginBottom: 16,
+  featureText: {
+    marginBottom: 24,
   },
-  featureGrid: {
-    marginTop: 12,
-    gap: 12,
-  },
-  featureCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 10,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
+  featureTextWide: {
+    flex: 1,
+    marginBottom: 0,
   },
   featureTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1e293b",
-    marginBottom: 4,
+    fontSize: 26,
+    fontWeight: "700",
+    color: "#0f172a",
+    marginBottom: 12,
+    letterSpacing: -0.5,
   },
   featureDescription: {
-    fontSize: 14,
-    color: "#64748b",
-    lineHeight: 20,
+    fontSize: 16,
+    color: "#475569",
+    lineHeight: 25,
+    marginBottom: 16,
   },
-  tenantList: {
-    gap: 10,
+  bulletList: {
+    gap: 8,
   },
-  tenantCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 10,
-    padding: 16,
+  bulletRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  bulletDot: {
+    color: "#2563eb",
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: "700",
+  },
+  bulletText: {
+    fontSize: 15,
+    color: "#334155",
+    lineHeight: 22,
+    flex: 1,
+  },
+  featureImageContainer: {
+    alignItems: "center",
+    marginTop: 8,
+  },
+  featureImageContainerWide: {
+    flex: 0.6,
+    marginTop: 0,
+  },
+  featureImage: {
+    width: 260,
+    height: 520,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: "#e2e8f0",
-    flexDirection: "row",
-    justifyContent: "space-between",
+  },
+
+  // Additional features grid
+  gridSection: {
+    paddingHorizontal: 24,
+    paddingVertical: 56,
+    backgroundColor: "#f8fafc",
     alignItems: "center",
   },
-  tenantName: {
+  gridSectionTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#0f172a",
+    marginBottom: 8,
+    textAlign: "center",
+    letterSpacing: -0.5,
+  },
+  gridSectionSubtitle: {
+    fontSize: 16,
+    color: "#64748b",
+    marginBottom: 32,
+    textAlign: "center",
+  },
+  featureGrid: {
+    gap: 16,
+    maxWidth: 1000,
+    width: "100%",
+  },
+  featureGridWide: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 20,
+  },
+  miniCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    minWidth: 280,
+    flex: 1,
+  },
+  miniCardIcon: {
+    fontSize: 28,
+    marginBottom: 10,
+  },
+  miniCardTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#0f172a",
+    marginBottom: 6,
+  },
+  miniCardDescription: {
+    fontSize: 14,
+    color: "#64748b",
+    lineHeight: 21,
+  },
+
+  // Tenant login section
+  loginSection: {
+    paddingHorizontal: 24,
+    paddingVertical: 56,
+    alignItems: "center",
+  },
+  loginTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#0f172a",
+    marginBottom: 8,
+    textAlign: "center",
+    letterSpacing: -0.5,
+  },
+  loginSubtitle: {
+    fontSize: 16,
+    color: "#64748b",
+    marginBottom: 24,
+    textAlign: "center",
+  },
+  loginForm: {
+    flexDirection: "row",
+    width: "100%",
+    maxWidth: 400,
+    gap: 10,
+  },
+  loginFormWide: {
+    maxWidth: 420,
+  },
+  loginInput: {
+    flex: 1,
+    height: 48,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: "#0f172a",
+    backgroundColor: "#ffffff",
+  },
+  loginButton: {
+    backgroundColor: "#2563eb",
+    paddingHorizontal: 24,
+    height: 48,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loginButtonText: {
+    color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
-    color: "#1e293b",
   },
-  tenantDomain: {
+  loginError: {
+    color: "#dc2626",
+    fontSize: 14,
+    marginTop: 10,
+    textAlign: "center",
+  },
+  loginHint: {
     fontSize: 13,
-    color: "#64748b",
+    color: "#94a3b8",
+    marginTop: 12,
+    textAlign: "center",
   },
+
+  // Footer
   footer: {
+    backgroundColor: "#0f172a",
     paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingVertical: 48,
     alignItems: "center",
   },
+  footerBrand: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#ffffff",
+    marginBottom: 8,
+  },
   footerText: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#94a3b8",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  footerContact: {
+    fontSize: 14,
+    color: "#64748b",
     textAlign: "center",
   },
 });

@@ -24,9 +24,6 @@ export function useAppContext() {
       if (FORCE_MODE === "landing") {
         return {
           mode: "landing",
-          tenants: [
-            { slug: "demo", name: "Demo Tenant", domain: "localhost:8081" },
-          ],
         } satisfies AppContextResponse;
       }
 

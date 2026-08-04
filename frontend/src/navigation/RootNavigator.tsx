@@ -106,7 +106,7 @@ export default function RootNavigator() {
 
   // Landing mode — show the public landing page
   if (appContext?.mode === "landing") {
-    return <LandingScreen tenants={appContext.tenants} />;
+    return <LandingScreen />;
   }
 
   // Tenant mode — standard auth-gated navigation
