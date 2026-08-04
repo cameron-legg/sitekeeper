@@ -1,21 +1,28 @@
 /**
  * RootNavigator — top-level navigation structure.
  *
- * Switches between AuthStack (unauthenticated) and AppStack (authenticated)
- * based on the presence of a token in the Zustand auth store.
+ * Three-way routing:
+ * 1. Landing mode (LANDING_MODE=true on backend, or EXPO_PUBLIC_FORCE_MODE=landing):
+ *    Shows the public landing page with tenant directory.
+ * 2. Tenant mode, unauthenticated: Shows AuthStack (Login/Register).
+ * 3. Tenant mode, authenticated: Shows AppStack (all app screens).
  *
- * Web URL routing is configured via the `linking` prop so that each screen
- * maps to a clean URL path.
+ * The mode is determined by calling GET /api/v1/context on boot.
+ * Web URL routing is configured via the `linking` prop.
  */
 
 import React from "react";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, Text, StyleSheet } from "react-native";
 import { NavigationContainer, LinkingOptions } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { useAuthStore } from "../store/authStore";
+import { useAppContext } from "../api/hooks/useAppContext";
 import { navigationRef } from "./navigationRef";
 import type { RootStackParamList } from "./types";
+
+// Landing screen
+import LandingScreen from "../screens/landing/LandingScreen";
 
 // Auth screens
 import LoginScreen from "../screens/auth/LoginScreen";
@@ -80,18 +87,29 @@ const linking: LinkingOptions<RootStackParamList> = {
 export default function RootNavigator() {
   const token = useAuthStore((s) => s.token);
   const hydrated = useAuthStore((s) => s._hydrated);
+  const { data: appContext, isLoading: contextLoading, isError } = useAppContext();
 
-  // Don't render the navigator until the persisted auth state is loaded.
-  // Without this, on web the navigator renders with token=null before
-  // localStorage is read, causing a blank screen or incorrect redirect.
-  if (!hydrated) {
+  // Wait for both the auth store to rehydrate and the context call to resolve.
+  if (!hydrated || contextLoading) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#2563eb" />
       </View>
     );
   }
 
+  // If the context call failed, fall back to tenant mode so existing
+  // behavior is preserved (the app still works, just no landing page).
+  if (isError || !appContext) {
+    // Fall through to tenant mode
+  }
+
+  // Landing mode — show the public landing page
+  if (appContext?.mode === "landing") {
+    return <LandingScreen tenants={appContext.tenants} />;
+  }
+
+  // Tenant mode — standard auth-gated navigation
   return (
     <NavigationContainer ref={navigationRef} linking={linking}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -199,3 +217,11 @@ export default function RootNavigator() {
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});

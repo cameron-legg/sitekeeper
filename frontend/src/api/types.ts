@@ -325,3 +325,24 @@ export interface JobPhoto {
   file_size: number;
   created_at: string;
 }
+
+// App context / mode detection
+
+export interface TenantInfo {
+  slug: string;
+  name: string;
+  domain: string;
+}
+
+export interface AppContextTenant {
+  mode: "tenant";
+  tenant_slug: string;
+  tenant_name: string;
+}
+
+export interface AppContextLanding {
+  mode: "landing";
+  tenants: TenantInfo[];
+}
+
+export type AppContextResponse = AppContextTenant | AppContextLanding;

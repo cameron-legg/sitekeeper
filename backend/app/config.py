@@ -39,6 +39,19 @@ class Config:
     # App branding (change via APP_NAME env var to rebrand)
     APP_NAME: str = os.environ.get("APP_NAME", "JobSyte")
 
+    # Landing mode — when True, requests resolving to the default tenant
+    # return mode="landing" from GET /api/v1/context instead of mode="tenant".
+    # Set to True in production so bare-domain visitors see the public landing page.
+    # Leave unset (False) in local dev so localhost still reaches the dev tenant app.
+    LANDING_MODE: bool = os.environ.get("LANDING_MODE", "false").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
+
+    # Default tenant slug (used by tenant resolution and landing mode logic)
+    DEFAULT_TENANT: str = os.environ.get("DEFAULT_TENANT", "default")
+
     # Flask
     SECRET_KEY: str = os.environ.get("SECRET_KEY", JWT_SECRET)
     TESTING: bool = False

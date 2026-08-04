@@ -90,6 +90,7 @@ def create_app(config=None):
     from .blueprints.time_entries_bp import time_entries_bp
     from .blueprints.job_photos_bp import job_photos_bp
     from .blueprints.document_settings_bp import document_settings_bp
+    from .blueprints.context_bp import context_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/v1")
     app.register_blueprint(job_sites_bp, url_prefix="/api/v1")
@@ -108,6 +109,7 @@ def create_app(config=None):
     app.register_blueprint(time_entries_bp, url_prefix="/api/v1")
     app.register_blueprint(job_photos_bp, url_prefix="/api/v1")
     app.register_blueprint(document_settings_bp, url_prefix="/api/v1")
+    app.register_blueprint(context_bp, url_prefix="/api/v1")
 
     # Health check endpoint (used by deploy scripts and load balancers)
     @app.route("/api/v1/health")
