@@ -20,7 +20,7 @@ export async function loginAsDemo(page: Page) {
   await page.getByPlaceholder("Password").fill(DEMO_USER.password);
   await page.locator("text=Login").click();
   // Wait for Home screen to load (job sites list)
-  await page.waitForSelector("text=SiteKeeper", { timeout: 10000 });
+  await page.waitForSelector("text=JobSyte", { timeout: 10000 });
 }
 
 /**

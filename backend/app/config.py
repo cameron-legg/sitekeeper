@@ -36,6 +36,9 @@ class Config:
         "yes",
     )
 
+    # App branding (change via APP_NAME env var to rebrand)
+    APP_NAME: str = os.environ.get("APP_NAME", "JobSyte")
+
     # Flask
     SECRET_KEY: str = os.environ.get("SECRET_KEY", JWT_SECRET)
     TESTING: bool = False

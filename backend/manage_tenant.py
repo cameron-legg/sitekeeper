@@ -200,7 +200,7 @@ def cmd_list(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="SiteKeeper tenant management")
+    parser = argparse.ArgumentParser(description=f"{os.environ.get('APP_NAME', 'JobSyte')} tenant management")
     subparsers = parser.add_subparsers(dest="command")
 
     # create

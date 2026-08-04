@@ -26,6 +26,7 @@ import {
 } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAIChat, ChatMessage, AIAction } from "../api/hooks/useAI";
+import { AI_NAME } from "../config/app";
 
 interface AIChatBubbleProps {
   screenName: string;
@@ -448,7 +449,7 @@ export default function AIChatBubble({ screenName, screenParams }: AIChatBubbleP
             <View style={styles.header}>
               <View style={styles.headerLeft}>
                 <View style={styles.headerDot} />
-                <Text style={styles.headerTitle}>SiteKeeper AI</Text>
+                <Text style={styles.headerTitle}>{AI_NAME}</Text>
               </View>
               <View style={styles.headerContext}>
                 <Text style={styles.headerContextText}>
@@ -492,7 +493,7 @@ export default function AIChatBubble({ screenName, screenParams }: AIChatBubbleP
                     <View style={[styles.emptyAiRay, { transform: [{ rotate: "60deg" }] }]} />
                     <View style={[styles.emptyAiRay, { transform: [{ rotate: "120deg" }] }]} />
                   </View>
-                  <Text style={styles.emptyTitle}>SiteKeeper AI</Text>
+                  <Text style={styles.emptyTitle}>{AI_NAME}</Text>
                   <Text style={styles.emptyText}>
                     Your intelligent assistant for managing job sites, estimates, invoices, contacts, and more.
                   </Text>
@@ -535,7 +536,7 @@ export default function AIChatBubble({ screenName, screenParams }: AIChatBubbleP
                 style={styles.input}
                 value={input}
                 onChangeText={setInput}
-                placeholder="Message SiteKeeper AI..."
+                placeholder={`Message ${AI_NAME}...`}
                 placeholderTextColor="#64748b"
                 multiline
                 maxLength={2000}

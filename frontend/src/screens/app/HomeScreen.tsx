@@ -19,6 +19,7 @@ import {
   useDeleteJobSite,
 } from "../../api/hooks/useJobSites";
 import type { JobSite } from "../../api/types";
+import { APP_NAME } from "../../config/app";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
@@ -143,7 +144,7 @@ export default function HomeScreen({ navigation }: Props) {
     <SafeAreaView style={styles.flex}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>SiteKeeper</Text>
+        <Text style={styles.headerTitle}>{APP_NAME}</Text>
         <TouchableOpacity
           style={styles.menuBtn}
           onPress={() => setShowMenu(true)}

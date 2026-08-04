@@ -16,6 +16,7 @@ from openai import OpenAI
 
 from ..models import User
 from ..extensions import db
+from ..config import Config
 from ..services.job_site_service import JobSiteService
 from ..services.job_service import JobService
 from ..services.estimate_service import EstimateService
@@ -626,7 +627,7 @@ def _build_system_prompt(user: User, screen_context: dict, saved_items_summary: 
     screen_params = screen_context.get("params", {})
 
     context_parts = [
-        f"You are SiteKeeper AI, a helpful assistant for contractors using the SiteKeeper app.",
+        f"You are {Config.APP_NAME} AI, a helpful assistant for contractors using the {Config.APP_NAME} app.",
         f"The user's name is {user_name}. They operate in the state of {state}.",
         f"",
         f"The user is currently on the '{screen_name}' screen.",

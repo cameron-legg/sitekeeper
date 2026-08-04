@@ -13,6 +13,7 @@ import {
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { useLogin } from "../../api/hooks/useAuth";
+import { APP_NAME } from "../../config/app";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 
@@ -50,7 +51,7 @@ export default function LoginScreen({ navigation }: Props) {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>SiteKeeper</Text>
+        <Text style={styles.title}>{APP_NAME}</Text>
         <Text style={styles.subtitle}>Sign in to your account</Text>
 
         {error && <Text style={styles.errorBanner}>{error}</Text>}

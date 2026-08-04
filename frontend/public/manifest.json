@@ -1,6 +1,6 @@
 {
-  "name": "SiteKeeper",
-  "short_name": "SiteKeeper",
+  "name": "JobSyte",
+  "short_name": "JobSyte",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

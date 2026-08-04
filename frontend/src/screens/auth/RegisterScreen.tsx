@@ -13,6 +13,7 @@ import {
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { useRegister } from "../../api/hooks/useAuth";
+import { APP_NAME } from "../../config/app";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Register">;
 
@@ -51,7 +52,7 @@ export default function RegisterScreen({ navigation }: Props) {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>SiteKeeper</Text>
+        <Text style={styles.title}>{APP_NAME}</Text>
         <Text style={styles.subtitle}>Create your account</Text>
 
         {error && <Text style={styles.errorBanner}>{error}</Text>}

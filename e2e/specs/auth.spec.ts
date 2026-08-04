@@ -11,8 +11,8 @@ import { DEMO_USER, loginAsDemo, logout } from "../helpers/auth";
 test.describe("Login", () => {
   test("successful login navigates to Home screen", async ({ page }) => {
     await loginAsDemo(page);
-    // Should see the SiteKeeper header and job sites
-    await expect(page.getByText("SiteKeeper")).toBeVisible();
+    // Should see the JobSyte header and job sites
+    await expect(page.getByText("JobSyte")).toBeVisible();
     await expect(page.getByText("Johnson Residence")).toBeVisible();
   });
 
