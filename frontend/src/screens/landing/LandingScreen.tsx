@@ -389,10 +389,10 @@ function MiniFeatureCard({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#0f172a",
   },
   scrollContent: {
-    paddingBottom: 0,
+    flexGrow: 1,
   },
 
   // Hero
