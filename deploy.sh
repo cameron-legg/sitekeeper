@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
 # =============================================================================
 # SiteKeeper — Production Deploy Script
-# Target: entouch.org (ssh alias: awspantrypix)
 #
 # Usage:
-#   ./deploy.sh            # deploy both frontend and backend
-#   ./deploy.sh frontend   # deploy frontend only (Expo web build + rsync)
-#   ./deploy.sh backend    # deploy backend only (git pull + pip + migrations + restart)
+#   ./deploy.sh                          # deploy both to jobsyteprod (default)
+#   ./deploy.sh frontend                 # frontend only to jobsyteprod
+#   ./deploy.sh backend                  # backend only to jobsyteprod
+#   ./deploy.sh --target entouch         # deploy both to awspantrypix
+#   ./deploy.sh backend --target entouch # backend only to awspantrypix
+#   ./deploy.sh --target jobsyte         # deploy both to jobsyteprod (explicit)
 #
 # One-time local setup required:
-#   1. Add the server to ~/.ssh/config as "awspantrypix":
+#   1. Add servers to ~/.ssh/config:
+#        Host jobsyteprod
+#            HostName <new-server-ip>
+#            User ubuntu
+#            IdentityFile ~/.ssh/<your-key>
 #        Host awspantrypix
-#            HostName <server-ip>
+#            HostName <old-server-ip>
 #            User ubuntu
 #            IdentityFile ~/.ssh/<your-key>
 #   2. Ensure rsync is installed locally (brew install rsync / apt install rsync)
@@ -26,12 +32,6 @@
 
 set -euo pipefail
 
-SSH_HOST="awspantrypix"
-APP_DIR="/home/sitekeeper/app"
-WEB_ROOT="/var/www/sitekeeper/html"
-API_URL="https://entouch.org"
-SERVICE="sitekeeperapi"
-
 # ── Colours ──────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 info()    { echo -e "${GREEN}▶ $*${NC}"; }
@@ -39,8 +39,37 @@ warn()    { echo -e "${YELLOW}⚠ $*${NC}"; }
 die()     { echo -e "${RED}✗ $*${NC}"; exit 1; }
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
-TARGET="${1:-all}"
-[[ "$TARGET" =~ ^(all|frontend|backend)$ ]] || die "Usage: $0 [all|frontend|backend]"
+DEPLOY_TARGET="jobsyte"
+TARGET="all"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --target) DEPLOY_TARGET="$2"; shift 2 ;;
+        all|frontend|backend) TARGET="$1"; shift ;;
+        *) die "Usage: $0 [all|frontend|backend] [--target jobsyte|entouch]" ;;
+    esac
+done
+
+# ── Per-target configuration ─────────────────────────────────────────────────
+case "$DEPLOY_TARGET" in
+    jobsyte)
+        SSH_HOST="jobsyteprod"
+        API_URL="https://jobsyte.app"
+        ;;
+    entouch)
+        SSH_HOST="awspantrypix"
+        API_URL="https://entouch.org"
+        ;;
+    *)
+        die "Unknown target: $DEPLOY_TARGET. Use 'jobsyte' or 'entouch'."
+        ;;
+esac
+
+APP_DIR="/home/sitekeeper/app"
+WEB_ROOT="/var/www/sitekeeper/html"
+SERVICE="sitekeeperapi"
+
+info "Deploy target: $DEPLOY_TARGET ($SSH_HOST) — mode: $TARGET"
 
 # =============================================================================
 # PRE-DEPLOY TESTS
@@ -100,9 +129,9 @@ deploy_backend() {
         sudo -u sitekeeper git -C $APP_DIR pull --ff-only 2>&1
     "
 
-    info "  Starting/updating Docker containers (DB + MinIO)..."
+    info "  Ensuring Docker containers are running (DB + MinIO)..."
     ssh "$SSH_HOST" "
-        sudo -u sitekeeper docker compose -f $APP_DIR/docker-compose.prod.yml up -d 2>&1
+        sudo -u sitekeeper docker compose -f $APP_DIR/docker-compose.prod.yml up -d --no-recreate 2>&1
     "
 
     info "  Installing/updating Python dependencies..."

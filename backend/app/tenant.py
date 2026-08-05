@@ -93,7 +93,7 @@ def resolve_tenant_slug() -> str:
     if host.replace(".", "").isdigit():
         return DEFAULT_TENANT
 
-    # Production: extract subdomain from *.entouch.org
+    # Production: extract subdomain from *.domain.tld
     parts = host.split(".")
     if len(parts) >= 3:
         subdomain = parts[0]

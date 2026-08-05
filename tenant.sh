@@ -22,9 +22,35 @@
 
 set -euo pipefail
 
-SSH_HOST="awspantrypix"
+# ── Default target (can be overridden with --target entouch) ─────────────────
+DEPLOY_TARGET="jobsyte"
+
+# Parse --target from any position in args
+ARGS=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --target) DEPLOY_TARGET="$2"; shift 2 ;;
+        *) ARGS+=("$1"); shift ;;
+    esac
+done
+set -- "${ARGS[@]+"${ARGS[@]}"}"
+
+case "$DEPLOY_TARGET" in
+    jobsyte)
+        SSH_HOST="jobsyteprod"
+        BASE_DOMAIN="jobsyte.app"
+        ;;
+    entouch)
+        SSH_HOST="awspantrypix"
+        BASE_DOMAIN="entouch.org"
+        ;;
+    *)
+        echo "Unknown target: $DEPLOY_TARGET. Use 'jobsyte' or 'entouch'." >&2
+        exit 1
+        ;;
+esac
+
 APP_DIR="/home/sitekeeper/app"
-BASE_DOMAIN="entouch.org"
 DB_PORT=5435
 DB_USER="sitekeeper"
 DB_PASS="sitekeeper"
