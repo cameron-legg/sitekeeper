@@ -17,6 +17,7 @@ import {
   TextInput,
   Linking,
   Platform,
+  Modal,
   useWindowDimensions,
 } from "react-native";
 
@@ -37,6 +38,7 @@ export default function LandingScreen() {
   const isWide = width >= 768;
   const [tenantInput, setTenantInput] = useState("");
   const [inputError, setInputError] = useState<string | null>(null);
+  const [showSignInModal, setShowSignInModal] = useState(false);
 
   function handleGoToTenant() {
     const slug = tenantInput.trim().toLowerCase().replace(/\s+/g, "");
@@ -86,13 +88,13 @@ export default function LandingScreen() {
               professionals who need a simple way to run their business from
               their phone.
             </Text>
-            {/* Sign-in CTA scrolls to login section */}
+            {/* Sign-in CTA opens modal */}
             <TouchableOpacity
               style={styles.heroCta}
               onPress={() => {
-                if (Platform.OS === "web") {
-                  document.getElementById("login-section")?.scrollIntoView({ behavior: "smooth" });
-                }
+                setTenantInput("");
+                setInputError(null);
+                setShowSignInModal(true);
               }}
               activeOpacity={0.8}
             >
@@ -218,15 +220,44 @@ export default function LandingScreen() {
           </View>
         </View>
 
-        {/* ─── Tenant Login ─────────────────────────────────────────── */}
-        <View style={styles.loginSection} nativeID="login-section">
-          <Text style={styles.loginTitle}>Sign In to Your Account</Text>
-          <Text style={styles.loginSubtitle}>
-            Enter your organization name to go to your login page:
+        {/* ─── Footer ───────────────────────────────────────────────── */}
+        <View style={styles.footer}>
+          <Text style={styles.footerBrand}>JobSyte</Text>
+          <Text style={styles.footerText}>
+            Contractor management made simple. Built with care for the trades.
           </Text>
-          <View style={[styles.loginForm, isWide && styles.loginFormWide]}>
+          <TouchableOpacity
+            style={styles.footerSignInBtn}
+            onPress={() => {
+              setTenantInput("");
+              setInputError(null);
+              setShowSignInModal(true);
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.footerSignInText}>Sign In</Text>
+          </TouchableOpacity>
+          <Text style={styles.footerContact}>
+            Interested in JobSyte for your business? Reach out at cameron.legg@gmail.com
+          </Text>
+        </View>
+      </ScrollView>
+
+      {/* ─── Sign In Modal ──────────────────────────────────────────── */}
+      <Modal
+        visible={showSignInModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSignInModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Sign In</Text>
+            <Text style={styles.modalSubtitle}>
+              Enter your organization name to go to your login page:
+            </Text>
             <TextInput
-              style={styles.loginInput}
+              style={styles.modalInput}
               placeholder="e.g. mycompany"
               placeholderTextColor="#94a3b8"
               value={tenantInput}
@@ -237,35 +268,33 @@ export default function LandingScreen() {
               onSubmitEditing={handleGoToTenant}
               autoCapitalize="none"
               autoCorrect={false}
+              autoFocus
               returnKeyType="go"
             />
-            <TouchableOpacity
-              style={styles.loginButton}
-              onPress={handleGoToTenant}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.loginButtonText}>Go</Text>
-            </TouchableOpacity>
+            {inputError && (
+              <Text style={styles.modalError}>{inputError}</Text>
+            )}
+            <Text style={styles.modalHint}>
+              This will take you to your organization's sign-in page.
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowSignInModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalGoBtn}
+                onPress={handleGoToTenant}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalGoText}>Go</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          {inputError && (
-            <Text style={styles.loginError}>{inputError}</Text>
-          )}
-          <Text style={styles.loginHint}>
-            This will take you to your organization's sign-in page.
-          </Text>
         </View>
-
-        {/* ─── Footer ───────────────────────────────────────────────── */}
-        <View style={styles.footer}>
-          <Text style={styles.footerBrand}>JobSyte</Text>
-          <Text style={styles.footerText}>
-            Contractor management made simple. Built with care for the trades.
-          </Text>
-          <Text style={styles.footerContact}>
-            Interested in JobSyte for your business? Reach out at cameron.legg@gmail.com
-          </Text>
-        </View>
-      </ScrollView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -540,72 +569,6 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
 
-  // Tenant login section
-  loginSection: {
-    paddingHorizontal: 24,
-    paddingVertical: 56,
-    alignItems: "center",
-  },
-  loginTitle: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#0f172a",
-    marginBottom: 8,
-    textAlign: "center",
-    letterSpacing: -0.5,
-  },
-  loginSubtitle: {
-    fontSize: 16,
-    color: "#64748b",
-    marginBottom: 24,
-    textAlign: "center",
-  },
-  loginForm: {
-    flexDirection: "row",
-    width: "100%",
-    maxWidth: 400,
-    gap: 10,
-  },
-  loginFormWide: {
-    maxWidth: 420,
-  },
-  loginInput: {
-    flex: 1,
-    height: 48,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: "#0f172a",
-    backgroundColor: "#ffffff",
-  },
-  loginButton: {
-    backgroundColor: "#2563eb",
-    paddingHorizontal: 24,
-    height: 48,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loginButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  loginError: {
-    color: "#dc2626",
-    fontSize: 14,
-    marginTop: 10,
-    textAlign: "center",
-  },
-  loginHint: {
-    fontSize: 13,
-    color: "#94a3b8",
-    marginTop: 12,
-    textAlign: "center",
-  },
-
   // Footer
   footer: {
     backgroundColor: "#0f172a",
@@ -623,11 +586,103 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#94a3b8",
     textAlign: "center",
-    marginBottom: 12,
+    marginBottom: 16,
+  },
+  footerSignInBtn: {
+    borderWidth: 1,
+    borderColor: "#475569",
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  footerSignInText: {
+    color: "#e2e8f0",
+    fontSize: 15,
+    fontWeight: "600",
   },
   footerContact: {
     fontSize: 14,
     color: "#64748b",
     textAlign: "center",
+  },
+
+  // Sign-in modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 14,
+    padding: 28,
+    width: "100%",
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#0f172a",
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 15,
+    color: "#64748b",
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  modalInput: {
+    height: 48,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: "#0f172a",
+    backgroundColor: "#f9fafb",
+    marginBottom: 8,
+  },
+  modalError: {
+    color: "#dc2626",
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  modalHint: {
+    fontSize: 13,
+    color: "#94a3b8",
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "flex-end",
+  },
+  modalCancelBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+  },
+  modalCancelText: {
+    fontSize: 15,
+    color: "#374151",
+    fontWeight: "500",
+  },
+  modalGoBtn: {
+    backgroundColor: "#2563eb",
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalGoText: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "600",
   },
 });
