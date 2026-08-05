@@ -3,12 +3,12 @@
 # SiteKeeper — Tenant Management Script
 #
 # Usage:
-#   ./tenant.sh create <slug> [--name "Display Name"]
+#   ./tenant.sh create <slug> [--name "Display Name"] [--email "admin@example.com" --password "pass"]
 #   ./tenant.sh delete <slug>
 #   ./tenant.sh list
 #
 # Examples:
-#   ./tenant.sh create nocoresources --name "NoCo Resources"
+#   ./tenant.sh create nocoresources --name "NoCo Resources" --email "user@example.com" --password "secret"
 #   ./tenant.sh delete nocoresources
 #   ./tenant.sh list
 #
@@ -66,12 +66,16 @@ die()   { echo -e "${RED}✗ $*${NC}"; exit 1; }
 ACTION="${1:-}"
 SLUG="${2:-}"
 NAME=""
+ADMIN_EMAIL=""
+ADMIN_PASSWORD=""
 
-# Parse optional --name flag
+# Parse optional flags
 shift 2 2>/dev/null || true
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --name) NAME="$2"; shift 2 ;;
+        --email) ADMIN_EMAIL="$2"; shift 2 ;;
+        --password) ADMIN_PASSWORD="$2"; shift 2 ;;
         *) shift ;;
     esac
 done
@@ -152,6 +156,44 @@ print(\\\"yes\\\" if \\\"$SLUG\\\" in tenants else \\\"no\\\")
     ssh "$SSH_HOST" "sudo -u sitekeeper bash -c '
         cd $APP_DIR/backend &&
         DATABASE_URL=$db_url $APP_DIR/backend/venv/bin/alembic upgrade head 2>&1
+    '"
+
+    # 3.5. Create first admin user
+    if [[ -z "$ADMIN_EMAIL" ]]; then
+        read -p "  Admin email: " ADMIN_EMAIL
+    fi
+    [[ -z "$ADMIN_EMAIL" ]] && die "Admin email is required."
+
+    if [[ -z "$ADMIN_PASSWORD" ]]; then
+        read -sp "  Admin password: " ADMIN_PASSWORD
+        echo ""
+    fi
+    [[ -z "$ADMIN_PASSWORD" ]] && die "Admin password is required."
+
+    info "Creating admin user '$ADMIN_EMAIL'..."
+    ssh "$SSH_HOST" "sudo -u sitekeeper bash -c '
+        cd $APP_DIR/backend &&
+        set -a && source .env && set +a &&
+        DATABASE_URL=$db_url venv/bin/python -c \"
+from app import create_app
+from app.extensions import db, bcrypt
+from app.models import User
+import uuid
+
+app = create_app()
+with app.app_context():
+    pw_hash = bcrypt.generate_password_hash(\\\"$ADMIN_PASSWORD\\\").decode(\\\"utf-8\\\")
+    user = User(
+        id=uuid.uuid4(),
+        email=\\\"$ADMIN_EMAIL\\\",
+        password_hash=pw_hash,
+        role=\\\"admin\\\",
+        is_approved=True
+    )
+    db.session.add(user)
+    db.session.commit()
+    print(f\\\"Created admin user: {user.email} (id={user.id})\\\")
+\"
     '"
 
     # 4. Create MinIO buckets (PDFs + Media)
