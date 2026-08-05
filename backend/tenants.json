@@ -12,5 +12,12 @@
         "media_bucket": "nocoresources-media",
         "domain": "nocoresources.jobsyte.app",
         "name": "NoCo Resources"
+    },
+    "camtest": {
+        "database_url": "postgresql://sitekeeper:sitekeeper@localhost:5435/sk_camtest",
+        "bucket": "camtest-pdfs",
+        "media_bucket": "camtest-media",
+        "domain": "camtest.jobsyte.app",
+        "name": "Camtest"
     }
 }
