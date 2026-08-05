@@ -219,8 +219,8 @@ for bkt in [\\\"$bucket\\\", \\\"$media_bucket\\\"]:
 \"
     '" || warn "MinIO bucket creation failed — you can create them manually later."
 
-    # 5. Update tenants.json
-    info "Registering tenant in tenants.json..."
+    # 5. Update tenants.json (server — for immediate effect)
+    info "Registering tenant in tenants.json (server)..."
     ssh "$SSH_HOST" "sudo -u sitekeeper bash -c '
         cd $APP_DIR/backend &&
         $APP_DIR/backend/venv/bin/python -c \"
@@ -239,6 +239,26 @@ with open(\\\"tenants.json\\\", \\\"w\\\") as f:
 print(\\\"Tenant registered.\\\")
 \"
     '"
+
+    # 5.5. Update local tenants.json (so you know to commit + push)
+    info "Updating local tenants.json..."
+    LOCAL_TENANTS="$(cd "$(dirname "$0")" && pwd)/backend/tenants.json"
+    python3 -c "
+import json, sys
+with open('$LOCAL_TENANTS') as f:
+    tenants = json.load(f)
+tenants['$SLUG'] = {
+    'database_url': '$db_url',
+    'bucket': '$bucket',
+    'media_bucket': '$media_bucket',
+    'domain': '$domain',
+    'name': '$NAME'
+}
+with open('$LOCAL_TENANTS', 'w') as f:
+    json.dump(tenants, f, indent=4)
+    f.write('\n')
+print('Local tenants.json updated.')
+"
 
     # 6. Add nginx config
     info "Adding nginx config for $domain..."
@@ -304,6 +324,8 @@ NGINX
     info "Tenant '$SLUG' created successfully!"
     info "  URL: https://$domain"
     info "  Users can register at https://$domain and will have a completely isolated environment."
+    echo ""
+    warn "Remember to commit and push backend/tenants.json so deploys stay in sync."
 }
 
 # =============================================================================
@@ -333,8 +355,8 @@ cmd_delete() {
         nginx -t && systemctl reload nginx
     '" || warn "nginx cleanup had issues — continuing..."
 
-    # 2. Remove from tenants.json
-    info "Removing from tenants.json..."
+    # 2. Remove from tenants.json (server)
+    info "Removing from tenants.json (server)..."
     ssh "$SSH_HOST" "sudo -u sitekeeper bash -c '
         cd $APP_DIR/backend &&
         $APP_DIR/backend/venv/bin/python -c \"
@@ -347,6 +369,20 @@ with open(\\\"tenants.json\\\", \\\"w\\\") as f:
 print(\\\"Tenant removed from registry.\\\")
 \"
     '"
+
+    # 2.5. Remove from local tenants.json
+    info "Updating local tenants.json..."
+    LOCAL_TENANTS="$(cd "$(dirname "$0")" && pwd)/backend/tenants.json"
+    python3 -c "
+import json
+with open('$LOCAL_TENANTS') as f:
+    tenants = json.load(f)
+tenants.pop('$SLUG', None)
+with open('$LOCAL_TENANTS', 'w') as f:
+    json.dump(tenants, f, indent=4)
+    f.write('\n')
+print('Local tenants.json updated.')
+"
 
     # 3. Remove from CORS_ORIGINS
     info "Removing from CORS_ORIGINS..."
