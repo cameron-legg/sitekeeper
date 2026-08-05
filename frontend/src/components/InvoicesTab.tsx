@@ -374,7 +374,7 @@ export default function InvoicesTab({ jobId }: Props) {
               placeholder="e.g. 8.5"
               keyboardType="decimal-pad"
             />
-            <Text style={styles.taxHint}>Applies to material items only, not labour hours.</Text>
+            <Text style={styles.taxHint}>Applies to material items only, not labor hours.</Text>
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowCreateModal(false)}>
                 <Text style={styles.modalCancelText}>Cancel</Text>

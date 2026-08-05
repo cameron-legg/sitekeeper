@@ -45,8 +45,8 @@ export default function HomeScreen({ navigation }: Props) {
     if (!sites) return [];
     let filtered: JobSite[];
     if (siteFilter === "active") {
-      // Show sites that have at least one pending or in_progress job
-      filtered = sites.filter((s) => s.active_job_count > 0);
+      // Show sites that have active jobs OR are brand new (no jobs yet)
+      filtered = sites.filter((s) => s.active_job_count > 0 || s.job_count === 0);
     } else {
       // "all" — show everything
       filtered = [...sites];
@@ -197,7 +197,7 @@ export default function HomeScreen({ navigation }: Props) {
                 <>
                   <Text style={styles.emptyTitle}>No active job sites</Text>
                   <Text style={styles.emptySubtitle}>
-                    No sites have pending or in-progress jobs. Tap "All Sites" to see everything.
+                    All existing sites have only completed or cancelled jobs. Tap "All Sites" to see everything.
                   </Text>
                 </>
               ) : (

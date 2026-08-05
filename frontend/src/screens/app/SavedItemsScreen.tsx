@@ -412,7 +412,7 @@ export default function SavedItemsScreen({ route, navigation }: Props) {
                 style={[styles.input, entryErrors.name && styles.inputError]}
                 value={entryForm.name}
                 onChangeText={(v) => { setEntryForm((f) => ({ ...f, name: v })); setEntryErrors((e) => ({ ...e, name: undefined })); }}
-                placeholder={entryForm.entry_type === "material" ? "e.g. Toilet" : "e.g. Installation labour"}
+                placeholder={entryForm.entry_type === "material" ? "e.g. Toilet" : "e.g. Installation labor"}
                 autoFocus
               />
               {entryErrors.name && <Text style={styles.fieldError}>{entryErrors.name}</Text>}

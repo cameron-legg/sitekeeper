@@ -348,7 +348,7 @@ def build_pdf(data: PdfData) -> bytes:
 
     if all_hours_entries:
         elements.append(
-            Paragraph("<b>Labour</b>", style_bold)
+            Paragraph("<b>Labor</b>", style_bold)
         )
         elements.append(Spacer(1, 4))
 
@@ -373,18 +373,18 @@ def build_pdf(data: PdfData) -> bytes:
                 _fmt(entry.total),
             ])
 
-        # Total hours and labour total
+        # Total hours and labor total
         total_hours = sum(
             (e.hours for _, e in all_hours_entries), Decimal("0")
         )
-        labour_total = sum(
+        labor_total = sum(
             (e.total for _, e in all_hours_entries), Decimal("0")
         )
         table_data_h.append([
             "Total Hours", _fmt_qty(total_hours), "", ""
         ])
         table_data_h.append([
-            "Labour Total", "", "", _fmt(labour_total)
+            "Labor Total", "", "", _fmt(labor_total)
         ])
 
         # Build the table style

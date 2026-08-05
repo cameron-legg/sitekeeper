@@ -170,13 +170,13 @@ SiteKeeper users create estimates and invoices for contractor jobs. This feature
 
 ### Requirement 14: PDF Content — Hours Entries Table
 
-**User Story:** As a contractor, I want labour hours itemized on the PDF, so that clients can see the work breakdown and costs.
+**User Story:** As a contractor, I want labor hours itemized on the PDF, so that clients can see the work breakdown and costs.
 
 #### Acceptance Criteria
 
 1. THE PDF_Service SHALL display each Hours_Entry with its name, number of hours, the parent Line_Item hourly rate, and the computed cost (hours × hourly rate) grouped under the parent Line_Item name.
 2. THE PDF_Service SHALL display the total hours across all Hours_Entries.
-3. THE PDF_Service SHALL display the total labour cost across all Hours_Entries.
+3. THE PDF_Service SHALL display the total labor cost across all Hours_Entries.
 
 ### Requirement 15: PDF Content — Document Total
 

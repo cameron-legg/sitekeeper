@@ -301,7 +301,7 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
                 <TextInput style={styles.input} value={taxRate}
                   onChangeText={(v) => onFieldChange(setTaxRate, "tax_rate", v)}
                   placeholder="e.g. 8.5 (leave blank for no tax)" keyboardType="decimal-pad" />
-                <Text style={styles.taxHint}>Tax applies to material items only, not labour hours.</Text>
+                <Text style={styles.taxHint}>Tax applies to material items only, not labor hours.</Text>
               </>
             )}
 
@@ -442,7 +442,7 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
                         <TextInput style={styles.input} value={taxRate}
                           onChangeText={(v) => onFieldChange(setTaxRate, "tax_rate", v)}
                           placeholder="e.g. 8.5 (leave blank for no tax)" keyboardType="decimal-pad" />
-                        <Text style={styles.taxHint}>Tax applies to material items only, not labour hours.</Text>
+                        <Text style={styles.taxHint}>Tax applies to material items only, not labor hours.</Text>
                       </>
                     )}
                     {isFieldAdditional("document_number") && (
