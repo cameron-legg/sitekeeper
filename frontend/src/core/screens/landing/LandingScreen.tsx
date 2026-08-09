@@ -89,6 +89,7 @@ export default function LandingScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
+        style={{ backgroundColor: "#0f172a" }}
         bounces={false}
         overScrollMode="never"
       >
@@ -474,6 +475,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 0,
+    backgroundColor: "#0f172a",
   },
 
   // ─── Hero ────────────────────────────────────────────────────────────────
