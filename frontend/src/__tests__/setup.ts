@@ -16,7 +16,7 @@ jest.mock("@react-native-async-storage/async-storage", () =>
 );
 
 // Mock the API client
-jest.mock("../api/client", () => {
+jest.mock("../core/api/client", () => {
   const mockClient = {
     get: jest.fn(),
     post: jest.fn(),
