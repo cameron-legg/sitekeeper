@@ -79,7 +79,6 @@ class PdfService:
         Returns a list of raw image bytes, skipping any that fail to download.
         """
         from ..models import DocumentPhoto
-        from ..services.job_photo_service import _get_media_bucket
 
         doc_photos = (
             DocumentPhoto.query
@@ -91,21 +90,15 @@ class PdfService:
         if not doc_photos:
             return []
 
-        # Get media storage
-        storage = self._minio_storage or getattr(current_app, "minio_storage", None)
-        if storage is None:
-            return []
-
-        from flask import g
-        media_bucket = _get_media_bucket()
-        media_storage = storage.with_bucket(media_bucket)
+        # Use the same tenant bucket for all storage (PDFs and photos share one bucket)
+        storage = self._get_minio_storage()
 
         images = []
         for dp in doc_photos:
             if dp.photo is None:
                 continue
             try:
-                img_bytes = media_storage.download(dp.photo.object_key)
+                img_bytes = storage.download(dp.photo.object_key)
                 images.append(img_bytes)
             except Exception:
                 logger.warning(

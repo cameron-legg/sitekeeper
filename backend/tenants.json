@@ -1,29 +1,25 @@
 {
     "default": {
         "database_url": "postgresql://sitekeeper:sitekeeper@localhost:5435/sitekeeper",
-        "bucket": "sitekeeper-pdfs",
-        "media_bucket": "sitekeeper-media",
+        "bucket": "sitekeeper",
         "domain": "jobsyte.app",
         "name": "JobSyte (Default)"
     },
     "nocoresources": {
         "database_url": "postgresql://sitekeeper:sitekeeper@localhost:5435/sk_nocoresources",
-        "bucket": "nocoresources-pdfs",
-        "media_bucket": "nocoresources-media",
+        "bucket": "nocoresources",
         "domain": "nocoresources.jobsyte.app",
         "name": "NoCo Resources"
     },
     "camtest": {
         "database_url": "postgresql://sitekeeper:sitekeeper@localhost:5435/sk_camtest",
-        "bucket": "camtest-pdfs",
-        "media_bucket": "camtest-media",
+        "bucket": "camtest",
         "domain": "camtest.jobsyte.app",
         "name": "Camtest"
     },
     "tilecraft": {
         "database_url": "postgresql://sitekeeper:sitekeeper@localhost:5435/sk_tilecraft",
-        "bucket": "tilecraft-pdfs",
-        "media_bucket": "tilecraft-media",
+        "bucket": "tilecraft",
         "domain": "tilecraft.jobsyte.app",
         "name": "TileCraft"
     }

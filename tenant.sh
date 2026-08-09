@@ -118,8 +118,7 @@ for slug, cfg in tenants.items():
 # =============================================================================
 cmd_create() {
     local db_name="sk_${SLUG}"
-    local bucket="${SLUG}-pdfs"
-    local media_bucket="${SLUG}-media"
+    local bucket="${SLUG}"
     local domain="${SLUG}.${BASE_DOMAIN}"
     local db_url="postgresql://${DB_USER}:${DB_PASS}@localhost:${DB_PORT}/${db_name}"
     [[ -z "$NAME" ]] && NAME=$(echo "$SLUG" | sed 's/-/ /g' | sed 's/\b\(.\)/\u\1/g')
@@ -127,8 +126,7 @@ cmd_create() {
     info "Creating tenant: $SLUG"
     echo "  Domain:       $domain"
     echo "  Database:     $db_name"
-    echo "  PDF Bucket:   $bucket"
-    echo "  Media Bucket: $media_bucket"
+    echo "  Bucket:       $bucket"
     echo "  Name:         $NAME"
     echo ""
 
@@ -196,8 +194,8 @@ with app.app_context():
 \"
     '"
 
-    # 4. Create MinIO buckets (PDFs + Media)
-    info "Creating MinIO buckets '$bucket' and '$media_bucket'..."
+    # 4. Create MinIO bucket
+    info "Creating MinIO bucket '$bucket'..."
     ssh "$SSH_HOST" "sudo -u sitekeeper bash -c '
         cd $APP_DIR/backend &&
         set -a && source .env && set +a &&
@@ -210,14 +208,13 @@ client = Minio(
     secret_key=os.environ.get(\\\"MINIO_SECRET_KEY\\\", \\\"minioadmin\\\"),
     secure=False
 )
-for bkt in [\\\"$bucket\\\", \\\"$media_bucket\\\"]:
-    if not client.bucket_exists(bkt):
-        client.make_bucket(bkt)
-        print(f\\\"Created bucket: {bkt}\\\")
-    else:
-        print(f\\\"Bucket already exists: {bkt}\\\")
+if not client.bucket_exists(\\\"$bucket\\\"):
+    client.make_bucket(\\\"$bucket\\\")
+    print(f\\\"Created bucket: $bucket\\\")
+else:
+    print(f\\\"Bucket already exists: $bucket\\\")
 \"
-    '" || warn "MinIO bucket creation failed — you can create them manually later."
+    '" || warn "MinIO bucket creation failed — you can create it manually later."
 
     # 5. Update tenants.json (server — for immediate effect)
     info "Registering tenant in tenants.json (server)..."
@@ -230,7 +227,6 @@ with open(\\\"tenants.json\\\") as f:
 tenants[\\\"$SLUG\\\"] = {
     \\\"database_url\\\": \\\"$db_url\\\",
     \\\"bucket\\\": \\\"$bucket\\\",
-    \\\"media_bucket\\\": \\\"$media_bucket\\\",
     \\\"domain\\\": \\\"$domain\\\",
     \\\"name\\\": \\\"$NAME\\\"
 }
@@ -250,7 +246,6 @@ with open('$LOCAL_TENANTS') as f:
 tenants['$SLUG'] = {
     'database_url': '$db_url',
     'bucket': '$bucket',
-    'media_bucket': '$media_bucket',
     'domain': '$domain',
     'name': '$NAME'
 }

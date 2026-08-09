@@ -32,6 +32,9 @@ yarn-error.log*
 # Spec files are intentionally committed; ignore only local hook overrides
 .kiro/hooks/
 
+# ── Storage migrations state (server-side only) ──────────────────────────────
+infra/storage_migrations/storage_migrations_applied.json
+
 
 .hypothesis/
 
@@ -42,3 +45,5 @@ e2e/playwright-report/
 e2e/dist/
 
 cloudfare/
+
+__pycache__/

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # init-minio-buckets.sh
 #
-# Creates ALL MinIO buckets for ALL tenants (both PDF and media).
+# Creates ALL MinIO buckets for ALL tenants (one unified bucket per tenant).
 # Safe to run multiple times — skips existing buckets.
 #
 # Use this to bootstrap MinIO from scratch (fresh volume) or to ensure
@@ -75,24 +75,18 @@ with open(tenants_file) as f:
 print(f'Loaded {len(tenants)} tenant(s) from {tenants_file}')
 print()
 
-# Collect all buckets that should exist
+# Collect all buckets that should exist (one per tenant)
 buckets_to_create = set()
 
 for slug, config in tenants.items():
-    # PDF bucket
-    pdf_bucket = config.get('bucket')
-    if not pdf_bucket:
-        pdf_bucket = f'{slug}-pdfs' if slug != 'default' else 'sitekeeper-pdfs'
-    buckets_to_create.add(pdf_bucket)
-
-    # Media bucket
-    media_bucket = config.get('media_bucket')
-    if not media_bucket:
-        media_bucket = f'{slug}-media' if slug != 'default' else 'sitekeeper-media'
-    buckets_to_create.add(media_bucket)
+    bucket = config.get('bucket')
+    if not bucket:
+        # Convention: bucket name == slug, or 'sitekeeper' for default
+        bucket = slug if slug != 'default' else 'sitekeeper'
+    buckets_to_create.add(bucket)
 
 # Also ensure the default bucket from env (MINIO_BUCKET_NAME)
-default_bucket = os.environ.get('MINIO_BUCKET_NAME', 'sitekeeper-pdfs')
+default_bucket = os.environ.get('MINIO_BUCKET_NAME', 'sitekeeper')
 buckets_to_create.add(default_bucket)
 
 print(f'Ensuring {len(buckets_to_create)} bucket(s) exist:')

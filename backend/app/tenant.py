@@ -128,11 +128,19 @@ def get_tenant_database_url(slug: str) -> str:
 
 
 def get_tenant_bucket(slug: str) -> str:
-    """Get the MinIO bucket name for a given tenant."""
+    """Get the MinIO bucket name for a given tenant.
+
+    Each tenant has a single unified bucket for all object storage
+    (PDFs, photos, media). The convention is just the slug itself,
+    with 'sitekeeper' for the default tenant.
+    """
     config = get_tenant_config(slug)
     if config and "bucket" in config:
         return config["bucket"]
-    return f"{slug}-pdfs"
+    # Convention: bucket name == slug (or 'sitekeeper' for default)
+    if slug == DEFAULT_TENANT:
+        return "sitekeeper"
+    return slug
 
 
 def get_engine_for_tenant(slug: str):

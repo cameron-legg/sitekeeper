@@ -159,11 +159,21 @@ for t in tenants.values():
         '
     "
 
-    info "  Ensuring all MinIO buckets exist (PDFs + media)..."
+    info "  Ensuring all MinIO buckets exist..."
     ssh "$SSH_HOST" "
         sudo -u sitekeeper bash $APP_DIR/infra/init-minio-buckets.sh 2>&1 | tail -10
     " && info "  All buckets ready." \
       || warn "  Bucket creation had issues (non-fatal, check logs)."
+
+    info "  Running storage migrations..."
+    ssh "$SSH_HOST" "
+        sudo -u sitekeeper bash -c '
+            cd $APP_DIR &&
+            set -a && source backend/.env && set +a &&
+            backend/venv/bin/python infra/storage_migrations/runner.py 2>&1
+        '
+    " && info "  Storage migrations complete." \
+      || warn "  Storage migrations had issues (check logs)."
 
     info "  Restarting API service..."
     ssh "$SSH_HOST" "sudo systemctl restart $SERVICE"

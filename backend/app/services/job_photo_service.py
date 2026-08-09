@@ -1,6 +1,6 @@
 """Job photo service — upload, list, and delete photos for jobs.
 
-Photos are stored in a per-tenant media bucket in MinIO. The object key
+Photos are stored in the tenant's unified MinIO bucket. The object key
 follows the pattern: photos/<job_id>/<uuid>_<filename>
 
 Access control: any approved user in the tenant can view/upload/delete
@@ -19,7 +19,7 @@ from ..repositories.job_photo_repo import (
 )
 from ..repositories.job_repo import IJobRepository, SQLAlchemyJobRepository
 from ..repositories.job_site_repo import IJobSiteRepository, SQLAlchemyJobSiteRepository
-from ..tenant import get_tenant_config
+from ..tenant import get_tenant_bucket
 
 
 class NotFoundError(Exception):
@@ -41,21 +41,6 @@ ALLOWED_CONTENT_TYPES = {
     "image/heic",
     "image/heif",
 }
-
-
-def _get_media_bucket() -> str:
-    """Determine the media bucket for the current tenant.
-
-    Convention: <slug>-media (separate from <slug>-pdfs).
-    """
-    slug = getattr(g, "tenant_slug", "default")
-    config = get_tenant_config(slug)
-    if config and "media_bucket" in config:
-        return config["media_bucket"]
-    # Convention: derive from slug
-    if slug == "default":
-        return "sitekeeper-media"
-    return f"{slug}-media"
 
 
 class JobPhotoService:
@@ -82,11 +67,12 @@ class JobPhotoService:
         return job
 
     def _get_storage(self):
-        """Get a MinioStorage instance pointing to the tenant's media bucket."""
+        """Get a MinioStorage instance pointing to the tenant's bucket."""
         storage = current_app.minio_storage
         if storage is None:
             raise RuntimeError("MinIO storage is not available.")
-        bucket = _get_media_bucket()
+        slug = getattr(g, "tenant_slug", "default")
+        bucket = get_tenant_bucket(slug)
         return storage.with_bucket(bucket), bucket
 
     def list_photos(self, job_id: str, user_id: str) -> list[JobPhoto]:

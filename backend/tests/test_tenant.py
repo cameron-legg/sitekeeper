@@ -77,10 +77,10 @@ class TestGetTenantBucket:
     """Test bucket name generation."""
 
     def test_default_tenant_bucket(self):
-        """Default tenant should use the app's configured bucket."""
-        # When no config exists for a slug, it falls back to convention
+        """Default tenant should use the slug as bucket name."""
+        # When no config exists for a slug, it falls back to convention (slug itself)
         bucket = get_tenant_bucket("someclient")
-        assert bucket == "someclient-pdfs"
+        assert bucket == "someclient"
 
     def test_bucket_from_config(self):
         """Bucket from tenants.json config takes precedence."""
