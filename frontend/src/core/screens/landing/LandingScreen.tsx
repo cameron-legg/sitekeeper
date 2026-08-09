@@ -74,7 +74,11 @@ export default function LandingScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        bounces={false}
+        overScrollMode="never"
+      >
         {/* ─── Hero ─────────────────────────────────────────────────── */}
         <View style={styles.hero}>
           <View style={styles.heroContent}>
@@ -391,9 +395,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#0f172a",
   },
-  scrollContent: {
-    flexGrow: 1,
-  },
+  scrollContent: {},
 
   // Hero
   hero: {
