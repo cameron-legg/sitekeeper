@@ -34,12 +34,20 @@ const screenshots = {
   contacts: require("../../../../assets/landing/contacts-tab.png"),
 };
 
+// Brand logo
+const logoImage = require("../../../../assets/logo-source.png");
+
 export default function LandingScreen() {
   const { width } = useWindowDimensions();
-  const isWide = width >= 768;
+  const isWide = width >= 900;
+  const isMedium = width >= 520 && width < 900;
   const [tenantInput, setTenantInput] = useState("");
   const [inputError, setInputError] = useState<string | null>(null);
   const [showSignInModal, setShowSignInModal] = useState(false);
+
+  // Responsive screenshot size
+  const screenshotWidth = isWide ? 340 : isMedium ? 280 : 240;
+  const screenshotHeight = screenshotWidth * 2;
 
   function handleGoToTenant() {
     const slug = tenantInput.trim().toLowerCase().replace(/\s+/g, "");
@@ -49,13 +57,11 @@ export default function LandingScreen() {
     }
     setInputError(null);
 
-    // Build the tenant URL using the current domain's base
     let baseHost = "entouch.org";
     let protocol = "https:";
     if (Platform.OS === "web" && typeof window !== "undefined") {
       const hostname = window.location.hostname;
       protocol = window.location.protocol;
-      // Extract the base domain (e.g. "entouch.org" from "entouch.org" or "www.entouch.org")
       const parts = hostname.split(".");
       if (parts.length >= 2) {
         baseHost = parts.slice(-2).join(".");
@@ -73,6 +79,12 @@ export default function LandingScreen() {
     }
   }
 
+  const openSignIn = () => {
+    setTenantInput("");
+    setInputError(null);
+    setShowSignInModal(true);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -81,37 +93,36 @@ export default function LandingScreen() {
         overScrollMode="never"
       >
         {/* ─── Hero ─────────────────────────────────────────────────── */}
-        <View style={styles.hero}>
+        <View style={[styles.hero, !isWide && !isMedium && styles.heroMobile]}>
           <View style={styles.heroContent}>
-            <Text style={styles.heroTitle}>
-              <Text style={{ color: "#ffffff" }}>Job</Text>
-              <Text style={{ color: BRAND_COLORS.accent }}>Syte</Text>
-            </Text>
-            <Text style={styles.heroTagline}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={logoImage}
+                style={[styles.heroLogo, !isWide && !isMedium && styles.heroLogoMobile]}
+                resizeMode="contain"
+                accessibilityLabel="JobSyte logo"
+              />
+            </View>
+            <Text style={[styles.heroTagline, !isWide && !isMedium && styles.heroTaglineMobile]}>
               The contractor management app that keeps your jobs, estimates, and
               invoices organized — so you can focus on the work.
             </Text>
-            <Text style={styles.heroDescription}>
+            <Text style={[styles.heroDescription, !isWide && !isMedium && styles.heroDescriptionMobile]}>
               Built for plumbers, electricians, remodelers, and trades
               professionals who need a simple way to run their business from
               their phone.
             </Text>
-            {/* Sign-in CTA opens modal */}
             <TouchableOpacity
               style={styles.heroCta}
-              onPress={() => {
-                setTenantInput("");
-                setInputError(null);
-                setShowSignInModal(true);
-              }}
-              activeOpacity={0.8}
+              onPress={openSignIn}
+              activeOpacity={0.75}
             >
-              <Text style={styles.heroCtaText}>Sign In</Text>
+              <Text style={styles.heroCtaText}>Get Started</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* ─── Feature: Job Management ──────────────────────────────── */}
+        {/* ─── Feature Sections ─────────────────────────────────────── */}
         <FeatureSection
           isWide={isWide}
           title="Manage All Your Job Sites"
@@ -124,6 +135,9 @@ export default function LandingScreen() {
           image={screenshots.home}
           imageAlt="Home screen showing job sites"
           reverse={false}
+          screenshotWidth={screenshotWidth}
+          screenshotHeight={screenshotHeight}
+          dark={false}
         />
 
         <FeatureSection
@@ -138,9 +152,11 @@ export default function LandingScreen() {
           image={screenshots.jobDetail}
           imageAlt="Job detail screen with notes"
           reverse={true}
+          screenshotWidth={screenshotWidth}
+          screenshotHeight={screenshotHeight}
+          dark={true}
         />
 
-        {/* ─── Feature: Estimates ───────────────────────────────────── */}
         <FeatureSection
           isWide={isWide}
           title="Professional Estimates in Minutes"
@@ -154,9 +170,11 @@ export default function LandingScreen() {
           image={screenshots.estimateEditor}
           imageAlt="Estimate editor with line items and totals"
           reverse={false}
+          screenshotWidth={screenshotWidth}
+          screenshotHeight={screenshotHeight}
+          dark={false}
         />
 
-        {/* ─── Feature: Invoices ────────────────────────────────────── */}
         <FeatureSection
           isWide={isWide}
           title="Invoice Management & Tracking"
@@ -170,9 +188,11 @@ export default function LandingScreen() {
           image={screenshots.invoiceManagement}
           imageAlt="Invoice management dashboard"
           reverse={true}
+          screenshotWidth={screenshotWidth}
+          screenshotHeight={screenshotHeight}
+          dark={true}
         />
 
-        {/* ─── Feature: Contacts ────────────────────────────────────── */}
         <FeatureSection
           isWide={isWide}
           title="Client Contacts at Your Fingertips"
@@ -186,11 +206,16 @@ export default function LandingScreen() {
           image={screenshots.contacts}
           imageAlt="Contacts tab on a job"
           reverse={false}
+          screenshotWidth={screenshotWidth}
+          screenshotHeight={screenshotHeight}
+          dark={false}
         />
 
         {/* ─── Additional Features Grid ─────────────────────────────── */}
-        <View style={styles.gridSection}>
-          <Text style={styles.gridSectionTitle}>Everything Else You Need</Text>
+        <View style={[styles.gridSection, !isWide && !isMedium && styles.gridSectionMobile]}>
+          <Text style={[styles.gridSectionTitle, !isWide && !isMedium && styles.gridSectionTitleMobile]}>
+            Everything Else You Need
+          </Text>
           <Text style={styles.gridSectionSubtitle}>
             Built by contractors, for contractors.
           </Text>
@@ -199,37 +224,55 @@ export default function LandingScreen() {
               icon="🤖"
               title="AI Assistant"
               description="An in-app AI that understands your current screen and can create estimates, notes, contacts, and more through natural conversation."
+              isWide={isWide}
             />
             <MiniFeatureCard
               icon="📷"
               title="Job Photos"
               description="Upload photos directly to jobs for before/after documentation, progress tracking, and client communication."
+              isWide={isWide}
             />
             <MiniFeatureCard
               icon="📚"
               title="Item Library"
               description="Save frequently used line items as templates. Reuse them across estimates and invoices to save time on repetitive work."
+              isWide={isWide}
             />
             <MiniFeatureCard
               icon="⏱"
               title="Time Tracking"
               description="Clock in and out on jobs, add manual time entries, and track labor hours per job for accurate invoicing."
+              isWide={isWide}
             />
             <MiniFeatureCard
               icon="👥"
               title="Team Access"
               description="Invite team members to your organization. Everyone sees the same job sites, estimates, and invoices — no data silos."
+              isWide={isWide}
             />
             <MiniFeatureCard
               icon="📄"
               title="PDF Documents"
               description="Generate professional estimate and invoice PDFs with your company branding, customizable fields, and clean formatting."
+              isWide={isWide}
             />
           </View>
         </View>
 
+        {/* ─── CTA Banner ───────────────────────────────────────────── */}
+        <View style={styles.ctaBanner}>
+          <Text style={styles.ctaBannerTitle}>Ready to simplify your business?</Text>
+          <TouchableOpacity
+            style={styles.ctaBannerBtn}
+            onPress={openSignIn}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.ctaBannerBtnText}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* ─── Footer ───────────────────────────────────────────────── */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, !isWide && !isMedium && styles.footerMobile]}>
           <Text style={styles.footerBrand}>
             <Text style={{ color: "#ffffff" }}>Job</Text>
             <Text style={{ color: BRAND_COLORS.accent }}>Syte</Text>
@@ -237,19 +280,12 @@ export default function LandingScreen() {
           <Text style={styles.footerText}>
             Contractor management made simple. Built with care for the trades.
           </Text>
-          <TouchableOpacity
-            style={styles.footerSignInBtn}
-            onPress={() => {
-              setTenantInput("");
-              setInputError(null);
-              setShowSignInModal(true);
-            }}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.footerSignInText}>Sign In</Text>
-          </TouchableOpacity>
           <Text style={styles.footerContact}>
-            Interested in <Text style={{ color: BRAND_COLORS.accent, fontWeight: "600" }}>JobSyte</Text> for your business? Reach out at cameron.legg@gmail.com
+            Interested in{" "}
+            <Text style={{ color: BRAND_COLORS.accent, fontWeight: "600" }}>
+              JobSyte
+            </Text>{" "}
+            for your business? Reach out at cameron.legg@gmail.com
           </Text>
         </View>
       </ScrollView>
@@ -320,6 +356,9 @@ function FeatureSection({
   image,
   imageAlt,
   reverse,
+  screenshotWidth,
+  screenshotHeight,
+  dark,
 }: {
   isWide: boolean;
   title: string;
@@ -328,16 +367,28 @@ function FeatureSection({
   image: any;
   imageAlt: string;
   reverse: boolean;
+  screenshotWidth: number;
+  screenshotHeight: number;
+  dark: boolean;
 }) {
+  const bgColor = dark ? "#f8fafc" : "#ffffff";
+  const titleColor = dark ? "#0f172a" : "#1a2530";
+  const descColor = dark ? "#475569" : "#4b5563";
+  const bulletTextColor = dark ? "#334155" : "#374151";
+
   const content = (
     <View style={[styles.featureText, isWide && styles.featureTextWide]}>
-      <Text style={styles.featureTitle}>{title}</Text>
-      <Text style={styles.featureDescription}>{description}</Text>
+      <Text style={[styles.featureTitle, { color: titleColor }, !isWide && styles.featureTitleMobile]}>
+        {title}
+      </Text>
+      <Text style={[styles.featureDescription, { color: descColor }]}>{description}</Text>
       <View style={styles.bulletList}>
         {bullets.map((b, i) => (
           <View key={i} style={styles.bulletRow}>
-            <Text style={styles.bulletDot}>•</Text>
-            <Text style={styles.bulletText}>{b}</Text>
+            <View style={styles.bulletDotWrapper}>
+              <View style={styles.bulletDotCircle} />
+            </View>
+            <Text style={[styles.bulletText, { color: bulletTextColor }]}>{b}</Text>
           </View>
         ))}
       </View>
@@ -345,27 +396,42 @@ function FeatureSection({
   );
 
   const imageEl = (
-    <View style={[styles.featureImageContainer, isWide && styles.featureImageContainerWide]}>
-      <Image
-        source={image}
-        style={styles.featureImage}
-        resizeMode="contain"
-        accessibilityLabel={imageAlt}
-      />
+    <View
+      style={[
+        styles.featureImageContainer,
+        isWide && styles.featureImageContainerWide,
+      ]}
+    >
+      <View style={styles.screenshotShadow}>
+        <Image
+          source={image}
+          style={{
+            width: screenshotWidth,
+            height: screenshotHeight,
+            borderRadius: 20,
+          }}
+          resizeMode="contain"
+          accessibilityLabel={imageAlt}
+        />
+      </View>
     </View>
   );
 
+  if (!isWide) {
+    return (
+      <View style={[styles.featureRowMobile, { backgroundColor: bgColor }]}>
+        {imageEl}
+        {content}
+      </View>
+    );
+  }
+
   return (
-    <View style={[styles.featureRow, isWide && styles.featureRowWide]}>
-      {isWide && reverse ? (
+    <View style={[styles.featureRowWide, { backgroundColor: bgColor }]}>
+      {reverse ? (
         <>
           {imageEl}
           {content}
-        </>
-      ) : isWide ? (
-        <>
-          {content}
-          {imageEl}
         </>
       ) : (
         <>
@@ -381,14 +447,18 @@ function MiniFeatureCard({
   icon,
   title,
   description,
+  isWide,
 }: {
   icon: string;
   title: string;
   description: string;
+  isWide: boolean;
 }) {
   return (
-    <View style={styles.miniCard}>
-      <Text style={styles.miniCardIcon}>{icon}</Text>
+    <View style={[styles.miniCard, !isWide && styles.miniCardMobile]}>
+      <View style={styles.miniCardIconWrapper}>
+        <Text style={styles.miniCardIcon}>{icon}</Text>
+      </View>
       <Text style={styles.miniCardTitle}>{title}</Text>
       <Text style={styles.miniCardDescription}>{description}</Text>
     </View>
@@ -402,240 +472,339 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#0f172a",
   },
-  scrollContent: {},
+  scrollContent: {
+    paddingBottom: 0,
+  },
 
-  // Hero
+  // ─── Hero ────────────────────────────────────────────────────────────────
   hero: {
     backgroundColor: "#0f172a",
-    paddingHorizontal: 24,
-    paddingTop: 72,
-    paddingBottom: 56,
+    paddingHorizontal: 32,
+    paddingTop: 80,
+    paddingBottom: 64,
     alignItems: "center",
+  },
+  heroMobile: {
+    paddingHorizontal: 20,
+    paddingTop: 56,
+    paddingBottom: 44,
   },
   heroContent: {
-    maxWidth: 600,
+    maxWidth: 640,
     alignItems: "center",
   },
-  heroTitle: {
-    fontSize: 44,
-    fontWeight: "800",
-    color: "#ffffff",
-    marginBottom: 16,
-    letterSpacing: -1,
+  logoContainer: {
+    marginBottom: 28,
+  },
+  heroLogo: {
+    width: 160,
+    height: 160,
+    borderRadius: 32,
+    backgroundColor: "#ffffff",
+  },
+  heroLogoMobile: {
+    width: 130,
+    height: 130,
+    borderRadius: 26,
   },
   heroTagline: {
-    fontSize: 20,
-    fontWeight: "500",
-    color: "#e2e8f0",
+    fontSize: 22,
+    fontWeight: "600",
+    color: "#f1f5f9",
     textAlign: "center",
-    lineHeight: 30,
-    marginBottom: 12,
+    lineHeight: 32,
+    marginBottom: 14,
+  },
+  heroTaglineMobile: {
+    fontSize: 18,
+    lineHeight: 27,
+    marginBottom: 10,
   },
   heroDescription: {
     fontSize: 16,
     color: "#94a3b8",
     textAlign: "center",
-    lineHeight: 24,
+    lineHeight: 25,
+    marginBottom: 32,
+    maxWidth: 500,
+  },
+  heroDescriptionMobile: {
+    fontSize: 14,
+    lineHeight: 22,
     marginBottom: 28,
   },
   heroCta: {
     backgroundColor: BRAND_COLORS.accent,
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 8,
+    paddingHorizontal: 36,
+    paddingVertical: 16,
+    borderRadius: 10,
+    shadowColor: BRAND_COLORS.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
   },
   heroCtaText: {
     color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
 
-  // Feature sections
-  featureRow: {
-    paddingHorizontal: 24,
-    paddingVertical: 48,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f5f9",
+  // ─── Feature Sections ────────────────────────────────────────────────────
+  featureRowMobile: {
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+    alignItems: "center",
   },
   featureRowWide: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 48,
-    paddingHorizontal: 48,
-    maxWidth: 1100,
+    gap: 56,
+    paddingHorizontal: 56,
+    paddingVertical: 64,
+    maxWidth: 1140,
     alignSelf: "center",
     width: "100%",
   },
   featureText: {
-    marginBottom: 24,
+    marginTop: 24,
   },
   featureTextWide: {
     flex: 1,
-    marginBottom: 0,
+    marginTop: 0,
   },
   featureTitle: {
-    fontSize: 26,
-    fontWeight: "700",
+    fontSize: 28,
+    fontWeight: "800",
     color: "#0f172a",
     marginBottom: 12,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
+  },
+  featureTitleMobile: {
+    fontSize: 22,
+    marginBottom: 10,
+    textAlign: "center",
   },
   featureDescription: {
     fontSize: 16,
     color: "#475569",
-    lineHeight: 25,
-    marginBottom: 16,
+    lineHeight: 26,
+    marginBottom: 18,
   },
   bulletList: {
-    gap: 8,
+    gap: 10,
   },
   bulletRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 8,
+    gap: 10,
   },
-  bulletDot: {
-    color: BRAND_COLORS.accent,
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: "700",
+  bulletDotWrapper: {
+    paddingTop: 6,
+  },
+  bulletDotCircle: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: BRAND_COLORS.accent,
   },
   bulletText: {
     fontSize: 15,
     color: "#334155",
-    lineHeight: 22,
+    lineHeight: 23,
     flex: 1,
   },
   featureImageContainer: {
     alignItems: "center",
-    marginTop: 8,
   },
   featureImageContainerWide: {
-    flex: 0.6,
-    marginTop: 0,
+    flex: 0.55,
   },
-  featureImage: {
-    width: 260,
-    height: 520,
+  screenshotShadow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 12,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
   },
 
-  // Additional features grid
+  // ─── Grid Section ────────────────────────────────────────────────────────
   gridSection: {
-    paddingHorizontal: 24,
-    paddingVertical: 56,
-    backgroundColor: "#f8fafc",
+    paddingHorizontal: 32,
+    paddingVertical: 64,
+    backgroundColor: "#0f172a",
     alignItems: "center",
   },
+  gridSectionMobile: {
+    paddingHorizontal: 16,
+    paddingVertical: 44,
+  },
   gridSectionTitle: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#0f172a",
+    fontSize: 30,
+    fontWeight: "800",
+    color: "#ffffff",
     marginBottom: 8,
     textAlign: "center",
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
+  },
+  gridSectionTitleMobile: {
+    fontSize: 24,
   },
   gridSectionSubtitle: {
     fontSize: 16,
-    color: "#64748b",
-    marginBottom: 32,
+    color: "#94a3b8",
+    marginBottom: 36,
     textAlign: "center",
   },
   featureGrid: {
-    gap: 16,
+    gap: 14,
     maxWidth: 1000,
     width: "100%",
-  },
-  featureGridWide: {
     flexDirection: "row",
     flexWrap: "wrap",
+  },
+  featureGridWide: {
     gap: 20,
   },
   miniCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 20,
+    backgroundColor: "#1e293b",
+    borderRadius: 14,
+    padding: 22,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#334155",
     minWidth: 280,
     flex: 1,
   },
+  miniCardMobile: {
+    minWidth: "100%" as any,
+    padding: 18,
+    flex: 0,
+    flexBasis: "100%",
+  },
+  miniCardIconWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: "rgba(252, 126, 31, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
   miniCardIcon: {
-    fontSize: 28,
-    marginBottom: 10,
+    fontSize: 22,
   },
   miniCardTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#0f172a",
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#f1f5f9",
     marginBottom: 6,
   },
   miniCardDescription: {
     fontSize: 14,
-    color: "#64748b",
+    color: "#94a3b8",
     lineHeight: 21,
   },
 
-  // Footer
-  footer: {
-    backgroundColor: "#0f172a",
-    paddingHorizontal: 24,
+  // ─── CTA Banner ──────────────────────────────────────────────────────────
+  ctaBanner: {
+    backgroundColor: BRAND_COLORS.accent,
+    paddingHorizontal: 32,
     paddingVertical: 48,
     alignItems: "center",
   },
-  footerBrand: {
-    fontSize: 22,
-    fontWeight: "700",
+  ctaBannerTitle: {
+    fontSize: 26,
+    fontWeight: "800",
     color: "#ffffff",
     marginBottom: 8,
+    textAlign: "center",
+    letterSpacing: -0.3,
+  },
+  ctaBannerSubtitle: {
+    fontSize: 16,
+    color: "rgba(255,255,255,0.85)",
+    marginBottom: 24,
+    textAlign: "center",
+  },
+  ctaBannerBtn: {
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  ctaBannerBtnText: {
+    color: BRAND_COLORS.accent,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+
+  // ─── Footer ──────────────────────────────────────────────────────────────
+  footer: {
+    backgroundColor: "#0f172a",
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "#1e293b",
+  },
+  footerMobile: {
+    paddingHorizontal: 20,
+    paddingVertical: 32,
+  },
+  footerBrand: {
+    fontSize: 24,
+    fontFamily: "Montserrat_900Black",
+    color: "#ffffff",
+    marginBottom: 10,
+    letterSpacing: 0.3,
   },
   footerText: {
-    fontSize: 15,
+    fontSize: 14,
     color: "#94a3b8",
     textAlign: "center",
     marginBottom: 16,
-  },
-  footerSignInBtn: {
-    borderWidth: 1,
-    borderColor: "#475569",
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  footerSignInText: {
-    color: "#e2e8f0",
-    fontSize: 15,
-    fontWeight: "600",
+    lineHeight: 22,
+    maxWidth: 400,
   },
   footerContact: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#64748b",
     textAlign: "center",
+    lineHeight: 20,
   },
 
-  // Sign-in modal
+  // ─── Sign-in Modal ───────────────────────────────────────────────────────
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.6)",
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
+    padding: 20,
   },
   modalCard: {
     backgroundColor: "#ffffff",
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 28,
     width: "100%",
     maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
   },
   modalTitle: {
     fontSize: 22,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#0f172a",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   modalSubtitle: {
     fontSize: 15,
@@ -644,8 +813,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   modalInput: {
-    height: 48,
-    borderWidth: 1,
+    height: 50,
+    borderWidth: 1.5,
     borderColor: "#d1d5db",
     borderRadius: 10,
     paddingHorizontal: 16,
@@ -656,7 +825,7 @@ const styles = StyleSheet.create({
   },
   modalError: {
     color: "#dc2626",
-    fontSize: 14,
+    fontSize: 13,
     marginBottom: 4,
   },
   modalHint: {
@@ -666,7 +835,7 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     flexDirection: "row",
-    gap: 10,
+    gap: 12,
     justifyContent: "flex-end",
   },
   modalCancelBtn: {
@@ -674,11 +843,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: "#e2e8f0",
   },
   modalCancelText: {
     fontSize: 15,
-    color: "#374151",
+    color: "#475569",
     fontWeight: "500",
   },
   modalGoBtn: {
@@ -688,10 +857,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: BRAND_COLORS.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
   },
   modalGoText: {
     color: "#ffffff",
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "700",
   },
 });

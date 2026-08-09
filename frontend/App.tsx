@@ -11,7 +11,12 @@ import React from "react";
 import { registerRootComponent } from "expo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { StyleSheet } from "react-native";
+import { StyleSheet, ActivityIndicator, View } from "react-native";
+import { useFonts } from "expo-font";
+import {
+  Montserrat_800ExtraBold,
+  Montserrat_900Black,
+} from "@expo-google-fonts/montserrat";
 import RootNavigator from "./src/core/navigation/RootNavigator";
 import AIProvider from "./src/utilities/ai_assistant/components/AIProvider";
 
@@ -25,6 +30,19 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  const [fontsLoaded] = useFonts({
+    Montserrat_800ExtraBold,
+    Montserrat_900Black,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#FC7E1F" />
+      </View>
+    );
+  }
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <QueryClientProvider client={queryClient}>
@@ -38,6 +56,7 @@ function App() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  loading: { flex: 1, alignItems: "center", justifyContent: "center" },
 });
 
 // registerRootComponent handles AppRegistry.registerComponent for both

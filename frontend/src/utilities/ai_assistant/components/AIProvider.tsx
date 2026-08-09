@@ -4,6 +4,12 @@
  *
  * This component listens to navigation state changes and passes the
  * current screen name and params to the AIChatBubble.
+ *
+ * The bubble is hidden when:
+ * - The user is not authenticated (no token)
+ * - The AI utility is disabled
+ * - Navigation is not ready (e.g. on the landing page which renders
+ *   outside of NavigationContainer)
  */
 
 import React, { useState, useCallback, useEffect } from "react";
@@ -20,6 +26,7 @@ interface ScreenState {
 export default function AIProvider({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
   const aiEnabled = useIsUtilityEnabled("ai_assistant");
+  const [navReady, setNavReady] = useState(false);
   const [currentScreen, setCurrentScreen] = useState<ScreenState>({
     name: "Home",
     params: {},
@@ -42,10 +49,12 @@ export default function AIProvider({ children }: { children: React.ReactNode }) 
     const interval = setInterval(() => {
       if (navigationRef.isReady()) {
         clearInterval(interval);
+        setNavReady(true);
         updateScreen();
       }
     }, 100);
 
+    // If navigation never becomes ready (landing page), the bubble stays hidden
     return () => clearInterval(interval);
   }, [updateScreen]);
 
@@ -63,8 +72,8 @@ export default function AIProvider({ children }: { children: React.ReactNode }) 
   return (
     <>
       {children}
-      {/* Only show AI bubble when authenticated and utility is enabled */}
-      {token && aiEnabled && (
+      {/* Only show AI bubble when authenticated, nav is mounted, and utility is enabled */}
+      {token && aiEnabled && navReady && (
         <AIChatBubble
           screenName={currentScreen.name}
           screenParams={currentScreen.params}
