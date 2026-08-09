@@ -16,7 +16,7 @@ This script:
    saved items, time entries, and business info
 
 Login credentials after seeding:
-    Email:    demo@sitekeeper.com
+    Email:    demo@jobsyte.app
     Password: demo1234
 """
 
@@ -53,7 +53,7 @@ from sqlalchemy import text
 # Configuration
 # ---------------------------------------------------------------------------
 
-DEMO_EMAIL = "demo@sitekeeper.com"
+DEMO_EMAIL = "demo@jobsyte.app"
 DEMO_PASSWORD = "demo1234"
 
 NOW = datetime.now(tz=timezone.utc)
@@ -97,8 +97,8 @@ def _seed_all():
         id=uuid.uuid4(),
         email=DEMO_EMAIL,
         password_hash=pw_hash,
-        name="Cameron Mitchell",
-        phone="(303) 555-0147",
+        name="Jake Hammer",
+        phone="123-456-7890",
         role="admin",
         is_approved=True,
     )
@@ -106,10 +106,10 @@ def _seed_all():
 
     member = User(
         id=uuid.uuid4(),
-        email="mike@sitekeeper.com",
+        email="mike@jobsyte.app",
         password_hash=pw_hash,
-        name="Mike Torres",
-        phone="(303) 555-0299",
+        name="Mike Wrench",
+        phone="123-456-7891",
         role="member",
         is_approved=True,
     )
@@ -117,10 +117,10 @@ def _seed_all():
 
     pending = User(
         id=uuid.uuid4(),
-        email="pending@sitekeeper.com",
+        email="sarah@jobsyte.app",
         password_hash=pw_hash,
-        name="Sarah Pending",
-        phone="(303) 555-0333",
+        name="Sarah Newbie",
+        phone="123-456-7892",
         role="member",
         is_approved=False,
     )
@@ -131,97 +131,149 @@ def _seed_all():
     print("  Creating business info...")
     biz = BusinessInfo(
         id=uuid.uuid4(),
-        business_name="Mitchell Plumbing & Remodel",
+        business_name="Hammer Time Plumbing & Remodel",
         state="CO",
-        payment_method="Venmo @mitchell-plumbing or check",
-        business_address="4521 Pearl St, Boulder, CO 80302",
-        business_phone="(303) 555-0147",
-        business_email="info@mitchellplumbing.co",
+        payment_method="Venmo @hammer-time-plumbing or check",
+        business_address="123 Fake Street, Nowhereville, CO 00001",
+        business_phone="123-456-7890",
+        business_email="info@jobsyte.app",
         owner_user_id=user.id,
         default_hourly_rate=Decimal("85.00"),
     )
     db.session.add(biz)
 
     # ── Document Numbers ─────────────────────────────────────────────────
-    est_num = DocumentNumber(id=uuid.uuid4(), document_type="estimate", next_number=1007)
-    inv_num = DocumentNumber(id=uuid.uuid4(), document_type="invoice", next_number=2004)
+    est_num = DocumentNumber(id=uuid.uuid4(), document_type="estimate", next_number=1008)
+    inv_num = DocumentNumber(id=uuid.uuid4(), document_type="invoice", next_number=2006)
     db.session.add_all([est_num, inv_num])
     db.session.flush()
 
     # ── Contacts ─────────────────────────────────────────────────────────
     print("  Creating contacts...")
     c_johnson = Contact(
-        id=uuid.uuid4(), name="Robert Johnson",
-        phone="(303) 555-8821", email="rjohnson@gmail.com",
-        mailing_address="789 Spruce Dr, Boulder, CO 80302",
+        id=uuid.uuid4(), name="Bob Homeowner",
+        phone="123-456-7801", email="bob@jobsyte.app",
+        mailing_address="100 Imaginary Blvd, Faketown, CO 00010",
     )
     c_garcia = Contact(
-        id=uuid.uuid4(), name="Maria Garcia",
-        phone="(720) 555-4490", email="mgarcia@outlook.com",
-        mailing_address="234 Walnut St, Longmont, CO 80501",
+        id=uuid.uuid4(), name="Maria Kitchenson",
+        phone="123-456-7802", email="maria@jobsyte.app",
+        mailing_address="200 Madeup Lane, Nowhere, CO 00020",
     )
     c_chen = Contact(
-        id=uuid.uuid4(), name="David Chen",
-        phone="(303) 555-6612", email="dchen@techcorp.io",
-        notes="Property manager for TechCorp offices",
+        id=uuid.uuid4(), name="David Officepark",
+        phone="123-456-7803", email="david@jobsyte.app",
+        notes="Property manager for FakeCorp offices",
     )
     c_baker = Contact(
-        id=uuid.uuid4(), name="Lisa Baker",
-        phone="(720) 555-7733", email="lbaker@baker-rentals.com",
-        mailing_address="890 Pine Ave, Denver, CO 80220",
+        id=uuid.uuid4(), name="Lisa Landlord",
+        phone="123-456-7804", email="lisa@jobsyte.app",
+        mailing_address="300 Nonexistent Ave, Ghostville, CO 00030",
         notes="Manages 12 rental properties",
     )
     c_patel = Contact(
-        id=uuid.uuid4(), name="Raj Patel",
-        phone="(303) 555-2201", email="raj@mountainview-hoa.org",
-        notes="HOA president, Mountain View condos",
+        id=uuid.uuid4(), name="Raj Condoman",
+        phone="123-456-7805", email="raj@jobsyte.app",
+        notes="HOA president, Fictional Heights condos",
     )
     db.session.add_all([c_johnson, c_garcia, c_chen, c_baker, c_patel])
+    db.session.flush()
+
+    # Additional contacts
+    c_flores = Contact(
+        id=uuid.uuid4(), name="Tony Pipefitter",
+        phone="123-456-7806", email="tony@jobsyte.app",
+        mailing_address="42 Nowhere Court, Inventedburg, CO 00060",
+        notes="Subcontractor — handles gas line work",
+    )
+    c_williams = Contact(
+        id=uuid.uuid4(), name="Diane Wallboard",
+        phone="123-456-7807", email="diane@jobsyte.app",
+        mailing_address="77 Pretend Place, Samplecity, CO 00070",
+        notes="Drywall and paint subcontractor",
+    )
+    c_nguyen = Contact(
+        id=uuid.uuid4(), name="Hank Tilesworth",
+        phone="123-456-7808", email="hank@jobsyte.app",
+        notes="Tile specialist, does backsplash and shower work",
+    )
+    c_martinez = Contact(
+        id=uuid.uuid4(), name="Elena Permitz",
+        phone="123-456-7809", email="elena@jobsyte.app",
+        mailing_address="1 Bureaucracy Blvd, Permitville, CO 00080",
+        notes="City permits office contact",
+    )
+    c_oconnor = Contact(
+        id=uuid.uuid4(), name="Paddy Sparks",
+        phone="123-456-7810", email="paddy@jobsyte.app",
+        notes="Electrician — licensed, handles all our electrical sub-work",
+    )
+    db.session.add_all([c_flores, c_williams, c_nguyen, c_martinez, c_oconnor])
     db.session.flush()
 
     # ── Job Sites ────────────────────────────────────────────────────────
     print("  Creating job sites...")
     site_johnson = JobSite(
         id=uuid.uuid4(), user_id=user.id,
-        name="Johnson Residence",
+        name="Homeowner Residence",
         description="Single family home, built 1985. Ongoing maintenance client.",
-        address="789 Spruce Dr, Boulder, CO 80302",
+        address="100 Imaginary Blvd, Faketown, CO 00010",
         default_hourly_rate=Decimal("85.00"),
         primary_contact_id=c_johnson.id,
     )
     site_garcia = JobSite(
         id=uuid.uuid4(), user_id=user.id,
-        name="Garcia Kitchen Renovation",
+        name="Kitchenson Kitchen Renovation",
         description="Full kitchen remodel — cabinets, counters, plumbing, electrical.",
-        address="234 Walnut St, Longmont, CO 80501",
+        address="200 Madeup Lane, Nowhere, CO 00020",
         default_hourly_rate=Decimal("90.00"),
         primary_contact_id=c_garcia.id,
     )
     site_techcorp = JobSite(
         id=uuid.uuid4(), user_id=user.id,
-        name="TechCorp Office Building",
+        name="FakeCorp Office Building",
         description="Commercial property. 3-floor office. Restroom renovation project.",
-        address="1200 Tech Park Blvd, Suite 100, Boulder, CO 80301",
+        address="999 Placeholder Pkwy, Suite 100, Testburg, CO 00040",
         default_hourly_rate=Decimal("95.00"),
         primary_contact_id=c_chen.id,
     )
     site_baker = JobSite(
         id=uuid.uuid4(), user_id=user.id,
-        name="Baker Rental Properties",
+        name="Landlord Rental Properties",
         description="Multiple rental units. Rotating maintenance and turnover work.",
-        address="890 Pine Ave, Denver, CO 80220",
+        address="300 Nonexistent Ave, Ghostville, CO 00030",
         default_hourly_rate=Decimal("80.00"),
         primary_contact_id=c_baker.id,
     )
     site_mountain = JobSite(
         id=uuid.uuid4(), user_id=user.id,
-        name="Mountain View Condos",
+        name="Fictional Heights Condos",
         description="HOA-managed complex. Common area plumbing and unit work.",
-        address="5600 Mountain View Rd, Boulder, CO 80303",
+        address="500 Unicorn Ridge Rd, Imaginaryville, CO 00050",
         default_hourly_rate=Decimal("85.00"),
         primary_contact_id=c_patel.id,
     )
     db.session.add_all([site_johnson, site_garcia, site_techcorp, site_baker, site_mountain])
+    db.session.flush()
+
+    # Additional job sites
+    site_sparks = JobSite(
+        id=uuid.uuid4(), user_id=user.id,
+        name="Sparks Electric Co-op",
+        description="Shared workspace building. Plumbing for 2 restrooms + kitchen.",
+        address="888 Totally Real Rd, Exampletown, CO 00090",
+        default_hourly_rate=Decimal("90.00"),
+        primary_contact_id=c_oconnor.id,
+    )
+    site_flores = JobSite(
+        id=uuid.uuid4(), user_id=user.id,
+        name="Flores New Construction",
+        description="Ground-up residential build. Plumbing rough-in through finish.",
+        address="1 Blueprint Way, Constructia, CO 00100",
+        default_hourly_rate=Decimal("95.00"),
+        primary_contact_id=c_flores.id,
+    )
+    db.session.add_all([site_sparks, site_flores])
     db.session.flush()
 
     # Link contacts to sites
@@ -230,6 +282,12 @@ def _seed_all():
     db.session.execute(job_site_contacts.insert().values(job_site_id=site_techcorp.id, contact_id=c_chen.id))
     db.session.execute(job_site_contacts.insert().values(job_site_id=site_baker.id, contact_id=c_baker.id))
     db.session.execute(job_site_contacts.insert().values(job_site_id=site_mountain.id, contact_id=c_patel.id))
+    db.session.execute(job_site_contacts.insert().values(job_site_id=site_sparks.id, contact_id=c_oconnor.id))
+    db.session.execute(job_site_contacts.insert().values(job_site_id=site_flores.id, contact_id=c_flores.id))
+    # Cross-link subcontractors
+    db.session.execute(job_site_contacts.insert().values(job_site_id=site_garcia.id, contact_id=c_nguyen.id))
+    db.session.execute(job_site_contacts.insert().values(job_site_id=site_techcorp.id, contact_id=c_martinez.id))
+    db.session.execute(job_site_contacts.insert().values(job_site_id=site_flores.id, contact_id=c_williams.id))
     db.session.flush()
 
     # ── Jobs ─────────────────────────────────────────────────────────────
@@ -317,12 +375,54 @@ def _seed_all():
         created_at=_ago(days=4),
     )
 
+    # Sparks Electric Co-op jobs
+    job_s_restroom = Job(
+        id=uuid.uuid4(), job_site_id=site_sparks.id,
+        name="Ground Floor Restroom Refit", status="in_progress",
+        description="Replace aging fixtures, add ADA-compliant stall. Building is 1970s.",
+        default_hourly_rate=Decimal("90.00"),
+        created_at=_ago(days=6),
+    )
+    job_s_kitchen = Job(
+        id=uuid.uuid4(), job_site_id=site_sparks.id,
+        name="Shared Kitchen Upgrade", status="pending",
+        description="Add second sink, replace garbage disposal, install commercial dishwasher hookup.",
+        default_hourly_rate=Decimal("90.00"),
+        created_at=_ago(days=2),
+    )
+
+    # Flores New Construction jobs
+    job_f_roughin = Job(
+        id=uuid.uuid4(), job_site_id=site_flores.id,
+        name="Whole-House Plumbing Rough-In", status="in_progress",
+        description="All supply and DWV for 3-bed, 2.5-bath new construction.",
+        default_hourly_rate=Decimal("95.00"),
+        created_at=_ago(days=25),
+    )
+    job_f_finish = Job(
+        id=uuid.uuid4(), job_site_id=site_flores.id,
+        name="Finish Plumbing & Fixtures", status="pending",
+        description="Set all toilets, sinks, tub, shower valves after drywall complete.",
+        default_hourly_rate=Decimal("95.00"),
+        created_at=_ago(days=3),
+    )
+    job_f_gas = Job(
+        id=uuid.uuid4(), job_site_id=site_flores.id,
+        name="Gas Line Rough-In", status="completed",
+        description="Run gas lines to furnace, water heater, range, and dryer. Pressure test.",
+        default_hourly_rate=Decimal("95.00"),
+        finished_at=_ago(days=12),
+        created_at=_ago(days=18),
+    )
+
     all_jobs = [
         job_j_bath, job_j_leak, job_j_heater,
         job_g_plumb, job_g_fixtures,
         job_t_restroom, job_t_breakroom,
         job_b_unit4, job_b_unit7,
         job_m_pool,
+        job_s_restroom, job_s_kitchen,
+        job_f_roughin, job_f_finish, job_f_gas,
     ]
     db.session.add_all(all_jobs)
     db.session.flush()
@@ -337,11 +437,23 @@ def _seed_all():
              body="## Day 1 Progress\n\nDemo complete. Removed tub, tile, and vanity. Found some water damage behind the tub wall — about 2 sqft of drywall needs replacing. Not structural.\n\nClient notified, added $150 for repair to estimate.",
              created_at=_ago(days=10)),
         Note(id=uuid.uuid4(), job_id=job_t_restroom.id,
-             body="## ADA Requirements\n\n- Grab bars at toilet (36\" and 42\")\n- Wheelchair accessible stall (60\" turning radius)\n- Lever-handle faucets\n- Mirror max 40\" from floor\n\nBuilding inspector: Dave Martinez, (303) 555-0088",
+             body="## ADA Requirements\n\n- Grab bars at toilet (36\" and 42\")\n- Wheelchair accessible stall (60\" turning radius)\n- Lever-handle faucets\n- Mirror max 40\" from floor\n\nBuilding inspector: Dave Fakename, 123-456-7899",
              created_at=_ago(days=18)),
         Note(id=uuid.uuid4(), job_id=job_b_unit7.id,
              body="## Emergency Response\n\n**Arrived on-site 7:30 AM.** Water shut off by tenant. Burst is in the 2\" copper supply line inside the north exterior wall. About 18\" of pipe split from freezing.\n\nInsulation was insufficient — recommend adding foam board before closing wall.\n\n### Materials needed:\n- 2\" Type L copper (3 ft section)\n- ProPress couplings x2\n- Drywall patch kit\n- R-13 insulation batt",
              created_at=_ago(hours=20)),
+        Note(id=uuid.uuid4(), job_id=job_f_roughin.id,
+             body="## Plumbing Layout Notes\n\n- Master bath on 2nd floor — need to coordinate with HVAC for chase locations\n- Kitchen island sink requires underslab drain run (get survey before pouring)\n- **PEX-A with Uponor fittings per spec**\n- Whole-house manifold in utility room\n\n### Inspection Schedule\n- [ ] Underground rough — before slab pour\n- [ ] Above-ground rough — before drywall\n- [ ] Final — after fixtures set",
+             created_at=_ago(days=22)),
+        Note(id=uuid.uuid4(), job_id=job_f_gas.id,
+             body="## Gas Pressure Test — PASSED\n\nTested at 30 PSI for 15 minutes. No drop. Inspector signed off.\n\n**Inspector:** Elena Permitz (123-456-7809)\n**Permit #:** FAKE-2024-00042",
+             created_at=_ago(days=13)),
+        Note(id=uuid.uuid4(), job_id=job_s_restroom.id,
+             body="## Scope Clarification\n\nOwner wants to keep existing tile if possible. Only replacing:\n- 2 toilets (swap to Toto Drake)\n- 2 sinks + faucets\n- Expand one stall for ADA\n\nWall tile in good condition — just need to patch where grab bars go.\n\nBudget is tight — keep material selections mid-range.",
+             created_at=_ago(days=5)),
+        Note(id=uuid.uuid4(), job_id=job_g_fixtures.id,
+             body="## Fixture Selections (confirmed)\n\n| Item | Model | Cost |\n|------|-------|------|\n| Sink | Kraus Farmhouse 33\" | $349 |\n| Faucet | Delta Trinsic pull-down | $279 |\n| Disposal | InSinkErator Evolution | $189 |\n| Pot filler | installed above range | $225 |\n\nAll items ordered — ETA Thursday.",
+             created_at=_ago(days=4)),
     ]
     db.session.add_all(notes)
     db.session.flush()
@@ -355,14 +467,14 @@ def _seed_all():
         title="Master Bathroom Remodel",
         delivered=True, tax_rate=Decimal("8.77"),
         document_number="1001", document_date=date.today() - timedelta(days=12),
-        bill_to="Robert Johnson",
-        company_name="Mitchell Plumbing & Remodel",
-        user_name="Cameron Mitchell",
-        user_phone="(303) 555-0147",
-        user_email="info@mitchellplumbing.co",
-        payment_method="Venmo @mitchell-plumbing or check",
-        business_address="4521 Pearl St, Boulder, CO 80302",
-        worksite_address="789 Spruce Dr, Boulder, CO 80302",
+        bill_to="Bob Homeowner",
+        company_name="Hammer Time Plumbing & Remodel",
+        user_name="Jake Hammer",
+        user_phone="123-456-7890",
+        user_email="info@jobsyte.app",
+        payment_method="Venmo @hammer-time-plumbing or check",
+        business_address="123 Fake Street, Nowhereville, CO 00001",
+        worksite_address="100 Imaginary Blvd, Faketown, CO 00010",
         notes="Estimate valid for 30 days. 50% deposit required to schedule work.",
         created_at=_ago(days=12),
     )
@@ -423,10 +535,10 @@ def _seed_all():
         title="Tankless Water Heater Upgrade",
         delivered=False, tax_rate=Decimal("8.77"),
         document_number="1005", document_date=date.today() - timedelta(days=1),
-        bill_to="Robert Johnson",
-        company_name="Mitchell Plumbing & Remodel",
-        user_name="Cameron Mitchell",
-        worksite_address="789 Spruce Dr, Boulder, CO 80302",
+        bill_to="Bob Homeowner",
+        company_name="Hammer Time Plumbing & Remodel",
+        user_name="Jake Hammer",
+        worksite_address="100 Imaginary Blvd, Faketown, CO 00010",
         created_at=_ago(days=1),
     )
     db.session.add(est_heater)
@@ -457,10 +569,10 @@ def _seed_all():
         title="2nd Floor ADA Restroom Renovation",
         delivered=True, tax_rate=Decimal("8.77"),
         document_number="1003", document_date=date.today() - timedelta(days=19),
-        bill_to="David Chen — TechCorp",
-        company_name="Mitchell Plumbing & Remodel",
-        user_name="Cameron Mitchell",
-        worksite_address="1200 Tech Park Blvd, Suite 100, Boulder, CO 80301",
+        bill_to="David Officepark — FakeCorp",
+        company_name="Hammer Time Plumbing & Remodel",
+        user_name="Jake Hammer",
+        worksite_address="999 Placeholder Pkwy, Suite 100, Testburg, CO 00040",
         notes="Net 30 terms. Work to be performed outside business hours (6PM–6AM).",
         created_at=_ago(days=19),
     )
@@ -492,6 +604,100 @@ def _seed_all():
     ])
     db.session.flush()
 
+    # Estimate 4: New Construction Rough-In
+    est_newcon = Estimate(
+        id=uuid.uuid4(), job_id=job_f_roughin.id,
+        title="Whole-House Plumbing Rough-In",
+        delivered=True, tax_rate=Decimal("8.77"),
+        document_number="1004", document_date=date.today() - timedelta(days=24),
+        bill_to="Tony Pipefitter",
+        company_name="Hammer Time Plumbing & Remodel",
+        user_name="Jake Hammer",
+        user_phone="123-456-7890",
+        user_email="info@jobsyte.app",
+        payment_method="Venmo @hammer-time-plumbing or check",
+        business_address="123 Fake Street, Nowhereville, CO 00001",
+        worksite_address="1 Blueprint Way, Constructia, CO 00100",
+        notes="Progress billing: 50% at rough-in inspection, 50% at final.",
+        created_at=_ago(days=24),
+    )
+    db.session.add(est_newcon)
+    db.session.flush()
+
+    li_supply = LineItem(id=uuid.uuid4(), parent_id=est_newcon.id, parent_type="estimate",
+                         name="Supply Lines (PEX-A)", hourly_rate=Decimal("95.00"), sort_order=0)
+    li_dwv = LineItem(id=uuid.uuid4(), parent_id=est_newcon.id, parent_type="estimate",
+                      name="DWV (Drain/Waste/Vent)", hourly_rate=Decimal("95.00"), sort_order=1)
+    li_manifold = LineItem(id=uuid.uuid4(), parent_id=est_newcon.id, parent_type="estimate",
+                           name="Manifold & Connections", hourly_rate=Decimal("95.00"), sort_order=2)
+    db.session.add_all([li_supply, li_dwv, li_manifold])
+    db.session.flush()
+
+    db.session.add_all([
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_supply.id, entry_type="material",
+                      name="3/4\" PEX-A tubing (500ft)", unit_price=Decimal("225.00"), quantity=Decimal("1"), sort_order=0),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_supply.id, entry_type="material",
+                      name="1/2\" PEX-A tubing (300ft)", unit_price=Decimal("120.00"), quantity=Decimal("1"), sort_order=1),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_supply.id, entry_type="material",
+                      name="Uponor fittings assortment", unit_price=Decimal("185.00"), quantity=Decimal("1"), sort_order=2),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_supply.id, entry_type="hours",
+                      name="Run all supply lines", hours=Decimal("16"), sort_order=3),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_dwv.id, entry_type="material",
+                      name="3\" PVC DWV pipe (100ft)", unit_price=Decimal("145.00"), quantity=Decimal("1"), sort_order=0),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_dwv.id, entry_type="material",
+                      name="2\" PVC DWV pipe (60ft)", unit_price=Decimal("72.00"), quantity=Decimal("1"), sort_order=1),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_dwv.id, entry_type="material",
+                      name="PVC fittings, cement, hangers", unit_price=Decimal("95.00"), quantity=Decimal("1"), sort_order=2),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_dwv.id, entry_type="hours",
+                      name="Install all DWV + vent through roof", hours=Decimal("20"), sort_order=3),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_manifold.id, entry_type="material",
+                      name="Uponor 12-port manifold", unit_price=Decimal("289.00"), quantity=Decimal("1"), sort_order=0),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_manifold.id, entry_type="material",
+                      name="Manifold cabinet", unit_price=Decimal("65.00"), quantity=Decimal("1"), sort_order=1),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_manifold.id, entry_type="hours",
+                      name="Mount manifold & connect all lines", hours=Decimal("6"), sort_order=2),
+    ])
+    db.session.flush()
+
+    # Estimate 5: Sparks Restroom (smaller commercial job)
+    est_sparks = Estimate(
+        id=uuid.uuid4(), job_id=job_s_restroom.id,
+        title="Ground Floor Restroom Fixture Refit",
+        delivered=False, tax_rate=Decimal("8.77"),
+        document_number="1006", document_date=date.today() - timedelta(days=5),
+        bill_to="Paddy Sparks — Sparks Electric Co-op",
+        company_name="Hammer Time Plumbing & Remodel",
+        user_name="Jake Hammer",
+        worksite_address="888 Totally Real Rd, Exampletown, CO 00090",
+        notes="Keep costs mid-range per client request.",
+        created_at=_ago(days=5),
+    )
+    db.session.add(est_sparks)
+    db.session.flush()
+
+    li_sparks_fix = LineItem(id=uuid.uuid4(), parent_id=est_sparks.id, parent_type="estimate",
+                             name="Fixture Swap-Out", hourly_rate=Decimal("90.00"), sort_order=0)
+    li_sparks_ada = LineItem(id=uuid.uuid4(), parent_id=est_sparks.id, parent_type="estimate",
+                             name="ADA Stall Expansion", hourly_rate=Decimal("90.00"), sort_order=1)
+    db.session.add_all([li_sparks_fix, li_sparks_ada])
+    db.session.flush()
+
+    db.session.add_all([
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_sparks_fix.id, entry_type="material",
+                      name="Toilet (Toto Drake II)", unit_price=Decimal("389.00"), quantity=Decimal("2"), sort_order=0),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_sparks_fix.id, entry_type="material",
+                      name="Pedestal sink + faucet combo", unit_price=Decimal("225.00"), quantity=Decimal("2"), sort_order=1),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_sparks_fix.id, entry_type="hours",
+                      name="Remove old, install new fixtures", hours=Decimal("8"), sort_order=2),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_sparks_ada.id, entry_type="material",
+                      name="ADA grab bars", unit_price=Decimal("55.00"), quantity=Decimal("3"), sort_order=0),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_sparks_ada.id, entry_type="material",
+                      name="Partition panel relocation hardware", unit_price=Decimal("120.00"), quantity=Decimal("1"), sort_order=1),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_sparks_ada.id, entry_type="hours",
+                      name="Expand stall, mount bars, verify clearances", hours=Decimal("5"), sort_order=2),
+    ])
+    db.session.flush()
+
     # ── Invoices ─────────────────────────────────────────────────────────
     print("  Creating invoices...")
 
@@ -502,12 +708,12 @@ def _seed_all():
         delivered=True, status="paid",
         tax_rate=Decimal("8.77"),
         document_number="2001", document_date=date.today() - timedelta(days=5),
-        bill_to="Robert Johnson",
-        company_name="Mitchell Plumbing & Remodel",
-        user_name="Cameron Mitchell",
-        user_phone="(303) 555-0147",
-        payment_method="Venmo @mitchell-plumbing or check",
-        worksite_address="789 Spruce Dr, Boulder, CO 80302",
+        bill_to="Bob Homeowner",
+        company_name="Hammer Time Plumbing & Remodel",
+        user_name="Jake Hammer",
+        user_phone="123-456-7890",
+        payment_method="Venmo @hammer-time-plumbing or check",
+        worksite_address="100 Imaginary Blvd, Faketown, CO 00010",
         status_changed_at=_ago(days=3),
         created_at=_ago(days=5),
     )
@@ -544,10 +750,10 @@ def _seed_all():
         delivered=True, status="sent_awaiting_payment",
         tax_rate=Decimal("8.77"),
         document_number="2002", document_date=date.today() - timedelta(days=18),
-        bill_to="Maria Garcia",
-        company_name="Mitchell Plumbing & Remodel",
-        user_name="Cameron Mitchell",
-        worksite_address="234 Walnut St, Longmont, CO 80501",
+        bill_to="Maria Kitchenson",
+        company_name="Hammer Time Plumbing & Remodel",
+        user_name="Jake Hammer",
+        worksite_address="200 Madeup Lane, Nowhere, CO 00020",
         status_changed_at=_ago(days=15),
         created_at=_ago(days=18),
     )
@@ -583,10 +789,10 @@ def _seed_all():
         delivered=False, status="waiting_to_send",
         tax_rate=Decimal("8.77"),
         document_number="2003", document_date=date.today() - timedelta(days=9),
-        bill_to="Lisa Baker — Baker Rental Properties",
-        company_name="Mitchell Plumbing & Remodel",
-        user_name="Cameron Mitchell",
-        worksite_address="890 Pine Ave, Unit 4, Denver, CO 80220",
+        bill_to="Lisa Landlord — Landlord Rental Properties",
+        company_name="Hammer Time Plumbing & Remodel",
+        user_name="Jake Hammer",
+        worksite_address="300 Nonexistent Ave, Unit 4, Ghostville, CO 00030",
         status_changed_at=_ago(days=8),
         created_at=_ago(days=9),
     )
@@ -614,6 +820,49 @@ def _seed_all():
     ])
     db.session.flush()
 
+    # Invoice 4: Flores gas line (paid, completed job)
+    inv_gas = Invoice(
+        id=uuid.uuid4(), job_id=job_f_gas.id,
+        title="Gas Line Rough-In",
+        delivered=True, status="paid",
+        tax_rate=Decimal("8.77"),
+        document_number="2004", document_date=date.today() - timedelta(days=12),
+        bill_to="Tony Pipefitter",
+        company_name="Hammer Time Plumbing & Remodel",
+        user_name="Jake Hammer",
+        user_phone="123-456-7890",
+        payment_method="Venmo @hammer-time-plumbing or check",
+        worksite_address="1 Blueprint Way, Constructia, CO 00100",
+        status_changed_at=_ago(days=9),
+        created_at=_ago(days=12),
+    )
+    db.session.add(inv_gas)
+    db.session.flush()
+
+    li_gas = LineItem(id=uuid.uuid4(), parent_id=inv_gas.id, parent_type="invoice",
+                      name="Gas Line Work", hourly_rate=Decimal("95.00"), sort_order=0)
+    db.session.add(li_gas)
+    db.session.flush()
+    db.session.add_all([
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_gas.id, entry_type="material",
+                      name="Black iron pipe + fittings", unit_price=Decimal("320.00"), quantity=Decimal("1"), sort_order=0),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_gas.id, entry_type="material",
+                      name="CSST flex line (50ft)", unit_price=Decimal("185.00"), quantity=Decimal("1"), sort_order=1),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_gas.id, entry_type="material",
+                      name="Gas shut-offs & connectors", unit_price=Decimal("75.00"), quantity=Decimal("1"), sort_order=2),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_gas.id, entry_type="hours",
+                      name="Run lines, connect, pressure test", hours=Decimal("8"), sort_order=3),
+        LineItemEntry(id=uuid.uuid4(), line_item_id=li_gas.id, entry_type="fee",
+                      name="Gas permit fee", unit_price=Decimal("95.00"), quantity=Decimal("1"), sort_order=4),
+    ])
+
+    db.session.add_all([
+        InvoiceStatusHistory(id=uuid.uuid4(), invoice_id=inv_gas.id, status="drafting", changed_at=_ago(days=12)),
+        InvoiceStatusHistory(id=uuid.uuid4(), invoice_id=inv_gas.id, status="sent_awaiting_payment", changed_at=_ago(days=11)),
+        InvoiceStatusHistory(id=uuid.uuid4(), invoice_id=inv_gas.id, status="paid", changed_at=_ago(days=9)),
+    ])
+    db.session.flush()
+
     # ── Saved Items (Item Library) ───────────────────────────────────────
     print("  Creating saved items library...")
 
@@ -634,7 +883,25 @@ def _seed_all():
         name="Garbage Disposal Install",
         hourly_rate=Decimal("85.00"),
     )
-    db.session.add_all([si_toilet, si_faucet, si_disposal])
+    si_waterheater = SavedItem(
+        id=uuid.uuid4(), user_id=user.id,
+        name="Tank Water Heater Swap",
+        notes="Remove existing tank water heater, install new 50-gal. Includes haul-away.",
+        hourly_rate=Decimal("85.00"),
+    )
+    si_shutoff = SavedItem(
+        id=uuid.uuid4(), user_id=user.id,
+        name="Add Shut-Off Valve",
+        notes="Install ball valve on supply line. Quarter-turn for easy access.",
+        hourly_rate=Decimal("85.00"),
+    )
+    si_sump = SavedItem(
+        id=uuid.uuid4(), user_id=user.id,
+        name="Sump Pump Install",
+        notes="Dig pit, set basin, install 1/3 HP sump pump with check valve and discharge.",
+        hourly_rate=Decimal("85.00"),
+    )
+    db.session.add_all([si_toilet, si_faucet, si_disposal, si_waterheater, si_shutoff, si_sump])
     db.session.flush()
 
     db.session.add_all([
@@ -663,6 +930,44 @@ def _seed_all():
                        name="Install & test", hours=Decimal("1"), sort_order=2),
     ])
 
+    # Water heater swap entries
+    db.session.add_all([
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=si_waterheater.id, entry_type="material",
+                       name="50-gal gas water heater (Rheem)", unit_price=Decimal("649.00"), quantity=Decimal("1"), sort_order=0),
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=si_waterheater.id, entry_type="material",
+                       name="Flex connectors & gas valve", unit_price=Decimal("35.00"), quantity=Decimal("1"), sort_order=1),
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=si_waterheater.id, entry_type="material",
+                       name="Expansion tank", unit_price=Decimal("42.00"), quantity=Decimal("1"), sort_order=2),
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=si_waterheater.id, entry_type="hours",
+                       name="Remove old, install new, test", hours=Decimal("4"), sort_order=3),
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=si_waterheater.id, entry_type="fee",
+                       name="Haul-away old unit", unit_price=Decimal("50.00"), quantity=Decimal("1"), sort_order=4),
+    ])
+
+    # Shut-off valve entries
+    db.session.add_all([
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=si_shutoff.id, entry_type="material",
+                       name="1/2\" ball valve (brass)", unit_price=Decimal("14.00"), quantity=Decimal("1"), sort_order=0),
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=si_shutoff.id, entry_type="material",
+                       name="SharkBite fittings", unit_price=Decimal("9.50"), quantity=Decimal("2"), sort_order=1),
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=si_shutoff.id, entry_type="hours",
+                       name="Cut in and install valve", hours=Decimal("0.75"), sort_order=2),
+    ])
+
+    # Sump pump entries
+    db.session.add_all([
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=si_sump.id, entry_type="material",
+                       name="1/3 HP sump pump (Wayne CDU800)", unit_price=Decimal("169.00"), quantity=Decimal("1"), sort_order=0),
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=si_sump.id, entry_type="material",
+                       name="Sump basin (18\" dia)", unit_price=Decimal("45.00"), quantity=Decimal("1"), sort_order=1),
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=si_sump.id, entry_type="material",
+                       name="Check valve & discharge pipe", unit_price=Decimal("28.00"), quantity=Decimal("1"), sort_order=2),
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=si_sump.id, entry_type="material",
+                       name="Gravel (50 lb bag)", unit_price=Decimal("6.50"), quantity=Decimal("2"), sort_order=3),
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=si_sump.id, entry_type="hours",
+                       name="Dig pit, set basin, install pump", hours=Decimal("3"), sort_order=4),
+    ])
+
     # Standalone Materials Library entries
     db.session.add_all([
         SavedItemEntry(id=uuid.uuid4(), saved_item_id=None, user_id=user.id,
@@ -677,6 +982,21 @@ def _seed_all():
         SavedItemEntry(id=uuid.uuid4(), saved_item_id=None, user_id=user.id,
                        entry_type="fee", name="After-hours surcharge",
                        unit_price=Decimal("75.00"), quantity=Decimal("1"), sort_order=0),
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=None, user_id=user.id,
+                       entry_type="material", name="Plumber's putty (14 oz)",
+                       unit_price=Decimal("5.49"), quantity=Decimal("1"), sort_order=0),
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=None, user_id=user.id,
+                       entry_type="material", name="Copper pipe 1/2\" Type L (10ft)",
+                       unit_price=Decimal("18.50"), quantity=Decimal("1"), sort_order=0),
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=None, user_id=user.id,
+                       entry_type="material", name="PEX crimp ring (bag of 25)",
+                       unit_price=Decimal("8.99"), quantity=Decimal("1"), sort_order=0),
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=None, user_id=user.id,
+                       entry_type="fee", name="Emergency call-out (weekends)",
+                       unit_price=Decimal("150.00"), quantity=Decimal("1"), sort_order=0),
+        SavedItemEntry(id=uuid.uuid4(), saved_item_id=None, user_id=user.id,
+                       entry_type="fee", name="Permit filing fee (residential)",
+                       unit_price=Decimal("125.00"), quantity=Decimal("1"), sort_order=0),
     ])
     db.session.flush()
 
@@ -702,6 +1022,21 @@ def _seed_all():
         # Active clock-in (no clock_out = still running)
         TimeEntry(id=uuid.uuid4(), job_id=job_b_unit7.id, user_id=user.id,
                   clock_in=_ago(hours=2), note="Emergency burst pipe"),
+        # New site time entries
+        TimeEntry(id=uuid.uuid4(), job_id=job_f_roughin.id, user_id=user.id,
+                  hours=Decimal("8"), worked_at=_ago(days=22), note="Underground rough-in — slabs"),
+        TimeEntry(id=uuid.uuid4(), job_id=job_f_roughin.id, user_id=user.id,
+                  hours=Decimal("8"), worked_at=_ago(days=21), note="Supply lines 1st floor"),
+        TimeEntry(id=uuid.uuid4(), job_id=job_f_roughin.id, user_id=member.id,
+                  hours=Decimal("8"), worked_at=_ago(days=22), note="Digging & pipe laying"),
+        TimeEntry(id=uuid.uuid4(), job_id=job_f_gas.id, user_id=user.id,
+                  hours=Decimal("6"), worked_at=_ago(days=15), note="Gas lines run"),
+        TimeEntry(id=uuid.uuid4(), job_id=job_f_gas.id, user_id=user.id,
+                  hours=Decimal("2"), worked_at=_ago(days=13), note="Pressure test & inspection"),
+        TimeEntry(id=uuid.uuid4(), job_id=job_s_restroom.id, user_id=user.id,
+                  hours=Decimal("4"), worked_at=_ago(days=5), note="Demo old fixtures"),
+        TimeEntry(id=uuid.uuid4(), job_id=job_g_fixtures.id, user_id=user.id,
+                  hours=Decimal("5"), worked_at=_ago(days=3), note="Install sink & disposal"),
     ])
     db.session.flush()
 
@@ -723,14 +1058,14 @@ def _seed_all():
     db.session.commit()
     print("\n  Summary:")
     print(f"    Users: 3 (1 admin, 1 member, 1 pending)")
-    print(f"    Job Sites: 5")
-    print(f"    Jobs: 10 (3 completed, 4 in_progress, 3 pending)")
-    print(f"    Contacts: 5")
-    print(f"    Estimates: 3 (with detailed line items)")
-    print(f"    Invoices: 3 (paid, sent, waiting)")
-    print(f"    Notes: 4 (markdown)")
-    print(f"    Saved Items: 3 (+ 4 standalone materials)")
-    print(f"    Time Entries: 9 (including 1 active clock-in)")
+    print(f"    Job Sites: 7")
+    print(f"    Jobs: 15 (4 completed, 6 in_progress, 5 pending)")
+    print(f"    Contacts: 10")
+    print(f"    Estimates: 5 (with detailed line items)")
+    print(f"    Invoices: 4 (2 paid, 1 sent, 1 waiting)")
+    print(f"    Notes: 8 (markdown)")
+    print(f"    Saved Items: 6 (+ 9 standalone materials/fees)")
+    print(f"    Time Entries: 17 (including 1 active clock-in)")
 
 
 if __name__ == "__main__":

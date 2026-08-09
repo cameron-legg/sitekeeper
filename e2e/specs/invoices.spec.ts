@@ -29,7 +29,7 @@ test.describe("Invoice Management Screen", () => {
 test.describe("Invoice on Job Detail", () => {
   test("invoice tab shows invoice on job", async ({ page }) => {
     await loginAsDemo(page);
-    await page.getByText("Johnson Residence").click();
+    await page.getByText("Homeowner Residence").click();
     await page.waitForSelector("text=Fix Kitchen Sink Leak");
     await page.getByText("Fix Kitchen Sink Leak").click();
     await page.waitForTimeout(2000);

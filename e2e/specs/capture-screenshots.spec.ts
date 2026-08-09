@@ -29,7 +29,7 @@ async function ensureLoggedIn(page: import("@playwright/test").Page) {
 
   if (hasLoginButton && hasEmailField) {
     // We're on login — fill in credentials
-    await page.getByPlaceholder("you@example.com").fill("demo@sitekeeper.com");
+    await page.getByPlaceholder("you@example.com").fill("demo@jobsyte.app");
     await page.getByPlaceholder("Password").fill("demo1234");
     await page.locator("text=Login").click();
     await page.waitForTimeout(3000);
@@ -46,7 +46,7 @@ test.describe("Landing Page Screenshots", () => {
   });
 
   test("01 - Home screen with job sites", async ({ page }) => {
-    await page.waitForSelector("text=Johnson Residence", { timeout: 10000 });
+    await page.waitForSelector("text=Homeowner Residence", { timeout: 10000 });
     await page.waitForTimeout(500);
     await page.screenshot({
       path: path.join(OUTPUT_DIR, "home-job-sites.png"),
@@ -55,7 +55,7 @@ test.describe("Landing Page Screenshots", () => {
   });
 
   test("02 - Job site detail with jobs list", async ({ page }) => {
-    await page.getByText("Johnson Residence").click();
+    await page.getByText("Homeowner Residence").click();
     await page.waitForSelector("text=Master Bathroom Remodel", { timeout: 10000 });
     await page.waitForTimeout(1000);
     await page.screenshot({
@@ -65,7 +65,7 @@ test.describe("Landing Page Screenshots", () => {
   });
 
   test("03 - Job detail with notes", async ({ page }) => {
-    await page.getByText("Johnson Residence").click();
+    await page.getByText("Homeowner Residence").click();
     await page.waitForSelector("text=Master Bathroom Remodel", { timeout: 10000 });
     await page.getByText("Master Bathroom Remodel").click();
     await page.waitForTimeout(2000);
@@ -77,7 +77,7 @@ test.describe("Landing Page Screenshots", () => {
   });
 
   test("04 - Estimates tab", async ({ page }) => {
-    await page.getByText("Johnson Residence").click();
+    await page.getByText("Homeowner Residence").click();
     await page.waitForSelector("text=Master Bathroom Remodel", { timeout: 10000 });
     await page.getByText("Master Bathroom Remodel").click();
     await page.waitForTimeout(2000);
@@ -92,7 +92,7 @@ test.describe("Landing Page Screenshots", () => {
   });
 
   test("05 - Estimate editor with line items", async ({ page }) => {
-    await page.getByText("Johnson Residence").click();
+    await page.getByText("Homeowner Residence").click();
     await page.waitForSelector("text=Master Bathroom Remodel", { timeout: 10000 });
     await page.getByText("Master Bathroom Remodel").click();
     await page.waitForTimeout(2000);
@@ -111,7 +111,7 @@ test.describe("Landing Page Screenshots", () => {
   });
 
   test("06 - Invoices tab", async ({ page }) => {
-    await page.getByText("Johnson Residence").click();
+    await page.getByText("Homeowner Residence").click();
     await page.waitForSelector("text=Master Bathroom Remodel", { timeout: 10000 });
     await page.getByText("Master Bathroom Remodel").click();
     await page.waitForTimeout(2000);
@@ -138,7 +138,7 @@ test.describe("Landing Page Screenshots", () => {
   });
 
   test("08 - Contacts tab", async ({ page }) => {
-    await page.getByText("Johnson Residence").click();
+    await page.getByText("Homeowner Residence").click();
     await page.waitForSelector("text=Master Bathroom Remodel", { timeout: 10000 });
     await page.getByText("Master Bathroom Remodel").click();
     await page.waitForTimeout(2000);
@@ -152,7 +152,7 @@ test.describe("Landing Page Screenshots", () => {
   });
 
   test("09 - Media tab", async ({ page }) => {
-    await page.getByText("Johnson Residence").click();
+    await page.getByText("Homeowner Residence").click();
     await page.waitForSelector("text=Master Bathroom Remodel", { timeout: 10000 });
     await page.getByText("Master Bathroom Remodel").click();
     await page.waitForTimeout(2000);

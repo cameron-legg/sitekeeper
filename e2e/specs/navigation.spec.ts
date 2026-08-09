@@ -14,15 +14,15 @@ test.describe("Screen Navigation", () => {
   });
 
   test("Home → Job Site → back to Home", async ({ page }) => {
-    await page.getByText("Garcia Kitchen Renovation").click();
+    await page.getByText("Kitchenson Kitchen Renovation").click();
     await expect(page.getByText("Kitchen Plumbing Rough-In")).toBeVisible({ timeout: 5000 });
 
     await page.goBack();
-    await expect(page.getByText("Johnson Residence")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Homeowner Residence")).toBeVisible({ timeout: 5000 });
   });
 
   test("Home → Job Site → Job Detail → back to site", async ({ page }) => {
-    await page.getByText("Johnson Residence").click();
+    await page.getByText("Homeowner Residence").click();
     await page.waitForSelector("text=Master Bathroom Remodel");
     await page.getByText("Master Bathroom Remodel").click();
     await page.waitForTimeout(1000);

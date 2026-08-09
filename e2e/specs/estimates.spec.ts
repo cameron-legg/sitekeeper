@@ -11,8 +11,8 @@ import { loginAsDemo } from "../helpers/auth";
 test.describe("Estimate on Job Detail", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsDemo(page);
-    // Navigate to Johnson Residence → Master Bathroom Remodel
-    await page.getByText("Johnson Residence").click();
+    // Navigate to Homeowner Residence → Master Bathroom Remodel
+    await page.getByText("Homeowner Residence").click();
     await page.waitForSelector("text=Master Bathroom Remodel");
     await page.getByText("Master Bathroom Remodel").click();
     await page.waitForTimeout(2000);

@@ -6,7 +6,7 @@
 import { Page } from "@playwright/test";
 
 export const DEMO_USER = {
-  email: "demo@sitekeeper.com",
+  email: "demo@jobsyte.app",
   password: "demo1234",
 };
 

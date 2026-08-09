@@ -13,7 +13,7 @@ test.describe("Login", () => {
     await loginAsDemo(page);
     // Should see the JobSyte header and job sites
     await expect(page.getByText("JobSyte")).toBeVisible();
-    await expect(page.getByText("Johnson Residence")).toBeVisible();
+    await expect(page.getByText("Homeowner Residence")).toBeVisible();
   });
 
   test("wrong password shows error", async ({ page }) => {
