@@ -83,6 +83,8 @@ class PdfData:
     notes: str | None = None
     # Photo data (list of raw image bytes)
     photo_images: list[bytes] | None = None
+    # Logo image (raw PNG bytes, already resized)
+    logo_image: bytes | None = None
     # Visibility flags (all default True for backward compat)
     show_document_number: bool = True
     show_document_date: bool = True
@@ -95,6 +97,7 @@ class PdfData:
     show_business_address: bool = True
     show_worksite_address: bool = True
     show_notes: bool = True
+    show_logo: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -193,8 +196,26 @@ def build_pdf(data: PdfData) -> bytes:
     line_color = colors.HexColor("#BDC3C7")
 
     # ------------------------------------------------------------------
-    # 1. Header area — company name, user info
+    # 1. Header area — logo, company name, user info
     # ------------------------------------------------------------------
+    if data.show_logo and data.logo_image:
+        try:
+            logo_stream = BytesIO(data.logo_image)
+            logo_img = Image(logo_stream)
+            # Scale down to fit: max 2.5 inches wide, 1 inch tall
+            max_w = 2.5 * inch
+            max_h = 1.0 * inch
+            iw, ih = logo_img.drawWidth, logo_img.drawHeight
+            if iw > 0 and ih > 0:
+                scale = min(max_w / iw, max_h / ih, 1.0)
+                logo_img.drawWidth = iw * scale
+                logo_img.drawHeight = ih * scale
+            logo_img.hAlign = "LEFT"
+            elements.append(logo_img)
+            elements.append(Spacer(1, 6))
+        except Exception:
+            pass  # Skip logo if image data is corrupt
+
     if data.company_name and data.show_company_name:
         elements.append(Paragraph(data.company_name, style_company))
     if data.user_name and data.show_user_name:

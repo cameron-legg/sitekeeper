@@ -16,6 +16,7 @@ document_settings_bp = Blueprint("document_settings", __name__)
 
 # All configurable fields for estimates and invoices
 CONFIGURABLE_FIELDS = [
+    {"key": "logo", "label": "Business Logo"},
     {"key": "document_number", "label": "Document #"},
     {"key": "document_date", "label": "Date"},
     {"key": "bill_to", "label": "Bill To"},

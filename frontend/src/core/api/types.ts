@@ -155,6 +155,7 @@ export interface Estimate {
   show_business_address: boolean;
   show_worksite_address: boolean;
   show_notes: boolean;
+  show_logo: boolean;
 }
 
 export interface InvoiceStatusHistoryEntry {
@@ -216,6 +217,7 @@ export interface Invoice {
   show_business_address: boolean;
   show_worksite_address: boolean;
   show_notes: boolean;
+  show_logo: boolean;
 }
 
 /** Invoice with job/site context and status history — used by Invoice Management screen. */
@@ -271,6 +273,8 @@ export interface BusinessInfo {
   owner_user_id: string | null;
   owner_name: string | null;
   default_hourly_rate: string | null;
+  has_logo: boolean;
+  logo_url: string | null;
 }
 
 export interface BusinessInfoUser {

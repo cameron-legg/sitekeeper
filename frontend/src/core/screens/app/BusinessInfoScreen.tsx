@@ -11,10 +11,14 @@ import {
   Platform,
   Modal,
   FlatList,
+  Image,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
-import { useBusinessInfo, useUpdateBusinessInfo, useBusinessInfoUsers } from "../../api/hooks/useBusinessInfo";
+import { useBusinessInfo, useUpdateBusinessInfo, useBusinessInfoUsers, useUploadLogo, useDeleteLogo } from "../../api/hooks/useBusinessInfo";
+import { useAuthStore } from "../../store/authStore";
+import apiClient from "../../api/client";
 import type { BusinessInfoUser } from "../../api/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "BusinessInfo">;
@@ -32,6 +36,20 @@ export default function BusinessInfoScreen({ navigation }: Props) {
   const { data: info, isLoading, isError } = useBusinessInfo();
   const { data: users } = useBusinessInfoUsers();
   const updateInfo = useUpdateBusinessInfo();
+  const uploadLogo = useUploadLogo();
+  const deleteLogo = useDeleteLogo();
+  const token = useAuthStore((s) => s.token);
+
+  // Cache-buster to force image reload after upload
+  const [logoCacheBust, setLogoCacheBust] = useState(Date.now());
+
+  function getLogoUri(): string {
+    const baseURL = apiClient.defaults.baseURL || "";
+    const url = `${baseURL}/api/v1/business-info/logo`;
+    const params = [`_t=${logoCacheBust}`];
+    if (token) params.push(`token=${encodeURIComponent(token)}`);
+    return `${url}?${params.join("&")}`;
+  }
 
   const [businessName, setBusinessName] = useState("");
   const [state, setState] = useState("");
@@ -61,6 +79,47 @@ export default function BusinessInfoScreen({ navigation }: Props) {
 
   const selectedOwner = users?.find((u) => u.id === ownerUserId);
   const ownerDisplayName = selectedOwner?.name || selectedOwner?.email || info?.owner_name;
+
+  async function handlePickLogo() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.9,
+    });
+
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const asset = result.assets[0];
+    const formData = new FormData();
+
+    if (Platform.OS === "web") {
+      // On web, fetch the URI as a blob
+      const response = await fetch(asset.uri);
+      const blob = await response.blob();
+      formData.append("logo", blob, asset.fileName || "logo.png");
+    } else {
+      // On native, use the URI directly
+      formData.append("logo", {
+        uri: asset.uri,
+        type: asset.mimeType || "image/png",
+        name: asset.fileName || "logo.png",
+      } as any);
+    }
+
+    uploadLogo.mutate(formData, {
+      onSuccess: () => setLogoCacheBust(Date.now()),
+    });
+  }
+
+  function handleDeleteLogo() {
+    if (Platform.OS === "web") {
+      if (window.confirm("Remove the business logo?")) {
+        deleteLogo.mutate();
+      }
+    } else {
+      deleteLogo.mutate();
+    }
+  }
 
   function handleSave() {
     setSaveError(null);
@@ -138,6 +197,56 @@ export default function BusinessInfoScreen({ navigation }: Props) {
       >
         <Text style={styles.sectionHeader}>
           These settings are shared across all users in this workspace and appear as defaults on new estimates and invoices.
+        </Text>
+
+        {/* Business Logo */}
+        <Text style={styles.label}>Business Logo</Text>
+        <View style={styles.logoSection}>
+          {info?.has_logo ? (
+            <View style={styles.logoPreviewContainer}>
+              <Image
+                source={{ uri: getLogoUri() }}
+                style={styles.logoPreview}
+                resizeMode="contain"
+              />
+              <View style={styles.logoActions}>
+                <TouchableOpacity
+                  style={styles.logoChangeBtn}
+                  onPress={handlePickLogo}
+                  disabled={uploadLogo.isPending}
+                >
+                  <Text style={styles.logoChangeBtnText}>
+                    {uploadLogo.isPending ? "Uploading..." : "Change"}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.logoRemoveBtn}
+                  onPress={handleDeleteLogo}
+                  disabled={deleteLogo.isPending}
+                >
+                  <Text style={styles.logoRemoveBtnText}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.logoUploadBtn}
+              onPress={handlePickLogo}
+              disabled={uploadLogo.isPending}
+            >
+              {uploadLogo.isPending ? (
+                <ActivityIndicator size="small" color="#2563eb" />
+              ) : (
+                <>
+                  <Text style={styles.logoUploadIcon}>+</Text>
+                  <Text style={styles.logoUploadText}>Upload Logo</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+        <Text style={styles.hint}>
+          Your logo will appear on estimates and invoices when enabled. Recommended: PNG or JPEG, at least 400px wide.
         </Text>
 
         {/* Business Name */}
@@ -341,6 +450,72 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     marginBottom: 8,
     lineHeight: 18,
+  },
+  logoSection: {
+    marginBottom: 4,
+  },
+  logoPreviewContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    padding: 12,
+    alignItems: "center",
+  },
+  logoPreview: {
+    width: "100%",
+    height: 80,
+    marginBottom: 10,
+  },
+  logoActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  logoChangeBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: "#eff6ff",
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  logoChangeBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#2563eb",
+  },
+  logoRemoveBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: "#fef2f2",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  logoRemoveBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#dc2626",
+  },
+  logoUploadBtn: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#d1d5db",
+    borderStyle: "dashed",
+    paddingVertical: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoUploadIcon: {
+    fontSize: 28,
+    color: "#9ca3af",
+    marginBottom: 4,
+  },
+  logoUploadText: {
+    fontSize: 14,
+    color: "#6b7280",
+    fontWeight: "500",
   },
   label: {
     fontSize: 14,

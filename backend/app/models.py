@@ -327,6 +327,7 @@ class Estimate(db.Model):
     show_business_address = Column(Boolean, nullable=False, default=True)
     show_worksite_address = Column(Boolean, nullable=False, default=True)
     show_notes = Column(Boolean, nullable=False, default=True)
+    show_logo = Column(Boolean, nullable=False, default=False)
 
     job = relationship("Job", back_populates="estimates")
     line_items = relationship(
@@ -412,6 +413,7 @@ class Invoice(db.Model):
     show_business_address = Column(Boolean, nullable=False, default=True)
     show_worksite_address = Column(Boolean, nullable=False, default=True)
     show_notes = Column(Boolean, nullable=False, default=True)
+    show_logo = Column(Boolean, nullable=False, default=False)
 
     job = relationship("Job", back_populates="invoices")
     source_estimate = relationship(
@@ -785,6 +787,7 @@ class BusinessInfo(db.Model):
         nullable=True,
     )
     default_hourly_rate = Column(Numeric(12, 4), nullable=True)
+    logo_object_key = Column(Text, nullable=True)
     updated_at = Column(
         TIMESTAMP(timezone=True),
         nullable=False,

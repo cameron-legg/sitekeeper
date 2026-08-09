@@ -77,6 +77,7 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
   const [showBusinessAddress, setShowBusinessAddress] = useState(true);
   const [showWorksiteAddress, setShowWorksiteAddress] = useState(true);
   const [showNotes, setShowNotes] = useState(true);
+  const [showLogo, setShowLogo] = useState(false);
 
   const [titleError, setTitleError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -150,6 +151,7 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
       setShowBusinessAddress(invoice.show_business_address);
       setShowWorksiteAddress(invoice.show_worksite_address);
       setShowNotes(invoice.show_notes);
+      setShowLogo(invoice.show_logo);
     }
   }, [invoice]);
 
@@ -218,6 +220,7 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
         setShowBusinessAddress(inv.show_business_address);
         setShowWorksiteAddress(inv.show_worksite_address);
         setShowNotes(inv.show_notes);
+        setShowLogo(inv.show_logo);
       },
       onError: () => { setIsCreating(false); setTitleError("Failed to create invoice."); },
     });
@@ -405,6 +408,15 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
                 onToggle={(v) => onToggleChange(setShowPaymentMethod, "show_payment_method", v)} />
             )}
 
+            {/* Logo Toggle */}
+            {isFieldAlwaysShow("logo") && (
+              <View style={styles.logoToggleRow}>
+                <Text style={styles.logoToggleLabel}>Show Business Logo in PDF</Text>
+                <Switch value={showLogo} onValueChange={(v) => onToggleChange(setShowLogo, "show_logo", v)}
+                  trackColor={{ true: "#2563eb" }} />
+              </View>
+            )}
+
             {/* Additional Notes */}
             {isFieldAlwaysShow("notes") && (
               <>
@@ -517,6 +529,13 @@ export default function InvoiceEditorScreen({ route, navigation }: Props) {
                         onChangeText={(v) => onFieldChange(setPaymentMethod, "payment_method", v)}
                         showToggle={showPaymentMethod}
                         onToggle={(v) => onToggleChange(setShowPaymentMethod, "show_payment_method", v)} />
+                    )}
+                    {isFieldAdditional("logo") && (
+                      <View style={styles.logoToggleRow}>
+                        <Text style={styles.logoToggleLabel}>Show Business Logo in PDF</Text>
+                        <Switch value={showLogo} onValueChange={(v) => onToggleChange(setShowLogo, "show_logo", v)}
+                          trackColor={{ true: "#2563eb" }} />
+                      </View>
                     )}
                     {isFieldAdditional("notes") && (
                       <>
@@ -734,6 +753,8 @@ const styles = StyleSheet.create({
   metaFieldLabel: { fontSize: 13, fontWeight: "600", color: "#374151" },
   toggleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   toggleLabel: { fontSize: 11, color: "#6b7280" },
+  logoToggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, paddingHorizontal: 12, marginTop: 12, backgroundColor: "#fff", borderRadius: 10, borderWidth: 1, borderColor: "#e5e7eb" },
+  logoToggleLabel: { fontSize: 14, fontWeight: "600", color: "#374151" },
   sectionHeaderRow: { flexDirection: "row", alignItems: "center", marginTop: 20, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: "#e5e7eb", paddingBottom: 6 },
   populateBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, borderWidth: 1, borderColor: "#2563eb", backgroundColor: "#eff6ff" },
   populateBtnText: { fontSize: 12, fontWeight: "600", color: "#2563eb" },

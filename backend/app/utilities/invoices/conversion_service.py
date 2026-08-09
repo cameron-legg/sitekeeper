@@ -78,6 +78,7 @@ class ConversionService:
             show_business_address=estimate.show_business_address,
             show_worksite_address=estimate.show_worksite_address,
             show_notes=estimate.show_notes,
+            show_logo=estimate.show_logo,
         ))
 
         # Deep copy: line items + their entries

@@ -14,3 +14,4 @@ python-dotenv==1.0.1
 reportlab==4.4.0
 minio==7.2.15
 openai==1.78.1
+Pillow==11.1.0

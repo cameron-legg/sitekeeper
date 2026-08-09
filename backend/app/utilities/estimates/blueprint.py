@@ -107,6 +107,7 @@ def _serialize_estimate(estimate, totals: dict | None = None) -> dict:
         "show_business_address": estimate.show_business_address,
         "show_worksite_address": estimate.show_worksite_address,
         "show_notes": estimate.show_notes,
+        "show_logo": estimate.show_logo,
     }
 
 
@@ -244,7 +245,7 @@ def patch_estimate(estimate_id: str):
         "show_document_number", "show_document_date", "show_bill_to",
         "show_company_name", "show_user_name", "show_user_phone",
         "show_user_email", "show_payment_method", "show_business_address",
-        "show_worksite_address", "show_notes",
+        "show_worksite_address", "show_notes", "show_logo",
     )
     metadata = {k: data[k] for k in META_KEYS if k in data}
 

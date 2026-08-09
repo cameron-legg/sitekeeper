@@ -107,6 +107,24 @@ class PdfService:
                 )
         return images
 
+    def _load_logo(self) -> bytes | None:
+        """Load the business logo from MinIO, if one has been uploaded.
+
+        Returns the raw PNG bytes, or None if no logo exists.
+        """
+        from ...models import BusinessInfo
+
+        info = BusinessInfo.query.first()
+        if info is None or not info.logo_object_key:
+            return None
+
+        try:
+            storage = self._get_minio_storage()
+            return storage.download(info.logo_object_key)
+        except Exception:
+            logger.warning("Failed to load business logo from MinIO for PDF generation")
+            return None
+
     @staticmethod
     def _resolve_primary_contact(job) -> str | None:
         """Resolve the primary contact name: job's primary_contact first,
@@ -211,6 +229,11 @@ class PdfService:
         worksite = estimate.worksite_address or self._get_job_site_address(job)
         owner_name = biz.get("owner_name") or biz_service.get_owner_name()
 
+        # Load logo if show_logo is enabled
+        logo_image = None
+        if estimate.show_logo:
+            logo_image = self._load_logo()
+
         # Build PdfData
         pdf_data = PdfData(
             document_type="Estimate",
@@ -232,6 +255,8 @@ class PdfService:
             document_date=estimate.document_date.isoformat() if estimate.document_date else None,
             business_address=estimate.business_address or biz.get("business_address"),
             notes=estimate.notes,
+            # Logo
+            logo_image=logo_image,
             # Visibility flags
             show_document_number=estimate.show_document_number,
             show_document_date=estimate.show_document_date,
@@ -244,6 +269,7 @@ class PdfService:
             show_business_address=estimate.show_business_address,
             show_worksite_address=estimate.show_worksite_address,
             show_notes=estimate.show_notes,
+            show_logo=estimate.show_logo,
         )
 
         # Load attached photos
@@ -296,6 +322,11 @@ class PdfService:
         worksite = invoice.worksite_address or self._get_job_site_address(job)
         owner_name = biz.get("owner_name") or biz_service.get_owner_name()
 
+        # Load logo if show_logo is enabled
+        logo_image = None
+        if invoice.show_logo:
+            logo_image = self._load_logo()
+
         # Build PdfData
         pdf_data = PdfData(
             document_type="Invoice",
@@ -317,6 +348,8 @@ class PdfService:
             document_date=invoice.document_date.isoformat() if invoice.document_date else None,
             business_address=invoice.business_address or biz.get("business_address"),
             notes=invoice.notes,
+            # Logo
+            logo_image=logo_image,
             # Visibility flags
             show_document_number=invoice.show_document_number,
             show_document_date=invoice.show_document_date,
@@ -329,6 +362,7 @@ class PdfService:
             show_business_address=invoice.show_business_address,
             show_worksite_address=invoice.show_worksite_address,
             show_notes=invoice.show_notes,
+            show_logo=invoice.show_logo,
         )
 
         # Load attached photos
