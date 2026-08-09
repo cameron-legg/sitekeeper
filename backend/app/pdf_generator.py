@@ -595,9 +595,9 @@ def build_pdf(data: PdfData) -> bytes:
     # 11. Footer
     # ------------------------------------------------------------------
     elements.append(Spacer(1, 24))
-    elements.append(
-        Paragraph("Thank you for your business!", style_footer)
-    )
+    # elements.append(
+    #     Paragraph("Thank you for your business!", style_footer)
+    # )
 
     # Build the PDF
     doc.build(elements)
