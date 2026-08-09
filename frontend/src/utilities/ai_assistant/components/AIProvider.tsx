@@ -9,6 +9,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { navigationRef } from "../../../core/navigation/navigationRef";
 import { useAuthStore } from "../../../core/store/authStore";
+import { useIsUtilityEnabled } from "../../index";
 import AIChatBubble from "./AIChatBubble";
 
 interface ScreenState {
@@ -18,6 +19,7 @@ interface ScreenState {
 
 export default function AIProvider({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
+  const aiEnabled = useIsUtilityEnabled("ai_assistant");
   const [currentScreen, setCurrentScreen] = useState<ScreenState>({
     name: "Home",
     params: {},
@@ -61,8 +63,8 @@ export default function AIProvider({ children }: { children: React.ReactNode }) 
   return (
     <>
       {children}
-      {/* Only show AI bubble when authenticated */}
-      {token && (
+      {/* Only show AI bubble when authenticated and utility is enabled */}
+      {token && aiEnabled && (
         <AIChatBubble
           screenName={currentScreen.name}
           screenParams={currentScreen.params}

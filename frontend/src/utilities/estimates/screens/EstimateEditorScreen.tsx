@@ -18,6 +18,7 @@ import { useDocumentFieldSettings, type FieldVisibility } from "../../../core/ap
 import LineItemEditor from "../components/LineItemEditor";
 import DocumentPhotoPicker from "../../photos/components/DocumentPhotoPicker";
 import type { LineItemEntry, SavedItem, SavedItemEntry } from "../../../core/api/types";
+import { useIsUtilityEnabled } from "../../index";
 
 type Props = NativeStackScreenProps<RootStackParamList, "EstimateEditor">;
 
@@ -83,6 +84,8 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
   const initialized = useRef(false);
   const lastSyncedAt = useRef<string | null>(null);
 
+  const savedItemsEnabled = useIsUtilityEnabled("saved_items");
+  const photosEnabled = useIsUtilityEnabled("photos");
   const saveToLibrary = useSaveEstimateLineItemToLibrary();
   const populateSaved = usePopulateSavedItem();
   const saveEntryToLib = useSaveEntryToLibrary();
@@ -419,7 +422,7 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
             )}
 
             {/* Document Photos */}
-            {isFieldAlwaysShow("photos") && (
+            {photosEnabled && isFieldAlwaysShow("photos") && (
               <DocumentPhotoPicker documentId={estimateId} documentType="estimate" jobId={jobId} />
             )}
 
@@ -529,7 +532,7 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
                           placeholder="Additional notes (supports markdown)" multiline numberOfLines={4} />
                       </>
                     )}
-                    {isFieldAdditional("photos") && (
+                    {photosEnabled && isFieldAdditional("photos") && (
                       <DocumentPhotoPicker documentId={estimateId} documentType="estimate" jobId={jobId} />
                     )}
                   </View>
@@ -552,17 +555,17 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
                   updateEntry.mutate({ estimateId, itemId: item.id, entryId, ...cleaned });
                 }}
                 onDeleteEntry={(entryId) => deleteEntry.mutate({ estimateId, itemId: item.id, entryId })}
-                onSaveToLibrary={() => saveToLibrary.mutate({ estimateId, itemId: item.id })}
-                onSaveEntryToLibrary={(entry: LineItemEntry) => saveEntryToLib.mutate({
+                onSaveToLibrary={savedItemsEnabled ? () => saveToLibrary.mutate({ estimateId, itemId: item.id }) : undefined}
+                onSaveEntryToLibrary={savedItemsEnabled ? (entry: LineItemEntry) => saveEntryToLib.mutate({
                   entry_type: entry.entry_type, name: entry.name, notes: entry.notes ?? undefined,
                   url: entry.url ?? undefined, unit_price: entry.unit_price ?? undefined,
                   quantity: entry.quantity ?? undefined, hours: entry.hours ?? undefined,
-                })}
-                savedItems={savedItems}
-                onPickSavedEntry={(savedEntry: SavedItemEntry) => populateSavedEntry.mutate({
+                }) : undefined}
+                savedItems={savedItemsEnabled ? savedItems : undefined}
+                onPickSavedEntry={savedItemsEnabled ? (savedEntry: SavedItemEntry) => populateSavedEntry.mutate({
                   entryId: savedEntry.id, lineItemId: item.id, parentId: estimateId, parentType: "estimate",
-                })}
-                allSavedEntries={allSavedEntries}
+                }) : undefined}
+                allSavedEntries={savedItemsEnabled ? allSavedEntries : undefined}
                 isSavingEntry={addEntry.isPending || updateEntry.isPending}
               />
             ))}
@@ -629,9 +632,11 @@ export default function EstimateEditorScreen({ route, navigation }: Props) {
               <TouchableOpacity style={[styles.modeTab, addItemMode === "new" && styles.modeTabActive]} onPress={() => setAddItemMode("new")}>
                 <Text style={[styles.modeTabText, addItemMode === "new" && styles.modeTabTextActive]}>New Item</Text>
               </TouchableOpacity>
+              {savedItemsEnabled && (
               <TouchableOpacity style={[styles.modeTab, addItemMode === "library" && styles.modeTabActive]} onPress={() => setAddItemMode("library")}>
                 <Text style={[styles.modeTabText, addItemMode === "library" && styles.modeTabTextActive]}>From Library</Text>
               </TouchableOpacity>
+              )}
             </View>
             {newItemError && <Text style={styles.fieldError}>{newItemError}</Text>}
             {addItemMode === "new" ? (

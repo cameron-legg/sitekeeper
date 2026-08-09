@@ -20,6 +20,7 @@ import {
 } from "../../api/hooks/useJobSites";
 import type { JobSite } from "../../api/types";
 import { APP_NAME } from "../../config/app";
+import { useIsUtilityEnabled } from "../../../utilities";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
@@ -28,6 +29,8 @@ type SiteFilter = "active" | "all";
 export default function HomeScreen({ navigation }: Props) {
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const role = useAuthStore((s) => s.role);
+  const savedItemsEnabled = useIsUtilityEnabled("saved_items");
+  const invoicesEnabled = useIsUtilityEnabled("invoices");
   const { data: sites, isLoading, isError } = useJobSites();
   const createSite = useCreateJobSite();
   const deleteSite = useDeleteJobSite();
@@ -123,7 +126,7 @@ export default function HomeScreen({ navigation }: Props) {
               </View>
             )}
           </View>
-          {invoiceParts.length > 0 && (
+          {invoicesEnabled && invoiceParts.length > 0 && (
             <Text style={styles.invoiceStatusText}>
               Invoices: {invoiceParts.join(", ")}
             </Text>
@@ -311,6 +314,8 @@ export default function HomeScreen({ navigation }: Props) {
       <Modal visible={showMenu} transparent animationType="fade" onRequestClose={() => setShowMenu(false)}>
         <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={() => setShowMenu(false)}>
           <View style={styles.menuCard}>
+            {savedItemsEnabled && (
+            <>
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => { setShowMenu(false); navigation.navigate("SavedItems", {}); }}
@@ -325,6 +330,10 @@ export default function HomeScreen({ navigation }: Props) {
               <Text style={styles.menuItemText}>🧱  Materials</Text>
             </TouchableOpacity>
             <View style={styles.menuDivider} />
+            </>
+            )}
+            {invoicesEnabled && (
+            <>
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => { setShowMenu(false); navigation.navigate("InvoiceManagement"); }}
@@ -332,6 +341,8 @@ export default function HomeScreen({ navigation }: Props) {
               <Text style={styles.menuItemText}>📄  Invoice Management</Text>
             </TouchableOpacity>
             <View style={styles.menuDivider} />
+            </>
+            )}
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => { setShowMenu(false); navigation.navigate("Settings"); }}

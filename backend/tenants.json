@@ -3,16 +3,7 @@
         "database_url": "postgresql://sitekeeper:sitekeeper@localhost:5435/sitekeeper",
         "bucket": "sitekeeper",
         "domain": "jobsyte.app",
-        "name": "JobSyte (Default)",
-        "utilities": [
-            "contacts",
-            "estimates",
-            "invoices",
-            "notes",
-            "photos",
-            "pdf",
-            "saved_items"
-        ]
+        "name": "JobSyte (Default)"
     },
     "nocoresources": {
         "database_url": "postgresql://sitekeeper:sitekeeper@localhost:5435/sk_nocoresources",

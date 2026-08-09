@@ -3,11 +3,14 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-nati
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { useAuthStore } from "../../store/authStore";
+import { useIsUtilityEnabled } from "../../../utilities";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
 export default function SettingsScreen({ navigation }: Props) {
   const role = useAuthStore((s) => s.role);
+  const estimatesEnabled = useIsUtilityEnabled("estimates");
+  const invoicesEnabled = useIsUtilityEnabled("invoices");
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -35,9 +38,12 @@ export default function SettingsScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
+      {(estimatesEnabled || invoicesEnabled) && (
+      <>
       <Text style={styles.sectionHeader}>Documents</Text>
 
       <View style={styles.group}>
+        {estimatesEnabled && (
         <TouchableOpacity style={styles.row} onPress={() => navigation.navigate("EstimateSettings")} activeOpacity={0.7}>
           <Text style={styles.rowIcon}>📋</Text>
           <View style={styles.rowContent}>
@@ -46,9 +52,11 @@ export default function SettingsScreen({ navigation }: Props) {
           </View>
           <Text style={styles.chevron}>›</Text>
         </TouchableOpacity>
+        )}
 
-        <View style={styles.divider} />
+        {estimatesEnabled && invoicesEnabled && <View style={styles.divider} />}
 
+        {invoicesEnabled && (
         <TouchableOpacity style={styles.row} onPress={() => navigation.navigate("InvoiceSettings")} activeOpacity={0.7}>
           <Text style={styles.rowIcon}>🧾</Text>
           <View style={styles.rowContent}>
@@ -57,7 +65,10 @@ export default function SettingsScreen({ navigation }: Props) {
           </View>
           <Text style={styles.chevron}>›</Text>
         </TouchableOpacity>
+        )}
       </View>
+      </>
+      )}
 
       {role === "admin" && (
         <>

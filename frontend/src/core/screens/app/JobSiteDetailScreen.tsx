@@ -14,6 +14,7 @@ import type { RootStackParamList } from "../../navigation/types";
 import { useJobs, useCreateJob, useDeleteJob } from "../../api/hooks/useJobs";
 import { useJobSite, useUpdateJobSite } from "../../api/hooks/useJobSites";
 import type { Job } from "../../api/types";
+import { useIsUtilityEnabled } from "../../../utilities";
 
 type Props = NativeStackScreenProps<RootStackParamList, "JobSiteDetail">;
 
@@ -33,6 +34,7 @@ const STATUS_LABELS: Record<Job["status"], string> = {
 
 export default function JobSiteDetailScreen({ route, navigation }: Props) {
   const { siteId, siteName } = route.params;
+  const invoicesEnabled = useIsUtilityEnabled("invoices");
 
   const { data: site } = useJobSite(siteId);
   const { data: jobs, isLoading, isError } = useJobs(siteId);
@@ -181,7 +183,7 @@ export default function JobSiteDetailScreen({ route, navigation }: Props) {
               </Text>
             )}
           </View>
-          {invoiceParts.length > 0 && (
+          {invoicesEnabled && invoiceParts.length > 0 && (
             <Text style={styles.invoiceStatusText}>
               Invoices: {invoiceParts.join(", ")}
             </Text>

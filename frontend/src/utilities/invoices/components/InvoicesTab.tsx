@@ -11,6 +11,7 @@ import {
 } from "../hooks/useInvoices";
 import { useGenerateInvoicePdf, downloadInvoicePdf } from "../../pdf/hooks/usePdf";
 import type { Invoice, InvoiceStatus } from "../../../core/api/types";
+import { useIsUtilityEnabled } from "../../index";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -29,6 +30,7 @@ function getStatusDisplay(status: InvoiceStatus) {
 
 export default function InvoicesTab({ jobId }: Props) {
   const navigation = useNavigation<Nav>();
+  const pdfEnabled = useIsUtilityEnabled("pdf");
   const { data: invoices, isLoading, isError } = useInvoices(jobId);
   const createInvoice = useCreateInvoice();
   const updateInvoice = useUpdateInvoice();
@@ -242,7 +244,7 @@ export default function InvoicesTab({ jobId }: Props) {
                 <View style={styles.menuDivider} />
 
                 {/* PDF actions */}
-                {(selectedInvoice.pdf_status === "none" || selectedInvoice.pdf_status === "stale") && (
+                {pdfEnabled && (selectedInvoice.pdf_status === "none" || selectedInvoice.pdf_status === "stale") && (
                   <TouchableOpacity
                     style={styles.menuItem}
                     onPress={() => {
@@ -259,13 +261,13 @@ export default function InvoicesTab({ jobId }: Props) {
                   </TouchableOpacity>
                 )}
 
-                {selectedInvoice.pdf_status === "stale" && (
+                {pdfEnabled && selectedInvoice.pdf_status === "stale" && (
                   <View style={styles.pdfStaleHint}>
                     <Text style={styles.pdfStaleHintText}>⚠ PDF is outdated — regenerate to get the latest version</Text>
                   </View>
                 )}
 
-                {selectedInvoice.pdf_status === "current" && (
+                {pdfEnabled && selectedInvoice.pdf_status === "current" && (
                   <>
                     <TouchableOpacity
                       style={styles.menuItem}

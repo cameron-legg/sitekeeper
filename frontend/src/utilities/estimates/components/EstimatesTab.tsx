@@ -12,6 +12,7 @@ import {
 } from "../hooks/useEstimates";
 import { useGenerateEstimatePdf, downloadEstimatePdf } from "../../pdf/hooks/usePdf";
 import type { Estimate } from "../../../core/api/types";
+import { useIsUtilityEnabled } from "../../index";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -19,6 +20,8 @@ interface Props { jobId: string; }
 
 export default function EstimatesTab({ jobId }: Props) {
   const navigation = useNavigation<Nav>();
+  const invoicesEnabled = useIsUtilityEnabled("invoices");
+  const pdfEnabled = useIsUtilityEnabled("pdf");
   const { data: estimates, isLoading, isError } = useEstimates(jobId);
   const createEstimate = useCreateEstimate();
   const updateEstimate = useUpdateEstimate();
@@ -217,14 +220,16 @@ export default function EstimatesTab({ jobId }: Props) {
 
                 <View style={styles.menuDivider} />
 
+                {invoicesEnabled && (
                 <TouchableOpacity style={styles.menuItem} onPress={() => handleConvert(selectedEstimate)}>
                   <Text style={styles.menuItemText}>🧾  Convert to Invoice</Text>
                 </TouchableOpacity>
+                )}
 
                 <View style={styles.menuDivider} />
 
                 {/* PDF actions */}
-                {(selectedEstimate.pdf_status === "none" || selectedEstimate.pdf_status === "stale") && (
+                {pdfEnabled && (selectedEstimate.pdf_status === "none" || selectedEstimate.pdf_status === "stale") && (
                   <TouchableOpacity
                     style={styles.menuItem}
                     onPress={() => {
@@ -241,13 +246,13 @@ export default function EstimatesTab({ jobId }: Props) {
                   </TouchableOpacity>
                 )}
 
-                {selectedEstimate.pdf_status === "stale" && (
+                {pdfEnabled && selectedEstimate.pdf_status === "stale" && (
                   <View style={styles.pdfStaleHint}>
                     <Text style={styles.pdfStaleHintText}>⚠ PDF is outdated — regenerate to get the latest version</Text>
                   </View>
                 )}
 
-                {selectedEstimate.pdf_status === "current" && (
+                {pdfEnabled && selectedEstimate.pdf_status === "current" && (
                   <>
                     <TouchableOpacity
                       style={styles.menuItem}

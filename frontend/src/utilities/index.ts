@@ -66,6 +66,14 @@ export interface UtilityManifest {
 
 export const ALL_UTILITIES: UtilityManifest[] = [
   {
+    id: "notes",
+    screens: [],
+    jobDetailTabs: [
+      { key: "notes", label: "Notes", component: NotesTab },
+    ],
+    settingsItems: [],
+  },
+  {
     id: "contacts",
     screens: [
       { name: "ContactEditor", component: ContactEditorScreen, options: { headerShown: true, title: "Contact" } },
@@ -103,14 +111,6 @@ export const ALL_UTILITIES: UtilityManifest[] = [
     settingsItems: [
       { key: "invoice-settings", label: "Invoice Defaults", screen: "InvoiceSettings" },
     ],
-  },
-  {
-    id: "notes",
-    screens: [],
-    jobDetailTabs: [
-      { key: "notes", label: "Notes", component: NotesTab },
-    ],
-    settingsItems: [],
   },
   {
     id: "time_tracking",
