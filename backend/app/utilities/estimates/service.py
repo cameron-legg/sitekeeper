@@ -271,9 +271,9 @@ class EstimateService:
     def _apply_pdf_visibility_defaults(doc, document_type: str) -> None:
         """Apply tenant-level pdf_visible defaults to show_* flags on a new document.
 
-        Maps field_key -> show_* attribute. Applies the configured pdf_visible
-        value from DocumentFieldSettings. Fields without a stored setting keep
-        their model defaults (True for most fields, False for show_logo).
+        Applies the configured pdf_visible value from DocumentFieldSettings.
+        Fields without a stored setting default to pdf_visible=True (matching
+        the settings UI default).
         """
         from ...models import DocumentFieldSettings
 
@@ -293,10 +293,12 @@ class EstimateService:
         }
 
         settings = DocumentFieldSettings.query.filter_by(document_type=document_type).all()
-        for setting in settings:
-            attr = FIELD_TO_SHOW_ATTR.get(setting.field_key)
-            if attr:
-                setattr(doc, attr, setting.pdf_visible)
+        settings_map = {s.field_key: s.pdf_visible for s in settings}
+
+        for field_key, attr in FIELD_TO_SHOW_ATTR.items():
+            # Use stored setting if available, otherwise default to True
+            pdf_visible = settings_map.get(field_key, True)
+            setattr(doc, attr, pdf_visible)
 
     def populate_defaults(self, estimate_id: str, user_id: str) -> Estimate:
         """Re-populate all metadata fields from business info, profile, and job context (overwrites current values)."""
