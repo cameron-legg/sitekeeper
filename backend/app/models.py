@@ -27,7 +27,7 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql import func
 from sqlalchemy.types import TIMESTAMP
 
@@ -453,7 +453,7 @@ class InvoiceStatusHistory(db.Model):
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )
 
-    invoice = relationship("Invoice", backref="status_history")
+    invoice = relationship("Invoice", backref=backref("status_history", cascade="all, delete-orphan", passive_deletes=True))
 
     def __repr__(self):
         return f"<InvoiceStatusHistory {self.status} @ {self.changed_at}>"
