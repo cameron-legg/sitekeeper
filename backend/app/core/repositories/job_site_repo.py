@@ -1,0 +1,91 @@
+"""Job site repository — interface and SQLAlchemy implementation."""
+
+from abc import ABC, abstractmethod
+
+from sqlalchemy import func
+
+from ...extensions import db
+from ...models import Job, JobSite
+
+
+class IJobSiteRepository(ABC):
+    """Abstract interface for job site persistence operations."""
+
+    @abstractmethod
+    def get_all_for_user(self, user_id: str) -> list[JobSite]:
+        """Return all job sites owned by the given user."""
+        ...
+
+    @abstractmethod
+    def get_by_id(self, site_id: str, user_id: str) -> JobSite | None:
+        """Return the job site with the given id if it belongs to user_id."""
+        ...
+
+    @abstractmethod
+    def create(self, site: JobSite) -> JobSite:
+        """Persist a new job site and return it with server-generated fields."""
+        ...
+
+    @abstractmethod
+    def update(self, site: JobSite) -> JobSite:
+        """Persist changes to an existing job site and return the updated record."""
+        ...
+
+    @abstractmethod
+    def delete(self, site_id: str, user_id: str) -> None:
+        """Delete the job site (and cascade to all children) if owned by user."""
+        ...
+
+    @abstractmethod
+    def count_jobs(self, site_id: str) -> int:
+        """Return the number of jobs associated with the given job site."""
+        ...
+
+    @abstractmethod
+    def count_active_jobs(self, site_id: str) -> int:
+        """Return the number of pending or in_progress jobs for the given site."""
+        ...
+
+
+class SQLAlchemyJobSiteRepository(IJobSiteRepository):
+    """SQLAlchemy-backed implementation of IJobSiteRepository."""
+
+    def get_all_for_user(self, user_id: str) -> list[JobSite]:
+        # Approved users see ALL job sites in the tenant database
+        return (
+            JobSite.query
+            .order_by(JobSite.created_at.desc())
+            .all()
+        )
+
+    def get_by_id(self, site_id: str, user_id: str) -> JobSite | None:
+        # Approved users can access any job site in the tenant
+        return JobSite.query.filter_by(id=site_id).first()
+
+    def create(self, site: JobSite) -> JobSite:
+        db.session.add(site)
+        db.session.commit()
+        db.session.refresh(site)
+        return site
+
+    def update(self, site: JobSite) -> JobSite:
+        db.session.commit()
+        db.session.refresh(site)
+        return site
+
+    def delete(self, site_id: str, user_id: str) -> None:
+        # Any approved user can delete any site in the tenant
+        site = JobSite.query.filter_by(id=site_id).first()
+        if site:
+            db.session.delete(site)
+            db.session.commit()
+
+    def count_jobs(self, site_id: str) -> int:
+        return Job.query.filter_by(job_site_id=site_id).count()
+
+    def count_active_jobs(self, site_id: str) -> int:
+        return (
+            Job.query.filter_by(job_site_id=site_id)
+            .filter(Job.status.in_(["pending", "in_progress"]))
+            .count()
+        )

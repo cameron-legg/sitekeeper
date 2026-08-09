@@ -37,8 +37,6 @@ def create_app(config=None):
     bcrypt.init_app(app)
 
     # CORS — allow origins from CORS_ORIGINS env var (comma-separated).
-    # Defaults to all origins in development; restrict this in production.
-    # In production, set to "https://*.entouch.org" pattern or list all tenant domains.
     cors_origins = app.config.get("CORS_ORIGINS", "*")
     if cors_origins == "*":
         origins = "*"
@@ -72,46 +70,30 @@ def create_app(config=None):
     else:
         app.minio_storage = None
 
-    # Register all blueprints under /api/v1
-    from .blueprints.auth_bp import auth_bp
-    from .blueprints.job_sites_bp import job_sites_bp
-    from .blueprints.jobs_bp import jobs_bp
-    from .blueprints.contacts_bp import contacts_bp
-    from .blueprints.notes_bp import notes_bp
-    from .blueprints.estimates_bp import estimates_bp
-    from .blueprints.invoices_bp import invoices_bp
-    from .blueprints.conversion_bp import conversion_bp
-    from .blueprints.saved_items_bp import saved_items_bp
-    from .blueprints.profile_bp import profile_bp
-    from .blueprints.pdf_bp import pdf_bp
-    from .blueprints.admin_bp import admin_bp
-    from .blueprints.ai_bp import ai_bp
-    from .blueprints.business_info_bp import business_info_bp
-    from .blueprints.time_entries_bp import time_entries_bp
-    from .blueprints.job_photos_bp import job_photos_bp
-    from .blueprints.document_settings_bp import document_settings_bp
-    from .blueprints.context_bp import context_bp
+    # ── Core blueprints (always on) ──────────────────────────────────────
+    from .core.blueprints.auth_bp import auth_bp
+    from .core.blueprints.admin_bp import admin_bp
+    from .core.blueprints.job_sites_bp import job_sites_bp
+    from .core.blueprints.jobs_bp import jobs_bp
+    from .core.blueprints.profile_bp import profile_bp
+    from .core.blueprints.business_info_bp import business_info_bp
+    from .core.blueprints.document_settings_bp import document_settings_bp
+    from .core.blueprints.context_bp import context_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/v1")
+    app.register_blueprint(admin_bp, url_prefix="/api/v1")
     app.register_blueprint(job_sites_bp, url_prefix="/api/v1")
     app.register_blueprint(jobs_bp, url_prefix="/api/v1")
-    app.register_blueprint(contacts_bp, url_prefix="/api/v1")
-    app.register_blueprint(notes_bp, url_prefix="/api/v1")
-    app.register_blueprint(estimates_bp, url_prefix="/api/v1")
-    app.register_blueprint(invoices_bp, url_prefix="/api/v1")
-    app.register_blueprint(conversion_bp, url_prefix="/api/v1")
-    app.register_blueprint(saved_items_bp, url_prefix="/api/v1")
     app.register_blueprint(profile_bp, url_prefix="/api/v1")
-    app.register_blueprint(pdf_bp, url_prefix="/api/v1")
-    app.register_blueprint(admin_bp, url_prefix="/api/v1")
-    app.register_blueprint(ai_bp, url_prefix="/api/v1")
     app.register_blueprint(business_info_bp, url_prefix="/api/v1")
-    app.register_blueprint(time_entries_bp, url_prefix="/api/v1")
-    app.register_blueprint(job_photos_bp, url_prefix="/api/v1")
     app.register_blueprint(document_settings_bp, url_prefix="/api/v1")
     app.register_blueprint(context_bp, url_prefix="/api/v1")
 
-    # Health check endpoint (used by deploy scripts and load balancers)
+    # ── Utility blueprints (toggleable per tenant) ───────────────────────
+    from .utilities import register_all_utilities
+    register_all_utilities(app)
+
+    # Health check endpoint
     @app.route("/api/v1/health")
     def health():
         tenant = getattr(g, "tenant_slug", "unknown")

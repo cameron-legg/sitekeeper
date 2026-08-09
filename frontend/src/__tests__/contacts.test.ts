@@ -6,7 +6,7 @@
  */
 
 import "./setup";
-import apiClient from "../api/client";
+import apiClient from "../core/api/client";
 import { createMockContact } from "./test-utils";
 
 const mockClient = apiClient as jest.Mocked<typeof apiClient>;

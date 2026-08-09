@@ -6,7 +6,7 @@
  */
 
 import "./setup";
-import { useAuthStore } from "../store/authStore";
+import { useAuthStore } from "../core/store/authStore";
 
 describe("Auth Store", () => {
   beforeEach(() => {

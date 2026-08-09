@@ -194,6 +194,10 @@ def init_tenant_middleware(app):
         g.tenant_slug = slug
         g.tenant_config = config or {}
 
+        # Set enabled utilities for this tenant (None = all enabled)
+        from .utilities import get_enabled_utilities
+        g.enabled_utilities = get_enabled_utilities(config)
+
         # Capture the original engine on first request
         if _original_engine is None:
             _original_engine = db.engines.get(None)

@@ -12,8 +12,8 @@ import { registerRootComponent } from "expo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet } from "react-native";
-import RootNavigator from "./src/navigation/RootNavigator";
-import AIProvider from "./src/components/AIProvider";
+import RootNavigator from "./src/core/navigation/RootNavigator";
+import AIProvider from "./src/utilities/ai_assistant/components/AIProvider";
 
 const queryClient = new QueryClient({
   defaultOptions: {
