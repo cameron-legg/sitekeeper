@@ -20,6 +20,7 @@ import {
   Modal,
   useWindowDimensions,
 } from "react-native";
+import { BRAND_COLORS } from "../../config/app";
 
 // Screenshot assets
 const screenshots = {
@@ -82,7 +83,10 @@ export default function LandingScreen() {
         {/* ─── Hero ─────────────────────────────────────────────────── */}
         <View style={styles.hero}>
           <View style={styles.heroContent}>
-            <Text style={styles.heroTitle}>JobSyte</Text>
+            <Text style={styles.heroTitle}>
+              <Text style={{ color: "#ffffff" }}>Job</Text>
+              <Text style={{ color: BRAND_COLORS.accent }}>Syte</Text>
+            </Text>
             <Text style={styles.heroTagline}>
               The contractor management app that keeps your jobs, estimates, and
               invoices organized — so you can focus on the work.
@@ -226,7 +230,10 @@ export default function LandingScreen() {
 
         {/* ─── Footer ───────────────────────────────────────────────── */}
         <View style={styles.footer}>
-          <Text style={styles.footerBrand}>JobSyte</Text>
+          <Text style={styles.footerBrand}>
+            <Text style={{ color: "#ffffff" }}>Job</Text>
+            <Text style={{ color: BRAND_COLORS.accent }}>Syte</Text>
+          </Text>
           <Text style={styles.footerText}>
             Contractor management made simple. Built with care for the trades.
           </Text>
@@ -242,7 +249,7 @@ export default function LandingScreen() {
             <Text style={styles.footerSignInText}>Sign In</Text>
           </TouchableOpacity>
           <Text style={styles.footerContact}>
-            Interested in JobSyte for your business? Reach out at cameron.legg@gmail.com
+            Interested in <Text style={{ color: BRAND_COLORS.accent, fontWeight: "600" }}>JobSyte</Text> for your business? Reach out at cameron.legg@gmail.com
           </Text>
         </View>
       </ScrollView>
@@ -432,7 +439,7 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   heroCta: {
-    backgroundColor: "#2563eb",
+    backgroundColor: BRAND_COLORS.accent,
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 8,
@@ -488,7 +495,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   bulletDot: {
-    color: "#2563eb",
+    color: BRAND_COLORS.accent,
     fontSize: 18,
     lineHeight: 22,
     fontWeight: "700",
@@ -675,7 +682,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   modalGoBtn: {
-    backgroundColor: "#2563eb",
+    backgroundColor: BRAND_COLORS.accent,
     paddingHorizontal: 28,
     paddingVertical: 12,
     borderRadius: 8,

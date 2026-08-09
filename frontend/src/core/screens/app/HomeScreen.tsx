@@ -20,6 +20,7 @@ import {
 } from "../../api/hooks/useJobSites";
 import type { JobSite } from "../../api/types";
 import { APP_NAME } from "../../config/app";
+import BrandedTitle from "../../../components/BrandedTitle";
 import { useIsUtilityEnabled } from "../../../utilities";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
@@ -147,7 +148,7 @@ export default function HomeScreen({ navigation }: Props) {
     <SafeAreaView style={styles.flex}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{APP_NAME}</Text>
+        <BrandedTitle fontSize={22} />
         <TouchableOpacity
           style={styles.menuBtn}
           onPress={() => setShowMenu(true)}

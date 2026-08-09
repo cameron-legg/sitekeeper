@@ -13,7 +13,8 @@ import {
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { useLogin } from "../../api/hooks/useAuth";
-import { APP_NAME } from "../../config/app";
+import { BRAND_COLORS } from "../../config/app";
+import BrandedTitle from "../../../components/BrandedTitle";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 
@@ -51,7 +52,7 @@ export default function LoginScreen({ navigation }: Props) {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>{APP_NAME}</Text>
+        <BrandedTitle fontSize={32} style={{ marginBottom: 4 }} />
         <Text style={styles.subtitle}>Sign in to your account</Text>
 
         {error && <Text style={styles.errorBanner}>{error}</Text>}
@@ -158,7 +159,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   button: {
-    backgroundColor: "#2563eb",
+    backgroundColor: "#FC7E1F",
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: "center",
@@ -181,7 +182,7 @@ const styles = StyleSheet.create({
     color: "#6b7280",
   },
   linkAccent: {
-    color: "#2563eb",
+    color: "#FC7E1F",
     fontWeight: "600",
   },
 });
