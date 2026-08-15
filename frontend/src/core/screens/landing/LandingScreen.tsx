@@ -3,6 +3,7 @@
  *
  * Shown when the app is in landing mode (bare domain in production).
  * Features app screenshots, functionality overview, and tenant login directory.
+ * Includes a hamburger menu with About Us, Documentation, and Pricing pages.
  */
 
 import React, { useState } from "react";
@@ -19,8 +20,23 @@ import {
   Platform,
   Modal,
   useWindowDimensions,
+  Pressable,
 } from "react-native";
 import { BRAND_COLORS } from "../../config/app";
+import AboutUsPage from "./AboutUsPage";
+import PricingPage from "./PricingPage";
+import DocumentationPage, { type DocSubPage } from "./DocumentationPage";
+import {
+  ContactsDoc,
+  EstimatesDoc,
+  InvoicesDoc,
+  NotesDoc,
+  TimeTrackingDoc,
+  PhotosDoc,
+  PdfDoc,
+  SavedItemsDoc,
+  AiAssistantDoc,
+} from "./docs";
 
 // Screenshot assets
 const screenshots = {
@@ -37,6 +53,22 @@ const screenshots = {
 // Brand logo
 const logoImage = require("../../../../assets/logo-source.png");
 
+// Page state type
+type LandingPage =
+  | "home"
+  | "about"
+  | "pricing"
+  | "docs"
+  | "doc_contacts"
+  | "doc_estimates"
+  | "doc_invoices"
+  | "doc_notes"
+  | "doc_time_tracking"
+  | "doc_photos"
+  | "doc_pdf"
+  | "doc_saved_items"
+  | "doc_ai_assistant";
+
 export default function LandingScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
@@ -44,6 +76,61 @@ export default function LandingScreen() {
   const [tenantInput, setTenantInput] = useState("");
   const [inputError, setInputError] = useState<string | null>(null);
   const [showSignInModal, setShowSignInModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState<LandingPage>("home");
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Navigation helpers
+  const navigateTo = (page: LandingPage) => {
+    setCurrentPage(page);
+    setMenuOpen(false);
+  };
+
+  const goHome = () => setCurrentPage("home");
+
+  // Render sub-pages
+  if (currentPage === "about") {
+    return <AboutUsPage onBack={goHome} />;
+  }
+  if (currentPage === "pricing") {
+    return <PricingPage onBack={goHome} />;
+  }
+  if (currentPage === "docs") {
+    return (
+      <DocumentationPage
+        onBack={goHome}
+        onNavigateToDoc={(page: DocSubPage) =>
+          setCurrentPage(`doc_${page}` as LandingPage)
+        }
+      />
+    );
+  }
+  if (currentPage === "doc_contacts") {
+    return <ContactsDoc onBack={() => setCurrentPage("docs")} />;
+  }
+  if (currentPage === "doc_estimates") {
+    return <EstimatesDoc onBack={() => setCurrentPage("docs")} />;
+  }
+  if (currentPage === "doc_invoices") {
+    return <InvoicesDoc onBack={() => setCurrentPage("docs")} />;
+  }
+  if (currentPage === "doc_notes") {
+    return <NotesDoc onBack={() => setCurrentPage("docs")} />;
+  }
+  if (currentPage === "doc_time_tracking") {
+    return <TimeTrackingDoc onBack={() => setCurrentPage("docs")} />;
+  }
+  if (currentPage === "doc_photos") {
+    return <PhotosDoc onBack={() => setCurrentPage("docs")} />;
+  }
+  if (currentPage === "doc_pdf") {
+    return <PdfDoc onBack={() => setCurrentPage("docs")} />;
+  }
+  if (currentPage === "doc_saved_items") {
+    return <SavedItemsDoc onBack={() => setCurrentPage("docs")} />;
+  }
+  if (currentPage === "doc_ai_assistant") {
+    return <AiAssistantDoc onBack={() => setCurrentPage("docs")} />;
+  }
 
   // Responsive screenshot size
   const screenshotWidth = isWide ? 340 : isMedium ? 280 : 240;
@@ -93,6 +180,48 @@ export default function LandingScreen() {
         bounces={false}
         overScrollMode="never"
       >
+        {/* ─── Navigation Bar ───────────────────────────────────────── */}
+        <View style={styles.navBar}>
+          <TouchableOpacity onPress={goHome} activeOpacity={0.7}>
+            <Text style={styles.navBrand}>
+              <Text style={{ color: "#ffffff" }}>Job</Text>
+              <Text style={{ color: BRAND_COLORS.accent }}>Syte</Text>
+            </Text>
+          </TouchableOpacity>
+
+          {/* Desktop nav links */}
+          {isWide ? (
+            <View style={styles.navLinks}>
+              <TouchableOpacity onPress={() => navigateTo("about")}>
+                <Text style={styles.navLinkText}>About Us</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigateTo("docs")}>
+                <Text style={styles.navLinkText}>Documentation</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigateTo("pricing")}>
+                <Text style={styles.navLinkText}>Pricing</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.navSignInBtn}
+                onPress={openSignIn}
+              >
+                <Text style={styles.navSignInText}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            /* Hamburger button for mobile/tablet */
+            <TouchableOpacity
+              style={styles.hamburgerBtn}
+              onPress={() => setMenuOpen(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.hamburgerLine} />
+              <View style={styles.hamburgerLine} />
+              <View style={styles.hamburgerLine} />
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* ─── Hero ─────────────────────────────────────────────────── */}
         <View style={[styles.hero, !isWide && !isMedium && styles.heroMobile]}>
           <View style={styles.heroContent}>
@@ -343,6 +472,53 @@ export default function LandingScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ─── Mobile Menu Modal ──────────────────────────────────────── */}
+      <Modal
+        visible={menuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuOpen(false)}
+      >
+        <Pressable style={styles.menuOverlay} onPress={() => setMenuOpen(false)}>
+          <View style={styles.menuPanel}>
+            <TouchableOpacity
+              style={styles.menuCloseBtn}
+              onPress={() => setMenuOpen(false)}
+            >
+              <Text style={styles.menuCloseText}>✕</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigateTo("about")}
+            >
+              <Text style={styles.menuItemText}>About Us</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigateTo("docs")}
+            >
+              <Text style={styles.menuItemText}>Documentation</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigateTo("pricing")}
+            >
+              <Text style={styles.menuItemText}>Pricing</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuSignInBtn}
+              onPress={() => {
+                setMenuOpen(false);
+                openSignIn();
+              }}
+            >
+              <Text style={styles.menuSignInText}>Sign In</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -476,6 +652,115 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 0,
     backgroundColor: "#0f172a",
+  },
+
+  // ─── Navigation Bar ──────────────────────────────────────────────────────
+  navBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: "#0f172a",
+    borderBottomWidth: 1,
+    borderBottomColor: "#1e293b",
+  },
+  navBrand: {
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: 0.3,
+  },
+  navLinks: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 28,
+  },
+  navLinkText: {
+    fontSize: 15,
+    color: "#e2e8f0",
+    fontWeight: "500",
+  },
+  navSignInBtn: {
+    backgroundColor: BRAND_COLORS.accent,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  navSignInText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  hamburgerBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+  },
+  hamburgerLine: {
+    width: 22,
+    height: 2.5,
+    backgroundColor: "#e2e8f0",
+    borderRadius: 2,
+  },
+
+  // ─── Mobile Menu ─────────────────────────────────────────────────────────
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+  },
+  menuPanel: {
+    backgroundColor: "#1e293b",
+    width: 260,
+    paddingTop: 20,
+    paddingBottom: 32,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 16,
+    marginTop: 0,
+    shadowColor: "#000",
+    shadowOffset: { width: -4, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  menuCloseBtn: {
+    alignSelf: "flex-end",
+    paddingBottom: 16,
+  },
+  menuCloseText: {
+    fontSize: 22,
+    color: "#94a3b8",
+    fontWeight: "600",
+  },
+  menuItem: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#334155",
+  },
+  menuItemText: {
+    fontSize: 17,
+    color: "#f1f5f9",
+    fontWeight: "600",
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: "#334155",
+    marginVertical: 8,
+  },
+  menuSignInBtn: {
+    backgroundColor: BRAND_COLORS.accent,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  menuSignInText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "700",
   },
 
   // ─── Hero ────────────────────────────────────────────────────────────────
