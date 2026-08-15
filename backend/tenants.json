@@ -22,5 +22,11 @@
         "bucket": "tilecraft",
         "domain": "tilecraft.jobsyte.app",
         "name": "TileCraft"
+    },
+    "demo": {
+        "database_url": "postgresql://sitekeeper:sitekeeper@localhost:5435/sk_demo",
+        "bucket": "demo",
+        "domain": "demo.jobsyte.app",
+        "name": "Demo"
     }
 }
