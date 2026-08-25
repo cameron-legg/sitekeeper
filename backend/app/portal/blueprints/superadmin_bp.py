@@ -155,9 +155,22 @@ def _fetch_tenant_metrics(db_url: str, db_name: str, bucket: str) -> dict:
             # Jobs
             metrics["jobs"] = conn.execute(text("SELECT COUNT(*) FROM jobs")).scalar() or 0
 
-            # Paid invoice total (sum of all invoices with status = 'paid')
+            # Paid invoice total — computed from line item entries for invoices with status = 'paid'
             paid_total = conn.execute(
-                text("SELECT COALESCE(SUM(total_cost), 0) FROM invoices WHERE status = 'paid'")
+                text("""
+                    SELECT COALESCE(SUM(
+                        CASE
+                            WHEN e.entry_type = 'material' THEN COALESCE(e.unit_price, 0) * COALESCE(e.quantity, 0)
+                            WHEN e.entry_type = 'hours' THEN COALESCE(e.hours, 0) * COALESCE(li.hourly_rate, 0)
+                            WHEN e.entry_type = 'fee' THEN COALESCE(e.unit_price, 0) * COALESCE(e.quantity, 1)
+                            ELSE 0
+                        END
+                    ), 0)
+                    FROM invoices i
+                    JOIN line_items li ON li.parent_id = i.id AND li.parent_type = 'invoice'
+                    JOIN line_item_entries e ON e.line_item_id = li.id
+                    WHERE i.status = 'paid'
+                """)
             ).scalar()
             metrics["paid_invoice_total"] = float(paid_total or 0)
 
