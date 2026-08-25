@@ -94,12 +94,11 @@ class TestProtectedEndpoints:
 
     def test_unapproved_user_gets_403(self, client, app, db_session, create_user):
         """Pending (unapproved) user gets 403 on protected endpoints."""
-        from app.auth.email_password import EmailPasswordAuthService
+        from app.shared_auth import issue_token
         pending = create_user(email="pending@test.com", role="member", is_approved=False)
 
         with app.app_context():
-            auth = EmailPasswordAuthService()
-            token = auth._issue_token(str(pending.id))
+            token = issue_token(str(pending.id))
 
         resp = client.get("/api/v1/job-sites", headers={
             "Authorization": f"Bearer {token}",
