@@ -231,14 +231,17 @@ def delete_tenant(slug: str):
 @portal_tenants_bp.get("/tenants/<slug>/metrics")
 @platform_auth_required
 def get_tenant_metrics(slug: str):
-    """Get usage metrics for a tenant.
+    """Get live usage metrics for a tenant.
 
-    Returns the most recent metrics snapshot.
+    Queries the tenant database directly for up-to-date counts.
 
     Responses:
-        200  { users_count, logins_30d, job_sites_count, jobs_count, storage_bytes, recorded_at }
+        200  { users_count, job_sites_count, jobs_count, estimates_count, invoices_count }
         404  tenant not found
     """
+    import os
+    from sqlalchemy import create_engine, text
+
     session = get_platform_session()
     try:
         tenant = (
@@ -249,30 +252,31 @@ def get_tenant_metrics(slug: str):
         if tenant is None:
             return _error("NOT_FOUND", "Tenant not found.", status=404)
 
-        latest_metrics = (
-            session.query(TenantMetrics)
-            .filter_by(tenant_id=tenant.id)
-            .order_by(TenantMetrics.recorded_at.desc())
-            .first()
+        # Build the tenant DB URL
+        base_url = os.environ.get(
+            "BASE_DATABASE_URL",
+            "postgresql://sitekeeper:sitekeeper@localhost:5434",
         )
+        tenant_db_url = f"{base_url}/{tenant.database_name}"
 
-        if latest_metrics is None:
-            return jsonify({
-                "users_count": 0,
-                "logins_30d": 0,
-                "job_sites_count": 0,
-                "jobs_count": 0,
-                "storage_bytes": 0,
-                "recorded_at": None,
-            }), 200
+        # Query the tenant DB directly for live metrics
+        engine = create_engine(tenant_db_url)
+        try:
+            with engine.connect() as conn:
+                users_count = conn.execute(text("SELECT COUNT(*) FROM users")).scalar() or 0
+                job_sites_count = conn.execute(text("SELECT COUNT(*) FROM job_sites")).scalar() or 0
+                jobs_count = conn.execute(text("SELECT COUNT(*) FROM jobs")).scalar() or 0
+                estimates_count = conn.execute(text("SELECT COUNT(*) FROM estimates")).scalar() or 0
+                invoices_count = conn.execute(text("SELECT COUNT(*) FROM invoices")).scalar() or 0
+        finally:
+            engine.dispose()
 
         return jsonify({
-            "users_count": latest_metrics.users_count,
-            "logins_30d": latest_metrics.logins_30d,
-            "job_sites_count": latest_metrics.job_sites_count,
-            "jobs_count": latest_metrics.jobs_count,
-            "storage_bytes": latest_metrics.storage_bytes,
-            "recorded_at": latest_metrics.recorded_at.isoformat(),
+            "users_count": users_count,
+            "job_sites_count": job_sites_count,
+            "jobs_count": jobs_count,
+            "estimates_count": estimates_count,
+            "invoices_count": invoices_count,
         }), 200
     finally:
         session.close()

@@ -53,11 +53,10 @@ export interface PortalTenant {
 
 export interface TenantMetrics {
   users_count: number;
-  logins_30d: number;
   job_sites_count: number;
   jobs_count: number;
-  storage_bytes: number;
-  recorded_at: string | null;
+  estimates_count: number;
+  invoices_count: number;
 }
 
 // Hooks

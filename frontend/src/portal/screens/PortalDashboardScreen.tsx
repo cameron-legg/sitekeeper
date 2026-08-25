@@ -21,8 +21,60 @@ import {
   usePortalTenants,
   useCreateTenant,
   useDeleteTenant,
+  useTenantMetrics,
   type PortalTenant,
 } from "../api/hooks/usePortalTenants";
+
+// Sub-component that fetches and displays metrics for a single tenant
+function TenantCard({
+  tenant,
+  onOpen,
+  onDelete,
+}: {
+  tenant: PortalTenant;
+  onOpen: (t: PortalTenant) => void;
+  onDelete: (slug: string) => void;
+}) {
+  const { data: metrics } = useTenantMetrics(tenant.slug);
+
+  return (
+    <View style={styles.tenantCard}>
+      <View style={styles.tenantInfo}>
+        <Text style={styles.tenantName}>{tenant.name}</Text>
+        <Text style={styles.tenantDomain}>{tenant.domain}</Text>
+        <View style={styles.badgeRow}>
+          <View style={[styles.badge, tenant.status === "active" && styles.badgeActive]}>
+            <Text style={styles.badgeText}>{tenant.status}</Text>
+          </View>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{tenant.plan}</Text>
+          </View>
+        </View>
+        {metrics && (
+          <View style={styles.metricsRow}>
+            <Text style={styles.metricItem}>{metrics.users_count} users</Text>
+            <Text style={styles.metricDot}>·</Text>
+            <Text style={styles.metricItem}>{metrics.job_sites_count} sites</Text>
+            <Text style={styles.metricDot}>·</Text>
+            <Text style={styles.metricItem}>{metrics.jobs_count} jobs</Text>
+            <Text style={styles.metricDot}>·</Text>
+            <Text style={styles.metricItem}>{metrics.estimates_count} est.</Text>
+            <Text style={styles.metricDot}>·</Text>
+            <Text style={styles.metricItem}>{metrics.invoices_count} inv.</Text>
+          </View>
+        )}
+      </View>
+      <View style={styles.tenantActions}>
+        <TouchableOpacity style={styles.openBtn} onPress={() => onOpen(tenant)}>
+          <Text style={styles.openBtnText}>Open</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(tenant.slug)}>
+          <Text style={styles.deleteBtnText}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
 
 export default function PortalDashboardScreen() {
   const { name, email, clearAuth } = usePortalAuthStore();
@@ -71,36 +123,7 @@ export default function PortalDashboardScreen() {
   }
 
   function renderTenant({ item }: { item: PortalTenant }) {
-    return (
-      <View style={styles.tenantCard}>
-        <View style={styles.tenantInfo}>
-          <Text style={styles.tenantName}>{item.name}</Text>
-          <Text style={styles.tenantDomain}>{item.domain}</Text>
-          <View style={styles.badgeRow}>
-            <View style={[styles.badge, item.status === "active" && styles.badgeActive]}>
-              <Text style={styles.badgeText}>{item.status}</Text>
-            </View>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{item.plan}</Text>
-            </View>
-          </View>
-        </View>
-        <View style={styles.tenantActions}>
-          <TouchableOpacity
-            style={styles.openBtn}
-            onPress={() => openTenant(item)}
-          >
-            <Text style={styles.openBtnText}>Open</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.deleteBtn}
-            onPress={() => handleDelete(item.slug)}
-          >
-            <Text style={styles.deleteBtnText}>Delete</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
+    return <TenantCard tenant={item} onOpen={openTenant} onDelete={handleDelete} />;
   }
 
   return (
@@ -249,6 +272,9 @@ const styles = StyleSheet.create({
   },
   badgeActive: { backgroundColor: "#065f46" },
   badgeText: { fontSize: 11, color: "#e2e8f0", fontWeight: "500" },
+  metricsRow: { flexDirection: "row", marginTop: 8, flexWrap: "wrap", alignItems: "center" },
+  metricItem: { fontSize: 12, color: "#94a3b8" },
+  metricDot: { fontSize: 12, color: "#475569", marginHorizontal: 4 },
   tenantActions: { gap: 8 },
   openBtn: {
     backgroundColor: BRAND_COLORS.accent,
