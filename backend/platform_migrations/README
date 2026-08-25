@@ -1,0 +1,9 @@
+Platform database migrations (sk_platform).
+
+These migrations target the platform/control-plane database only.
+They are completely independent from tenant migrations in migrations/.
+
+Run with:
+    cd backend
+    PLATFORM_DATABASE_URL=postgresql://sitekeeper:sitekeeper@localhost:5434/sk_platform \
+        venv/bin/alembic -c alembic_platform.ini upgrade head

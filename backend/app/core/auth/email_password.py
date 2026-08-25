@@ -4,17 +4,21 @@ Concrete implementation of IAuthService using:
 - bcrypt (via flask-bcrypt) for password hashing — bcrypt generates a unique
   per-password salt internally, so no separate salt column is needed.
 - PyJWT for issuing and validating JWT access tokens.
+
+All cryptographic operations are delegated to app.shared_auth so that
+both tenant and platform auth share the same primitives.
 """
 
 import re
-from datetime import datetime, timezone, timedelta
 
-import jwt
-from flask import current_app
-
-from ...extensions import bcrypt, db
+from ...extensions import db
 from ...models import User
-from .interface import AuthError, AuthResult, IAuthService
+from ...shared_auth import check_password, hash_password, issue_token, validate_token
+from ...shared_auth.errors import AuthError
+from .interface import AuthResult, IAuthService
+
+# Re-export AuthError so existing imports from this module still work
+AuthError = AuthError  # noqa: F811
 
 # Simple but robust email regex (RFC 5321 local-part + domain)
 _EMAIL_RE = re.compile(
@@ -48,8 +52,8 @@ class EmailPasswordAuthService(IAuthService):
                 "Email address is already in use.", code="EMAIL_IN_USE"
             )
 
-        password_hash = bcrypt.generate_password_hash(password).decode("utf-8")
-        user = User(email=email, password_hash=password_hash)
+        pw_hash = hash_password(password)
+        user = User(email=email, password_hash=pw_hash)
 
         # First user in the database becomes admin and is auto-approved.
         # Subsequent users are members and must be approved by the admin.
@@ -64,7 +68,7 @@ class EmailPasswordAuthService(IAuthService):
         db.session.add(user)
         db.session.commit()
 
-        token = self._issue_token(str(user.id))
+        token = issue_token(str(user.id))
         return AuthResult(
             user_id=str(user.id),
             token=token,
@@ -84,12 +88,10 @@ class EmailPasswordAuthService(IAuthService):
         email = email.strip().lower()
         user = User.query.filter_by(email=email).first()
 
-        if user is None or not bcrypt.check_password_hash(
-            user.password_hash, password
-        ):
+        if user is None or not check_password(password, user.password_hash):
             raise AuthError(_INVALID_CREDENTIALS_MSG, code="INVALID_CREDENTIALS")
 
-        token = self._issue_token(str(user.id))
+        token = issue_token(str(user.id))
         return AuthResult(
             user_id=str(user.id),
             token=token,
@@ -100,31 +102,17 @@ class EmailPasswordAuthService(IAuthService):
     def validate_token(self, token: str) -> str:
         """Decode and validate a JWT, returning the user_id.
 
+        Rejects tokens with the 'platform' claim (those are portal tokens
+        and cannot be used for tenant access).
+
         Raises:
             AuthError (code TOKEN_EXPIRED): token has expired.
             AuthError (code TOKEN_INVALID): token is malformed or tampered.
         """
-        secret = current_app.config["JWT_SECRET"]
-        try:
-            payload = jwt.decode(token, secret, algorithms=["HS256"])
-            return payload["sub"]
-        except jwt.ExpiredSignatureError:
-            raise AuthError("Token has expired.", code="TOKEN_EXPIRED")
-        except (jwt.InvalidTokenError, KeyError):
+        payload = validate_token(token)
+
+        # Reject platform portal tokens — they cannot access tenant routes
+        if payload.get("platform"):
             raise AuthError("Invalid token.", code="TOKEN_INVALID")
 
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
-
-    def _issue_token(self, user_id: str) -> str:
-        """Create a signed JWT for the given user_id."""
-        secret = current_app.config["JWT_SECRET"]
-        expiry_seconds = current_app.config["JWT_EXPIRY_SECONDS"]
-        now = datetime.now(tz=timezone.utc)
-        payload = {
-            "sub": user_id,
-            "iat": now,
-            "exp": now + timedelta(seconds=expiry_seconds),
-        }
-        return jwt.encode(payload, secret, algorithm="HS256")
+        return payload["sub"]

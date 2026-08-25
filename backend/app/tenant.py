@@ -1,17 +1,22 @@
 """Multi-tenant resolution and database routing.
 
 Each tenant is identified by their subdomain (e.g. 'nocoresources' from
-'nocoresources.entouch.org'). The tenant config maps subdomains to their
+'nocoresources.jobsyte.app'). The tenant config maps subdomains to their
 dedicated database and MinIO bucket.
 
 On each request, middleware extracts the tenant from the Host header and
 swaps the SQLAlchemy engine so all queries (db.session and Model.query)
 hit the correct tenant database.
+
+Tenant data source priority:
+1. Platform database (sk_platform.tenants table) — primary source
+2. tenants.json file — fallback during migration period
 """
 
 import json
 import logging
 import os
+import time
 from pathlib import Path
 
 from flask import g, request
@@ -19,7 +24,7 @@ from sqlalchemy import create_engine
 
 logger = logging.getLogger(__name__)
 
-# Path to the tenant registry file
+# Path to the tenant registry file (fallback during transition)
 TENANTS_FILE = os.environ.get(
     "TENANTS_FILE",
     str(Path(__file__).resolve().parent.parent / "tenants.json"),
@@ -35,36 +40,113 @@ BASE_DATABASE_URL = os.environ.get(
 # Fallback tenant slug when running locally without subdomains
 DEFAULT_TENANT = os.environ.get("DEFAULT_TENANT", "default")
 
-# Cache of loaded tenant configs
-_tenants_cache: dict | None = None
-_tenants_mtime: float = 0
+# ---------------------------------------------------------------------------
+# Tenant cache — populated from platform DB or JSON fallback
+# ---------------------------------------------------------------------------
+
+# Cache: slug → config dict {database_url, bucket, domain, name, utilities}
+_tenant_cache: dict = {}
+_cache_updated_at: float = 0
+CACHE_TTL_SECONDS = 60  # Refresh from platform DB every 60 seconds
 
 # Cache of per-tenant SQLAlchemy engines
 _engines: dict = {}
 
+# Fallback: JSON file cache (used when platform DB is unavailable)
+_json_cache: dict | None = None
+_json_mtime: float = 0
 
-def _load_tenants() -> dict:
-    """Load and cache the tenants registry from disk.
+
+def invalidate_tenant_cache():
+    """Clear the tenant cache. Called after tenant creation or deletion."""
+    global _tenant_cache, _cache_updated_at
+    _tenant_cache = {}
+    _cache_updated_at = 0
+
+
+def _load_tenants_from_platform() -> dict | None:
+    """Load active tenants from the platform database.
+
+    Returns a dict in the same format as the old tenants.json:
+        { slug: { database_url, bucket, domain, name, utilities } }
+
+    Returns None if the platform DB is not available.
+    """
+    try:
+        from .portal.platform_db import get_platform_session, is_platform_db_available
+
+        if not is_platform_db_available():
+            return None
+
+        from .portal.models import Tenant
+
+        session = get_platform_session()
+        try:
+            tenants = session.query(Tenant).filter_by(status="active").all()
+            result = {}
+            for t in tenants:
+                result[t.slug] = {
+                    "database_url": f"{BASE_DATABASE_URL}/{t.database_name}",
+                    "bucket": t.bucket,
+                    "domain": t.domain,
+                    "name": t.name,
+                    "utilities": t.enabled_utilities,
+                }
+            return result
+        finally:
+            session.close()
+    except Exception as e:
+        logger.warning("Failed to load tenants from platform DB: %s", e)
+        return None
+
+
+def _load_tenants_from_json() -> dict:
+    """Load tenants from the JSON file (fallback).
 
     The file is re-read if it has been modified since last load.
     """
-    global _tenants_cache, _tenants_mtime
+    global _json_cache, _json_mtime
 
     try:
         mtime = os.path.getmtime(TENANTS_FILE)
     except OSError:
-        logger.warning("Tenants file not found at %s — using empty registry", TENANTS_FILE)
-        _tenants_cache = {}
-        return _tenants_cache
+        logger.debug("Tenants file not found at %s", TENANTS_FILE)
+        _json_cache = {}
+        return _json_cache
 
-    if _tenants_cache is not None and mtime <= _tenants_mtime:
-        return _tenants_cache
+    if _json_cache is not None and mtime <= _json_mtime:
+        return _json_cache
 
     with open(TENANTS_FILE, "r") as f:
-        _tenants_cache = json.load(f)
-    _tenants_mtime = mtime
-    logger.info("Loaded %d tenant(s) from %s", len(_tenants_cache), TENANTS_FILE)
-    return _tenants_cache
+        _json_cache = json.load(f)
+    _json_mtime = mtime
+    logger.info("Loaded %d tenant(s) from %s", len(_json_cache), TENANTS_FILE)
+    return _json_cache
+
+
+def _load_tenants() -> dict:
+    """Load tenants with platform DB as primary, JSON as fallback.
+
+    Uses a time-based cache to avoid querying the platform DB on every request.
+    """
+    global _tenant_cache, _cache_updated_at
+
+    now = time.time()
+    if _tenant_cache and (now - _cache_updated_at) < CACHE_TTL_SECONDS:
+        return _tenant_cache
+
+    # Try platform DB first
+    platform_tenants = _load_tenants_from_platform()
+    if platform_tenants is not None:
+        _tenant_cache = platform_tenants
+        _cache_updated_at = now
+        return _tenant_cache
+
+    # Fallback to JSON file
+    json_tenants = _load_tenants_from_json()
+    _tenant_cache = json_tenants
+    _cache_updated_at = now
+    return _tenant_cache
 
 
 def get_tenant_config(slug: str) -> dict | None:
@@ -77,9 +159,9 @@ def resolve_tenant_slug() -> str:
     """Extract the tenant slug from the current request's Host header.
 
     Examples:
-        nocoresources.entouch.org → 'nocoresources'
+        nocoresources.jobsyte.app → 'nocoresources'
         localhost:5000 → DEFAULT_TENANT
-        entouch.org → 'default'
+        jobsyte.app → 'default'
         10.0.0.5:5000 → DEFAULT_TENANT (IP address)
         192.168.1.100:5000 → DEFAULT_TENANT (IP address)
     """
@@ -102,7 +184,7 @@ def resolve_tenant_slug() -> str:
             return DEFAULT_TENANT
         return subdomain
 
-    # Bare domain (entouch.org) — treat as default
+    # Bare domain (jobsyte.app) — treat as default
     return DEFAULT_TENANT
 
 
@@ -115,7 +197,7 @@ def get_tenant_database_url(slug: str) -> str:
     """
     if slug == DEFAULT_TENANT:
         # Use the app's configured DATABASE_URL (from .env / Config)
-        # This avoids tenants.json needing to match local dev ports
+        # This avoids needing the platform DB to match local dev ports
         return None
 
     config = get_tenant_config(slug)

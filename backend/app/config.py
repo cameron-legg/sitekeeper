@@ -58,6 +58,17 @@ class Config:
     DEBUG: bool = os.environ.get("FLASK_DEBUG", "0") == "1"
     MAX_CONTENT_LENGTH: int = int(os.environ.get("MAX_CONTENT_LENGTH", str(25 * 1024 * 1024)))  # 25 MB
 
+    # Platform database (sk_platform) — control-plane for tenant management
+    # Set to a PostgreSQL URL pointing at the sk_platform database.
+    # If unset, portal features gracefully degrade and tenant.py falls back to tenants.json.
+    PLATFORM_DATABASE_URL: str = os.environ.get("PLATFORM_DATABASE_URL", "")
+
+    # Base database URL (without db name) — used for tenant DB construction
+    BASE_DATABASE_URL: str = os.environ.get(
+        "BASE_DATABASE_URL",
+        "postgresql://sitekeeper:sitekeeper@localhost:5434",
+    )
+
     # OpenAI (for AI assistant features)
     OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "")
     OPENAI_MODEL: str = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")

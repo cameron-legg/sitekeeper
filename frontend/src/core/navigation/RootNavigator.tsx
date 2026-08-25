@@ -1,18 +1,18 @@
 /**
  * RootNavigator — top-level navigation structure.
  *
- * Three-way routing:
- * 1. Landing mode (LANDING_MODE=true on backend, or EXPO_PUBLIC_FORCE_MODE=landing):
- *    Shows the public landing page with tenant directory.
- * 2. Tenant mode, unauthenticated: Shows AuthStack (Login/Register).
- * 3. Tenant mode, authenticated: Shows AppStack (all app screens).
+ * Four-way routing:
+ * 1. Landing mode, no platform token: Shows the public landing page.
+ * 2. Landing mode, with platform token: Shows the Portal dashboard.
+ * 3. Tenant mode, unauthenticated: Shows AuthStack (Login/Register).
+ * 4. Tenant mode, authenticated: Shows AppStack (all app screens).
  *
  * Utility screens are dynamically registered based on the tenant's enabled utilities.
  * The mode is determined by calling GET /api/v1/context on boot.
  * Web URL routing is configured via the `linking` prop.
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { NavigationContainer, LinkingOptions } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -25,6 +25,12 @@ import { useEnabledUtilityManifests } from "../../utilities";
 
 // Landing screen
 import LandingScreen from "../screens/landing/LandingScreen";
+
+// Portal screens
+import { usePortalAuthStore } from "../../portal/store/portalAuthStore";
+import PortalSignupScreen from "../../portal/screens/PortalSignupScreen";
+import PortalLoginScreen from "../../portal/screens/PortalLoginScreen";
+import PortalDashboardScreen from "../../portal/screens/PortalDashboardScreen";
 
 // Auth screens
 import LoginScreen from "../screens/auth/LoginScreen";
@@ -78,11 +84,16 @@ const linking: LinkingOptions<RootStackParamList> = {
 export default function RootNavigator() {
   const token = useAuthStore((s) => s.token);
   const hydrated = useAuthStore((s) => s._hydrated);
+  const portalToken = usePortalAuthStore((s) => s.token);
+  const portalHydrated = usePortalAuthStore((s) => s._hydrated);
   const { data: appContext, isLoading: contextLoading, isError } = useAppContext();
   const enabledUtilities = useEnabledUtilityManifests();
 
-  // Wait for both the auth store to rehydrate and the context call to resolve.
-  if (!hydrated || contextLoading) {
+  // Portal auth flow state (for landing mode → signup/login screens)
+  const [portalAuthPage, setPortalAuthPage] = useState<"none" | "signup" | "login">("none");
+
+  // Wait for both auth stores to rehydrate and the context call to resolve.
+  if (!hydrated || !portalHydrated || contextLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#2563eb" />
@@ -96,9 +107,34 @@ export default function RootNavigator() {
     // Fall through to tenant mode
   }
 
-  // Landing mode — show the public landing page
+  // Landing mode — show portal or landing page
   if (appContext?.mode === "landing") {
-    return <LandingScreen />;
+    // If the user has a portal token, show the dashboard
+    if (portalToken) {
+      return <PortalDashboardScreen />;
+    }
+
+    // If the user clicked "Get Started" or "Sign In", show portal auth screens
+    if (portalAuthPage === "signup") {
+      return (
+        <PortalSignupScreen
+          onSwitchToLogin={() => setPortalAuthPage("login")}
+          onBack={() => setPortalAuthPage("none")}
+        />
+      );
+    }
+    if (portalAuthPage === "login") {
+      return (
+        <PortalLoginScreen
+          onSwitchToSignup={() => setPortalAuthPage("signup")}
+          onBack={() => setPortalAuthPage("none")}
+        />
+      );
+    }
+
+    // Show the landing page — override the "Get Started" / "Sign In" behavior
+    // by wrapping LandingScreen with portal navigation callbacks
+    return <LandingScreen onGetStarted={() => setPortalAuthPage("signup")} onSignIn={() => setPortalAuthPage("login")} />;
   }
 
   // Tenant mode — standard auth-gated navigation

@@ -69,7 +69,7 @@ type LandingPage =
   | "doc_saved_items"
   | "doc_ai_assistant";
 
-export default function LandingScreen() {
+export default function LandingScreen({ onGetStarted, onSignIn }: { onGetStarted?: () => void; onSignIn?: () => void } = {}) {
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
   const isMedium = width >= 520 && width < 900;
@@ -167,6 +167,10 @@ export default function LandingScreen() {
   }
 
   const openSignIn = () => {
+    if (onSignIn) {
+      onSignIn();
+      return;
+    }
     setTenantInput("");
     setInputError(null);
     setShowSignInModal(true);
@@ -244,7 +248,7 @@ export default function LandingScreen() {
             </Text>
             <TouchableOpacity
               style={styles.heroCta}
-              onPress={openSignIn}
+              onPress={onGetStarted || openSignIn}
               activeOpacity={0.75}
             >
               <Text style={styles.heroCtaText}>Get Started</Text>

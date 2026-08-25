@@ -37,12 +37,23 @@ def create_app(config=None):
     bcrypt.init_app(app)
 
     # CORS — allow origins from CORS_ORIGINS env var (comma-separated).
+    # flask-cors supports regex strings natively (e.g. r"https://.*\.jobsyte\.app").
+    # Use a wildcard pattern to avoid needing to update CORS for each new tenant.
     cors_origins = app.config.get("CORS_ORIGINS", "*")
     if cors_origins == "*":
         origins = "*"
     else:
         origins = [o.strip() for o in cors_origins.split(",")]
     CORS(app, origins=origins, supports_credentials=True)
+
+    # Platform database (sk_platform) — dedicated connection for portal features
+    if not app.config.get("TESTING"):
+        from .portal.platform_db import init_platform_db, remove_platform_session
+        init_platform_db(app)
+
+        @app.teardown_appcontext
+        def _remove_platform_session(exception=None):
+            remove_platform_session()
 
     # Multi-tenant middleware (skip in test mode for simplicity)
     if not app.config.get("TESTING"):
@@ -92,6 +103,13 @@ def create_app(config=None):
     # ── Utility blueprints (toggleable per tenant) ───────────────────────
     from .utilities import register_all_utilities
     register_all_utilities(app)
+
+    # ── Portal blueprints (platform control plane) ───────────────────────
+    from .portal.blueprints.portal_auth_bp import portal_auth_bp
+    from .portal.blueprints.portal_tenants_bp import portal_tenants_bp
+
+    app.register_blueprint(portal_auth_bp, url_prefix="/api/v1/portal")
+    app.register_blueprint(portal_tenants_bp, url_prefix="/api/v1/portal")
 
     # Health check endpoint
     @app.route("/api/v1/health")

@@ -141,17 +141,58 @@ deploy_backend() {
             -r $APP_DIR/backend/requirements.txt gunicorn 2>&1 | tail -3
     "
 
-    info "  Running database migrations (all tenants)..."
+    info "  Running platform infrastructure migrations (create platform DB, seed tenants)..."
+    ssh "$SSH_HOST" "
+        sudo -u sitekeeper bash -c '
+            cd $APP_DIR &&
+            set -a && source backend/.env && set +a &&
+            backend/venv/bin/python infra/platform_migrations/runner.py 2>&1
+        '
+    " && info "  Platform infrastructure migrations complete." \
+      || warn "  Platform infrastructure migrations had issues (check logs)."
+
+    info "  Running nginx wildcard migration (if needed)..."
+    ssh "$SSH_HOST" "
+        sudo bash $APP_DIR/infra/platform_migrations/003_nginx_wildcard.sh 2>&1
+    " && info "  Nginx wildcard config applied." \
+      || warn "  Nginx migration had issues (non-fatal, check logs)."
+
+    info "  Running platform database schema migrations (Alembic)..."
     ssh "$SSH_HOST" "
         sudo -u sitekeeper bash -c '
             cd $APP_DIR/backend &&
             set -a && source .env && set +a &&
-            for db_url in \$(python3 -c \"
-import json
-with open(\\\"tenants.json\\\") as f:
-    tenants = json.load(f)
-for t in tenants.values():
-    print(t[\\\"database_url\\\"])
+            PLATFORM_DATABASE_URL=\$PLATFORM_DATABASE_URL \
+            $APP_DIR/backend/venv/bin/alembic -c alembic_platform.ini upgrade head 2>&1
+        '
+    " && info "  Platform schema migrations complete." \
+      || warn "  Platform schema migrations had issues (check logs)."
+
+    info "  Running tenant database migrations (all active tenants)..."
+    ssh "$SSH_HOST" "
+        sudo -u sitekeeper bash -c '
+            cd $APP_DIR/backend &&
+            set -a && source .env && set +a &&
+            for db_url in \$(venv/bin/python -c \"
+import sys, os
+sys.path.insert(0, \\\".\\\")
+# Try platform DB first, fall back to tenants.json
+try:
+    import psycopg2
+    conn = psycopg2.connect(os.environ.get(\\\"PLATFORM_DATABASE_URL\\\", \\\"\\\"))
+    cur = conn.cursor()
+    cur.execute(\\\"SELECT database_name FROM tenants WHERE status = \\\\\\\"active\\\\\\\"\\\")
+    base = os.environ.get(\\\"BASE_DATABASE_URL\\\", \\\"postgresql://sitekeeper:sitekeeper@localhost:5435\\\")
+    for row in cur.fetchall():
+        print(f\\\"{base}/{row[0]}\\\")
+    cur.close()
+    conn.close()
+except Exception:
+    import json
+    with open(\\\"tenants.json\\\") as f:
+        tenants = json.load(f)
+    for t in tenants.values():
+        print(t[\\\"database_url\\\"])
 \"); do
                 echo \"  Migrating: \$db_url\"
                 DATABASE_URL=\"\$db_url\" $APP_DIR/backend/venv/bin/alembic upgrade head 2>&1

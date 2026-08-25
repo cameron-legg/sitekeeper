@@ -8,14 +8,8 @@ without touching any other part of the codebase.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-
-class AuthError(Exception):
-    """Raised by auth service methods when an operation fails."""
-
-    def __init__(self, message: str, code: str = "AUTH_ERROR"):
-        super().__init__(message)
-        self.message = message
-        self.code = code
+# Re-export AuthError from shared_auth so existing imports still work
+from ...shared_auth.errors import AuthError  # noqa: F401
 
 
 @dataclass

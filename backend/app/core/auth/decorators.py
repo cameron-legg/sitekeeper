@@ -15,7 +15,7 @@ from functools import wraps
 from flask import g, jsonify, request
 
 from .email_password import EmailPasswordAuthService
-from .interface import AuthError  # noqa: F401
+from ...shared_auth.errors import AuthError  # noqa: F401
 
 # Module-level service instance — stateless, safe to share
 _auth_service = EmailPasswordAuthService()
