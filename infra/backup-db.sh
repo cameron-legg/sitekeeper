@@ -56,16 +56,43 @@ command -v python3 >/dev/null 2>&1 || die "python3 not found."
 # ── Create backup directory ───────────────────────────────────────────────────
 mkdir -p "$BACKUP_DIR"
 
-# ── Discover databases from tenants.json ──────────────────────────────────────
+# ── Discover databases from platform DB (fallback: tenants.json) ──────────────
 DATABASES=$(python3 -c "
-import json, urllib.parse
-with open('$TENANTS_FILE') as f:
-    tenants = json.load(f)
-for slug, cfg in tenants.items():
-    url = cfg['database_url']
-    # Extract database name from the URL
-    db_name = url.rsplit('/', 1)[-1]
-    print(db_name)
+import json, os
+
+# Try platform DB first (includes tenants created via the portal)
+try:
+    import psycopg2
+    platform_url = os.environ.get('PLATFORM_DATABASE_URL', '')
+    if not platform_url:
+        # Try to read from .env file
+        env_file = '$APP_DIR/backend/.env'
+        if os.path.exists(env_file):
+            with open(env_file) as f:
+                for line in f:
+                    if line.startswith('PLATFORM_DATABASE_URL='):
+                        platform_url = line.strip().split('=', 1)[1]
+                        break
+    if platform_url:
+        conn = psycopg2.connect(platform_url)
+        cur = conn.cursor()
+        cur.execute(\"SELECT database_name FROM tenants WHERE status = 'active'\")
+        for row in cur.fetchall():
+            print(row[0])
+        cur.close()
+        conn.close()
+        print('sk_platform')
+    else:
+        raise Exception('No PLATFORM_DATABASE_URL')
+except Exception:
+    # Fallback to tenants.json
+    with open('$TENANTS_FILE') as f:
+        tenants = json.load(f)
+    for slug, cfg in tenants.items():
+        url = cfg['database_url']
+        db_name = url.rsplit('/', 1)[-1]
+        print(db_name)
+    print('sk_platform')
 ")
 
 if [[ -z "$DATABASES" ]]; then
