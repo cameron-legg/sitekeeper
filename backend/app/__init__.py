@@ -107,9 +107,11 @@ def create_app(config=None):
     # ── Portal blueprints (platform control plane) ───────────────────────
     from .portal.blueprints.portal_auth_bp import portal_auth_bp
     from .portal.blueprints.portal_tenants_bp import portal_tenants_bp
+    from .portal.blueprints.superadmin_bp import superadmin_bp
 
     app.register_blueprint(portal_auth_bp, url_prefix="/api/v1/portal")
     app.register_blueprint(portal_tenants_bp, url_prefix="/api/v1/portal")
+    app.register_blueprint(superadmin_bp, url_prefix="/api/v1/superadmin")
 
     # Health check endpoint
     @app.route("/api/v1/health")

@@ -13,7 +13,7 @@
  */
 
 import React, { useState } from "react";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { View, ActivityIndicator, StyleSheet, Platform } from "react-native";
 import { NavigationContainer, LinkingOptions } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
@@ -44,6 +44,7 @@ import ProfileSettingsScreen from "../screens/app/ProfileSettingsScreen";
 import BusinessInfoScreen from "../screens/app/BusinessInfoScreen";
 import SettingsScreen from "../screens/app/SettingsScreen";
 import AdminUsersScreen from "../screens/app/AdminUsersScreen";
+import SuperAdminScreen from "../../portal/screens/SuperAdminScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -91,6 +92,11 @@ export default function RootNavigator() {
 
   // Portal auth flow state (for landing mode → signup/login screens)
   const [portalAuthPage, setPortalAuthPage] = useState<"none" | "signup" | "login">("none");
+
+  // Hidden superadmin page — only accessible by navigating directly to /admin
+  if (Platform.OS === "web" && typeof window !== "undefined" && window.location.pathname === "/admin") {
+    return <SuperAdminScreen />;
+  }
 
   // Wait for both auth stores to rehydrate and the context call to resolve.
   if (!hydrated || !portalHydrated || contextLoading) {

@@ -69,6 +69,9 @@ class Config:
         "postgresql://sitekeeper:sitekeeper@localhost:5434",
     )
 
+    # Superadmin password — set in .env for the /admin panel. If unset, superadmin login is disabled.
+    SUPERADMIN_PASSWORD: str = os.environ.get("SUPERADMIN_PASSWORD", "")
+
     # OpenAI (for AI assistant features)
     OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "")
     OPENAI_MODEL: str = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
