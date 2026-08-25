@@ -34,6 +34,7 @@ yarn-error.log*
 
 # ── Storage migrations state (server-side only) ──────────────────────────────
 infra/storage_migrations/storage_migrations_applied.json
+infra/platform_migrations/platform_migrations_applied.json
 
 
 .hypothesis/
