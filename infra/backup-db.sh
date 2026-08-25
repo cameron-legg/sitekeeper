@@ -57,7 +57,13 @@ command -v python3 >/dev/null 2>&1 || die "python3 not found."
 mkdir -p "$BACKUP_DIR"
 
 # ── Discover databases from platform DB (fallback: tenants.json) ──────────────
-DATABASES=$(python3 -c "
+# Use the venv python which has psycopg2 installed
+VENV_PYTHON="$APP_DIR/backend/venv/bin/python"
+if [[ ! -x "$VENV_PYTHON" ]]; then
+    VENV_PYTHON="python3"
+fi
+
+DATABASES=$($VENV_PYTHON -c "
 import json, os
 
 # Try platform DB first (includes tenants created via the portal)

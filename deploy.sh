@@ -125,7 +125,7 @@ deploy_backend() {
 
     info "  Pulling latest code on server..."
     ssh "$SSH_HOST" "
-        sudo -u sitekeeper bash -c 'cd $APP_DIR && git checkout -- backend/tenants.json infra/platform_migrations/platform_migrations_applied.json' &&
+        sudo -u sitekeeper bash -c 'cd $APP_DIR && git checkout -- backend/tenants.json 2>/dev/null; true' &&
         GIT_SSH_COMMAND='ssh -i /home/sitekeeper/.ssh/github' \
         sudo -u sitekeeper git -C $APP_DIR pull --ff-only 2>&1
     "
