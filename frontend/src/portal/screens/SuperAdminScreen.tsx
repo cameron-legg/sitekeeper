@@ -85,6 +85,30 @@ export default function SuperAdminScreen() {
     enabled: false, // Only fetch when user explicitly requests
   });
 
+  const impersonateMutation = useMutation({
+    mutationFn: async (slug: string) => {
+      const client = axios.create({
+        baseURL: getBaseURL(),
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const { data } = await client.post<{
+        token: string;
+        user_id: string;
+        email: string;
+        domain: string;
+      }>("/api/v1/superadmin/impersonate", { slug });
+      return data;
+    },
+    onSuccess: (data) => {
+      // Redirect to the tenant's domain with the token as a query param
+      const protocol = Platform.OS === "web" ? window.location.protocol : "https:";
+      const url = `${protocol}//${data.domain}?impersonate=${data.token}`;
+      if (Platform.OS === "web") {
+        window.open(url, "_blank");
+      }
+    },
+  });
+
   function handleLogin() {
     setLoginError(null);
     loginMutation.mutate({ username, password });
@@ -184,6 +208,7 @@ export default function SuperAdminScreen() {
               <Text style={[styles.cell, styles.headerCell, styles.cellNum]}>Logins</Text>
               <Text style={[styles.cell, styles.headerCell, styles.cellNum]}>DB (MB)</Text>
               <Text style={[styles.cell, styles.headerCell, styles.cellNum]}>Files (MB)</Text>
+              <Text style={[styles.cell, styles.headerCell, styles.cellAction]}>Action</Text>
             </View>
 
             {/* Table rows */}
@@ -202,6 +227,15 @@ export default function SuperAdminScreen() {
                 <Text style={[styles.cell, styles.cellNum]}>{t.logins}</Text>
                 <Text style={[styles.cell, styles.cellNum]}>{t.db_size_mb}</Text>
                 <Text style={[styles.cell, styles.cellNum]}>{t.bucket_size_mb}</Text>
+                <View style={[styles.cellAction]}>
+                  <TouchableOpacity
+                    style={styles.impersonateBtn}
+                    onPress={() => impersonateMutation.mutate(t.slug)}
+                    disabled={impersonateMutation.isPending}
+                  >
+                    <Text style={styles.impersonateBtnText}>Login</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ))}
           </View>
@@ -305,4 +339,12 @@ const styles = StyleSheet.create({
   cellEmail: { width: 200 },
   cellNum: { width: 70, textAlign: "right" },
   cellWide: { width: 110, textAlign: "right" },
+  cellAction: { width: 80, alignItems: "center", justifyContent: "center" },
+  impersonateBtn: {
+    backgroundColor: "#334155",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 4,
+  },
+  impersonateBtnText: { color: "#e2e8f0", fontSize: 11, fontWeight: "600" },
 });

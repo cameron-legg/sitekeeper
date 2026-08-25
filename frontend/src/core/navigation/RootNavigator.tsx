@@ -98,6 +98,28 @@ export default function RootNavigator() {
     return <SuperAdminScreen />;
   }
 
+  // Handle ?impersonate=<token> query param (superadmin impersonation)
+  React.useEffect(() => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const impersonateToken = params.get("impersonate");
+      if (impersonateToken) {
+        // Store the token and clean the URL
+        const setAuth = useAuthStore.getState().setAuth;
+        // Decode the token to get the user_id (sub claim)
+        try {
+          const payload = JSON.parse(atob(impersonateToken.split(".")[1]));
+          setAuth(impersonateToken, payload.sub, "admin", true);
+        } catch {
+          // If decoding fails, still try to use the token
+          setAuth(impersonateToken, "impersonated", "admin", true);
+        }
+        // Remove the query param from the URL
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    }
+  }, []);
+
   // Wait for both auth stores to rehydrate and the context call to resolve.
   if (!hydrated || !portalHydrated || contextLoading) {
     return (

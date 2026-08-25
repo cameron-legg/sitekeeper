@@ -1,8 +1,9 @@
 """Superadmin blueprint — system-wide admin panel endpoints.
 
 Routes:
-    POST /api/v1/superadmin/login     — authenticate with superadmin credentials
-    GET  /api/v1/superadmin/tenants   — get all tenants with live metrics (on demand)
+    POST /api/v1/superadmin/login        — authenticate with superadmin credentials
+    GET  /api/v1/superadmin/tenants      — get all tenants with live metrics (on demand)
+    POST /api/v1/superadmin/impersonate  — get a tenant token to log in as that tenant's admin
 """
 
 import os
@@ -185,3 +186,79 @@ def _fetch_tenant_metrics(db_url: str, db_name: str, bucket: str) -> dict:
         logger.warning("Failed to get bucket size for %s: %s", bucket, e)
 
     return metrics
+
+
+@superadmin_bp.post("/impersonate")
+@superadmin_required
+def impersonate():
+    """Generate a tenant token to log in as the tenant's admin.
+
+    Finds the first admin user in the specified tenant's database and issues
+    a regular tenant JWT for that user. The superadmin can then use this token
+    to access the tenant's app as if they were that admin.
+
+    Request body (JSON):
+        slug (str, required) — the tenant slug to impersonate
+
+    Responses:
+        200  { token, user_id, email, domain }
+        404  tenant not found
+        404  no admin user found in tenant
+    """
+    data = request.get_json(silent=True) or {}
+    slug = (data.get("slug") or "").strip()
+
+    if not slug:
+        return _error("VALIDATION_ERROR", "Slug is required.", status=400)
+
+    # Find the tenant in the platform DB
+    session = get_platform_session()
+    try:
+        tenant = session.query(Tenant).filter_by(slug=slug, status="active").first()
+        if tenant is None:
+            return _error("NOT_FOUND", f"Tenant '{slug}' not found.", status=404)
+
+        domain = tenant.domain
+        database_name = tenant.database_name
+    finally:
+        session.close()
+
+    # Connect to the tenant DB and find the first admin
+    base_url = current_app.config.get(
+        "BASE_DATABASE_URL",
+        os.environ.get("BASE_DATABASE_URL", "postgresql://sitekeeper:sitekeeper@localhost:5434"),
+    )
+    tenant_db_url = f"{base_url}/{database_name}"
+
+    try:
+        engine = create_engine(tenant_db_url)
+        with engine.connect() as conn:
+            row = conn.execute(
+                text(
+                    "SELECT id, email FROM users "
+                    "WHERE role = 'admin' AND is_approved = true "
+                    "ORDER BY created_at LIMIT 1"
+                )
+            ).fetchone()
+
+        engine.dispose()
+
+        if row is None:
+            return _error("NOT_FOUND", f"No admin user found in tenant '{slug}'.", status=404)
+
+        user_id = str(row[0])
+        email = row[1]
+
+    except Exception as e:
+        logger.error("Failed to query tenant DB for impersonation: %s", e)
+        return _error("INTERNAL_ERROR", "Failed to access tenant database.", status=500)
+
+    # Issue a regular tenant token (no superadmin or platform claim)
+    token = issue_token(user_id)
+
+    return jsonify({
+        "token": token,
+        "user_id": user_id,
+        "email": email,
+        "domain": domain,
+    }), 200
