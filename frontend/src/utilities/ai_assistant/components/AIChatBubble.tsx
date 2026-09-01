@@ -27,10 +27,35 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useAIChat, ChatMessage, AIAction } from "../hooks/useAI";
 import { AI_NAME } from "../../../core/config/app";
+import { navigationRef } from "../../../core/navigation/navigationRef";
 
 interface AIChatBubbleProps {
   screenName: string;
   screenParams: Record<string, unknown>;
+}
+
+/**
+ * Reduce raw route params to just the primitive fields useful as AI context
+ * (ids like siteId/jobId/estimateId/invoiceId/parentId, plus names/types).
+ *
+ * Route params can also carry non-serializable or noisy values — e.g. the
+ * SavedItems screen passes an `onSelect` callback, and ContactEditor passes an
+ * `initialValues` object. Functions would be dropped by JSON.stringify anyway,
+ * and nested objects are noise the model doesn't need, so we strip both and
+ * send only string/number/boolean values.
+ */
+function sanitizeParams(params: Record<string, unknown>): Record<string, unknown> {
+  const clean: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(params || {})) {
+    if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      clean[key] = value;
+    }
+  }
+  return clean;
 }
 
 interface DisplayMessage {
@@ -236,12 +261,26 @@ export default function AIChatBubble({ screenName, screenParams }: AIChatBubbleP
       content: m.content,
     }));
 
+    // Resolve the freshest screen context directly from the navigator at send
+    // time. This is authoritative even if the tracked props are momentarily
+    // stale, so the AI reliably gets the current screen's params (e.g. the
+    // estimateId when on EstimateEditor). Falls back to the tracked props.
+    let ctxScreen = screenName;
+    let ctxParams = screenParams;
+    if (navigationRef.isReady()) {
+      const route = navigationRef.getCurrentRoute();
+      if (route) {
+        ctxScreen = route.name;
+        ctxParams = (route.params as Record<string, unknown>) || {};
+      }
+    }
+
     sendChat(
       {
         messages: apiMessages,
         screen_context: {
-          screen: screenName,
-          params: screenParams,
+          screen: ctxScreen,
+          params: sanitizeParams(ctxParams),
         },
       },
       {

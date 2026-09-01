@@ -58,16 +58,26 @@ export default function AIProvider({ children }: { children: React.ReactNode }) 
     return () => clearInterval(interval);
   }, [updateScreen]);
 
-  // Listen for navigation state changes via the ref
+  // Listen for navigation state changes via the ref.
+  //
+  // IMPORTANT: this effect depends on `navReady` so it (re-)runs once
+  // navigation actually becomes ready. Previously it only depended on
+  // [updateScreen, token] and bailed early on first mount when nav wasn't
+  // ready yet — so it never subscribed, and the AI kept seeing the initial
+  // "Home" screen (no estimateId) no matter where the user navigated.
   useEffect(() => {
-    if (!navigationRef.isReady()) return;
+    if (!navReady || !navigationRef.isReady()) return;
+
+    // Sync immediately in case the screen changed between readiness and
+    // this subscription being attached.
+    updateScreen();
 
     const unsubscribe = navigationRef.addListener("state", () => {
       updateScreen();
     });
 
     return unsubscribe;
-  }, [updateScreen, token]); // re-subscribe when auth changes (navigator remounts)
+  }, [navReady, updateScreen, token]); // re-subscribe when nav becomes ready or auth changes
 
   return (
     <>
