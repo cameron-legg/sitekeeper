@@ -43,8 +43,7 @@ def list_photos(job_id: str):
         return jsonify([_serialize_photo(p) for p in photos]), 200
     except NotFoundError:
         return not_found("Job")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @job_photos_bp.post("/jobs/<job_id>/photos")
@@ -82,8 +81,7 @@ def upload_photo(job_id: str):
         return error_response("VALIDATION_ERROR", str(exc))
     except RuntimeError as exc:
         return server_error(str(exc))
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @job_photos_bp.get("/photos/<photo_id>")
@@ -106,8 +104,7 @@ def download_photo(photo_id: str):
         return not_found("Photo")
     except RuntimeError as exc:
         return server_error(str(exc))
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @job_photos_bp.delete("/photos/<photo_id>")
@@ -122,8 +119,7 @@ def delete_photo(photo_id: str):
         return not_found("Photo")
     except RuntimeError as exc:
         return server_error(str(exc))
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 # ---------------------------------------------------------------------------
@@ -141,8 +137,7 @@ def list_estimate_photos(document_id: str):
         return jsonify([_serialize_photo(p) for p in photos]), 200
     except NotFoundError:
         return not_found("Estimate")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @job_photos_bp.put("/estimates/<document_id>/photos")
@@ -162,8 +157,7 @@ def set_estimate_photos(document_id: str):
         return jsonify([_serialize_photo(p) for p in photos]), 200
     except NotFoundError as exc:
         return not_found(str(exc))
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @job_photos_bp.get("/invoices/<document_id>/photos")
@@ -176,8 +170,7 @@ def list_invoice_photos(document_id: str):
         return jsonify([_serialize_photo(p) for p in photos]), 200
     except NotFoundError:
         return not_found("Invoice")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @job_photos_bp.put("/invoices/<document_id>/photos")
@@ -197,5 +190,4 @@ def set_invoice_photos(document_id: str):
         return jsonify([_serialize_photo(p) for p in photos]), 200
     except NotFoundError as exc:
         return not_found(str(exc))
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.

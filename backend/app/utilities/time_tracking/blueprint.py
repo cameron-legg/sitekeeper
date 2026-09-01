@@ -17,7 +17,7 @@ from .service import (
     NotFoundError,
     ValidationError,
 )
-from ...core.blueprints.helpers import error_response, not_found, server_error
+from ...core.blueprints.helpers import error_response, not_found
 
 time_entries_bp = Blueprint("time_entries", __name__)
 _service = TimeEntryService()
@@ -44,11 +44,9 @@ def _serialize_entry(entry) -> dict:
 @auth_required
 def list_time_entries(job_id: str):
     """List all time entries for a job."""
-    try:
-        entries = _service.list_for_job(job_id)
-        return jsonify([_serialize_entry(e) for e in entries]), 200
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
+    entries = _service.list_for_job(job_id)
+    return jsonify([_serialize_entry(e) for e in entries]), 200
 
 
 @time_entries_bp.get("/jobs/<job_id>/time-entries/status")
@@ -81,8 +79,7 @@ def clock_in(job_id: str):
         return jsonify(_serialize_entry(entry)), 201
     except ValidationError as exc:
         return error_response("VALIDATION_ERROR", str(exc))
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @time_entries_bp.post("/jobs/<job_id>/time-entries/clock-out")
@@ -96,8 +93,7 @@ def clock_out(job_id: str):
         return jsonify(_serialize_entry(entry)), 200
     except ValidationError as exc:
         return error_response("VALIDATION_ERROR", str(exc))
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @time_entries_bp.post("/jobs/<job_id>/time-entries")
@@ -144,8 +140,7 @@ def add_manual_entry(job_id: str):
         return jsonify(_serialize_entry(entry)), 201
     except ValidationError as exc:
         return error_response("VALIDATION_ERROR", str(exc), field="hours")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @time_entries_bp.delete("/time-entries/<entry_id>")
@@ -161,5 +156,4 @@ def delete_time_entry(entry_id: str):
         return not_found("Time entry")
     except ValidationError as exc:
         return error_response("FORBIDDEN", str(exc), status=403)
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.

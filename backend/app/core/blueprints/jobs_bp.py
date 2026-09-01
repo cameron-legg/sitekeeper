@@ -13,7 +13,7 @@ from flask import Blueprint, g, jsonify, request
 
 from ..auth.decorators import auth_required
 from ..services.job_service import _UNSET, JobService, NotFoundError, ValidationError
-from .helpers import error_response, not_found, server_error
+from .helpers import error_response, not_found
 
 jobs_bp = Blueprint("jobs", __name__)
 _service = JobService()
@@ -56,8 +56,7 @@ def list_jobs(site_id: str):
         return jsonify([_serialize_job(j) for j in jobs]), 200
     except NotFoundError:
         return not_found("Job site")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @jobs_bp.post("/job-sites/<site_id>/jobs")
@@ -87,8 +86,7 @@ def create_job(site_id: str):
         return not_found("Job site")
     except ValidationError as exc:
         return error_response("VALIDATION_ERROR", str(exc), field="status")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @jobs_bp.get("/jobs/<job_id>")
@@ -101,8 +99,7 @@ def get_job(job_id: str):
         return jsonify(_serialize_job(job)), 200
     except NotFoundError:
         return not_found("Job")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @jobs_bp.put("/jobs/<job_id>")
@@ -149,8 +146,7 @@ def update_job(job_id: str):
         return not_found("Job")
     except ValidationError as exc:
         return error_response("VALIDATION_ERROR", str(exc), field="status")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @jobs_bp.patch("/jobs/<job_id>")
@@ -210,8 +206,7 @@ def patch_job(job_id: str):
         return not_found("Job")
     except ValidationError as exc:
         return error_response("VALIDATION_ERROR", str(exc), field="status")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @jobs_bp.delete("/jobs/<job_id>")
@@ -224,8 +219,7 @@ def delete_job(job_id: str):
         return "", 204
     except NotFoundError:
         return not_found("Job")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 # ── Employee assignment endpoints ──────────────────────────────────────────────
@@ -247,8 +241,7 @@ def set_job_employees(job_id: str):
         job = _service.get(job_id, user_id)
     except NotFoundError:
         return not_found("Job")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
     data = request.get_json(silent=True) or {}
     employee_ids = data.get("employee_ids", [])

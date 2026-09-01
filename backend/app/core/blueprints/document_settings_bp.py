@@ -10,7 +10,7 @@ from flask import Blueprint, jsonify, request
 from ..auth.decorators import auth_required
 from ...extensions import db
 from ...models import DocumentFieldSettings
-from .helpers import error_response, server_error
+from .helpers import error_response
 
 document_settings_bp = Blueprint("document_settings", __name__)
 
@@ -53,20 +53,18 @@ def get_document_field_settings(document_type: str):
     if document_type not in VALID_DOCUMENT_TYPES:
         return error_response("VALIDATION_ERROR", "document_type must be 'estimate' or 'invoice'.", field="document_type")
 
-    try:
-        settings_map = _get_settings_map(document_type)
-        result = []
-        for field in CONFIGURABLE_FIELDS:
-            setting = settings_map.get(field["key"], {"visibility": "always_show", "pdf_visible": True})
-            result.append({
-                "key": field["key"],
-                "label": field["label"],
-                "visibility": setting["visibility"],
-                "pdf_visible": setting["pdf_visible"],
-            })
-        return jsonify(result), 200
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
+    settings_map = _get_settings_map(document_type)
+    result = []
+    for field in CONFIGURABLE_FIELDS:
+        setting = settings_map.get(field["key"], {"visibility": "always_show", "pdf_visible": True})
+        result.append({
+            "key": field["key"],
+            "label": field["label"],
+            "visibility": setting["visibility"],
+            "pdf_visible": setting["pdf_visible"],
+        })
+    return jsonify(result), 200
 
 
 @document_settings_bp.put("/settings/document-fields/<document_type>")
@@ -86,45 +84,43 @@ def update_document_field_settings(document_type: str):
 
     valid_keys = {f["key"] for f in CONFIGURABLE_FIELDS}
 
-    try:
-        for field_data in fields:
-            key = field_data.get("key", "")
-            if key not in valid_keys:
-                continue
-            visibility = field_data.get("visibility", "always_show")
-            if visibility not in VALID_VISIBILITIES:
-                continue
-            pdf_visible = bool(field_data.get("pdf_visible", True))
+    # Unexpected errors propagate to the global handler for logging.
+    for field_data in fields:
+        key = field_data.get("key", "")
+        if key not in valid_keys:
+            continue
+        visibility = field_data.get("visibility", "always_show")
+        if visibility not in VALID_VISIBILITIES:
+            continue
+        pdf_visible = bool(field_data.get("pdf_visible", True))
 
-            # Upsert
-            row = DocumentFieldSettings.query.filter_by(
-                document_type=document_type, field_key=key
-            ).first()
-            if row:
-                row.visibility = visibility
-                row.pdf_visible = pdf_visible
-            else:
-                row = DocumentFieldSettings(
-                    document_type=document_type,
-                    field_key=key,
-                    visibility=visibility,
-                    pdf_visible=pdf_visible,
-                )
-                db.session.add(row)
+        # Upsert
+        row = DocumentFieldSettings.query.filter_by(
+            document_type=document_type, field_key=key
+        ).first()
+        if row:
+            row.visibility = visibility
+            row.pdf_visible = pdf_visible
+        else:
+            row = DocumentFieldSettings(
+                document_type=document_type,
+                field_key=key,
+                visibility=visibility,
+                pdf_visible=pdf_visible,
+            )
+            db.session.add(row)
 
-        db.session.commit()
+    db.session.commit()
 
-        # Return updated settings
-        settings_map = _get_settings_map(document_type)
-        result = []
-        for field in CONFIGURABLE_FIELDS:
-            setting = settings_map.get(field["key"], {"visibility": "always_show", "pdf_visible": True})
-            result.append({
-                "key": field["key"],
-                "label": field["label"],
-                "visibility": setting["visibility"],
-                "pdf_visible": setting["pdf_visible"],
-            })
-        return jsonify(result), 200
-    except Exception:
-        return server_error()
+    # Return updated settings
+    settings_map = _get_settings_map(document_type)
+    result = []
+    for field in CONFIGURABLE_FIELDS:
+        setting = settings_map.get(field["key"], {"visibility": "always_show", "pdf_visible": True})
+        result.append({
+            "key": field["key"],
+            "label": field["label"],
+            "visibility": setting["visibility"],
+            "pdf_visible": setting["pdf_visible"],
+        })
+    return jsonify(result), 200

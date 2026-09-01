@@ -7,7 +7,7 @@ from flask import Blueprint, g, jsonify, request
 from ...core.auth.decorators import auth_required
 from .service import InvoiceService, NotFoundError, ValidationError
 from ..estimates.service import compute_line_item_totals
-from ...core.blueprints.helpers import error_response, not_found, server_error
+from ...core.blueprints.helpers import error_response, not_found
 
 invoices_bp = Blueprint("invoices", __name__)
 _service = InvoiceService()
@@ -118,45 +118,43 @@ def _serialize_invoice(invoice, totals: dict | None = None) -> dict:
 def list_all_invoices():
     """List all invoices across all jobs/sites for the tenant, with job and site context."""
     user_id = g.current_user_id
-    try:
-        from ...models import Invoice, Job, JobSite, InvoiceStatusHistory
-        from ...core.repositories.job_site_repo import SQLAlchemyJobSiteRepository
-        from sqlalchemy.orm import joinedload
+    # Unexpected errors propagate to the global handler for logging.
+    from ...models import Invoice, Job, JobSite, InvoiceStatusHistory
+    from ...core.repositories.job_site_repo import SQLAlchemyJobSiteRepository
+    from sqlalchemy.orm import joinedload
 
-        # Get all accessible sites (approved users see all)
-        site_repo = SQLAlchemyJobSiteRepository()
-        sites = site_repo.get_all_for_user(user_id)
-        site_ids = [str(s.id) for s in sites]
+    # Get all accessible sites (approved users see all)
+    site_repo = SQLAlchemyJobSiteRepository()
+    sites = site_repo.get_all_for_user(user_id)
+    site_ids = [str(s.id) for s in sites]
 
-        # Fetch all invoices for jobs within those sites, newest first
-        invoices = (
-            Invoice.query
-            .join(Job, Invoice.job_id == Job.id)
-            .filter(Job.job_site_id.in_(site_ids))
-            .options(joinedload(Invoice.status_history))
-            .order_by(Invoice.created_at.desc())
-            .all()
-        )
+    # Fetch all invoices for jobs within those sites, newest first
+    invoices = (
+        Invoice.query
+        .join(Job, Invoice.job_id == Job.id)
+        .filter(Job.job_site_id.in_(site_ids))
+        .options(joinedload(Invoice.status_history))
+        .order_by(Invoice.created_at.desc())
+        .all()
+    )
 
-        result = []
-        for inv in invoices:
-            totals = _service.calculate_totals(str(inv.id), user_id)
-            job = inv.job
-            site_name = job.job_site.name if job.job_site else None
-            history = sorted(inv.status_history, key=lambda h: h.changed_at)
-            result.append({
-                **_serialize_invoice(inv, totals),
-                "job_name": job.name if job else None,
-                "job_site_id": str(job.job_site_id) if job else None,
-                "job_site_name": site_name,
-                "status_history": [
-                    {"status": h.status, "changed_at": h.changed_at.isoformat()}
-                    for h in history
-                ],
-            })
-        return jsonify(result), 200
-    except Exception:
-        return server_error()
+    result = []
+    for inv in invoices:
+        totals = _service.calculate_totals(str(inv.id), user_id)
+        job = inv.job
+        site_name = job.job_site.name if job.job_site else None
+        history = sorted(inv.status_history, key=lambda h: h.changed_at)
+        result.append({
+            **_serialize_invoice(inv, totals),
+            "job_name": job.name if job else None,
+            "job_site_id": str(job.job_site_id) if job else None,
+            "job_site_name": site_name,
+            "status_history": [
+                {"status": h.status, "changed_at": h.changed_at.isoformat()}
+                for h in history
+            ],
+        })
+    return jsonify(result), 200
 
 
 # ---------------------------------------------------------------------------
@@ -173,8 +171,7 @@ def list_invoices(job_id: str):
         return jsonify(result), 200
     except NotFoundError:
         return not_found("Job")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @invoices_bp.post("/jobs/<job_id>/invoices")
@@ -245,8 +242,7 @@ def create_invoice(job_id: str):
         return jsonify(_serialize_invoice(inv, _service.calculate_totals(str(inv.id), user_id))), 201
     except NotFoundError:
         return not_found("Job")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @invoices_bp.get("/invoices/<invoice_id>")
@@ -271,8 +267,7 @@ def get_invoice(invoice_id: str):
         return jsonify(data), 200
     except NotFoundError:
         return not_found("Invoice")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @invoices_bp.patch("/invoices/<invoice_id>")
@@ -322,8 +317,7 @@ def patch_invoice(invoice_id: str):
         return jsonify(_serialize_invoice(inv, _service.calculate_totals(invoice_id, user_id))), 200
     except NotFoundError:
         return not_found("Invoice")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @invoices_bp.post("/invoices/<invoice_id>/populate-defaults")
@@ -336,8 +330,7 @@ def populate_invoice_defaults(invoice_id: str):
         return jsonify(_serialize_invoice(inv, _service.calculate_totals(invoice_id, user_id))), 200
     except NotFoundError:
         return not_found("Invoice")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @invoices_bp.put("/invoices/<invoice_id>")
@@ -355,8 +348,7 @@ def delete_invoice(invoice_id: str):
         return "", 204
     except NotFoundError:
         return not_found("Invoice")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 # ---------------------------------------------------------------------------
@@ -372,8 +364,7 @@ def list_line_items(invoice_id: str):
         return jsonify([_serialize_line_item(i) for i in items]), 200
     except NotFoundError:
         return not_found("Invoice")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @invoices_bp.post("/invoices/<invoice_id>/line-items")
@@ -398,8 +389,7 @@ def add_line_item(invoice_id: str):
         return jsonify(_serialize_line_item(item)), 201
     except NotFoundError:
         return not_found("Invoice")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @invoices_bp.put("/invoices/<invoice_id>/line-items/<item_id>")
@@ -421,8 +411,7 @@ def update_line_item(invoice_id: str, item_id: str):
         return jsonify(_serialize_line_item(item)), 200
     except NotFoundError:
         return not_found("Line item")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @invoices_bp.delete("/invoices/<invoice_id>/line-items/<item_id>")
@@ -434,8 +423,7 @@ def delete_line_item(invoice_id: str, item_id: str):
         return "", 204
     except NotFoundError:
         return not_found("Line item")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 # ---------------------------------------------------------------------------
@@ -483,8 +471,7 @@ def save_line_item_to_library(invoice_id: str, item_id: str):
         return jsonify({"id": str(saved.id), "name": saved.name}), 201
     except NotFoundError:
         return not_found("Line item")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 # ---------------------------------------------------------------------------
@@ -527,10 +514,11 @@ def add_entry(invoice_id: str, item_id: str):
             hours=hours, sort_order=int(data.get("sort_order", 0)),
         )
         return jsonify(_serialize_entry(entry)), 201
-    except (NotFoundError, ValidationError) as exc:
-        return not_found(str(exc))
-    except Exception:
-        return server_error()
+    except NotFoundError:
+        return not_found("Line item")
+    except ValidationError as exc:
+        return error_response("VALIDATION_ERROR", str(exc))
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @invoices_bp.put("/invoices/<invoice_id>/line-items/<item_id>/entries/<entry_id>")
@@ -561,8 +549,7 @@ def update_entry(invoice_id: str, item_id: str, entry_id: str):
         return jsonify(_serialize_entry(entry)), 200
     except NotFoundError:
         return not_found("Entry")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @invoices_bp.delete("/invoices/<invoice_id>/line-items/<item_id>/entries/<entry_id>")
@@ -574,5 +561,4 @@ def delete_entry(invoice_id: str, item_id: str, entry_id: str):
         return "", 204
     except NotFoundError:
         return not_found("Entry")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.

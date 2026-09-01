@@ -8,7 +8,7 @@ from flask import Blueprint, g, jsonify
 
 from ...core.auth.decorators import auth_required
 from .conversion_service import ConversionService, NotFoundError
-from ...core.blueprints.helpers import not_found, server_error
+from ...core.blueprints.helpers import not_found
 
 conversion_bp = Blueprint("conversion", __name__)
 _service = ConversionService()
@@ -36,5 +36,4 @@ def convert_to_invoice(estimate_id: str):
         return jsonify(_serialize_invoice(invoice)), 201
     except NotFoundError:
         return not_found("Estimate")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.

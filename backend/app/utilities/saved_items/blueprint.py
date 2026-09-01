@@ -6,7 +6,7 @@ from flask import Blueprint, g, jsonify, request
 
 from ...core.auth.decorators import auth_required
 from .service import NotFoundError, SavedItemService, ValidationError
-from ...core.blueprints.helpers import error_response, not_found, server_error
+from ...core.blueprints.helpers import error_response, not_found
 
 saved_items_bp = Blueprint("saved_items", __name__)
 _service = SavedItemService()
@@ -58,10 +58,8 @@ def _serialize_saved_item(item) -> dict:
 @auth_required
 def list_saved_items():
     user_id = g.current_user_id
-    try:
-        return jsonify([_serialize_saved_item(i) for i in _service.list_for_user(user_id)]), 200
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
+    return jsonify([_serialize_saved_item(i) for i in _service.list_for_user(user_id)]), 200
 
 
 @saved_items_bp.get("/saved-items/entries")
@@ -69,11 +67,9 @@ def list_saved_items():
 def list_all_entries():
     """Return all saved item entries for the user as a flat list."""
     user_id = g.current_user_id
-    try:
-        entries = _service.list_all_entries_for_user(user_id)
-        return jsonify([_serialize_entry(e) for e in entries]), 200
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
+    entries = _service.list_all_entries_for_user(user_id)
+    return jsonify([_serialize_entry(e) for e in entries]), 200
 
 
 @saved_items_bp.post("/saved-items")
@@ -87,11 +83,9 @@ def create_saved_item():
     hourly_rate, err = _parse_decimal_optional(data.get("hourly_rate"), "hourly_rate")
     if err:
         return err
-    try:
-        item = _service.create(user_id=user_id, name=name, notes=data.get("notes"), hourly_rate=hourly_rate)
-        return jsonify(_serialize_saved_item(item)), 201
-    except Exception:
-        return server_error()
+    item = _service.create(user_id=user_id, name=name, notes=data.get("notes"), hourly_rate=hourly_rate)
+    return jsonify(_serialize_saved_item(item)), 201
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @saved_items_bp.get("/saved-items/<item_id>")
@@ -102,8 +96,7 @@ def get_saved_item(item_id: str):
         return jsonify(_serialize_saved_item(_service.get(item_id, user_id))), 200
     except NotFoundError:
         return not_found("Saved item")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @saved_items_bp.put("/saved-items/<item_id>")
@@ -123,8 +116,7 @@ def update_saved_item(item_id: str):
         return jsonify(_serialize_saved_item(item)), 200
     except NotFoundError:
         return not_found("Saved item")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @saved_items_bp.delete("/saved-items/<item_id>")
@@ -136,8 +128,7 @@ def delete_saved_item(item_id: str):
         return "", 204
     except NotFoundError:
         return not_found("Saved item")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 # ---------------------------------------------------------------------------
@@ -174,10 +165,11 @@ def add_entry(item_id: str):
             sort_order=int(data.get("sort_order", 0)),
         )
         return jsonify(_serialize_entry(entry)), 201
-    except (NotFoundError, ValidationError) as exc:
-        return not_found(str(exc))
-    except Exception:
-        return server_error()
+    except NotFoundError:
+        return not_found("Saved item")
+    except ValidationError as exc:
+        return error_response("VALIDATION_ERROR", str(exc))
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @saved_items_bp.put("/saved-items/<item_id>/entries/<entry_id>")
@@ -204,8 +196,7 @@ def update_entry(item_id: str, entry_id: str):
         return jsonify(_serialize_entry(entry)), 200
     except NotFoundError:
         return not_found("Entry")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @saved_items_bp.delete("/saved-items/<item_id>/entries/<entry_id>")
@@ -217,8 +208,7 @@ def delete_entry(item_id: str, entry_id: str):
         return "", 204
     except NotFoundError:
         return not_found("Entry")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @saved_items_bp.post("/saved-items/<item_id>/entries/assign")
@@ -239,8 +229,7 @@ def assign_entry_to_item(item_id: str):
         return jsonify(_serialize_entry(entry)), 200
     except NotFoundError as exc:
         return not_found(str(exc))
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 # ---------------------------------------------------------------------------
@@ -287,10 +276,11 @@ def populate_line_item(item_id: str):
             "total_hours": str(totals["total_hours"]),
             "entries": [],
         }), 201
-    except (NotFoundError, ValidationError) as exc:
-        return not_found(str(exc))
-    except Exception:
-        return server_error()
+    except NotFoundError:
+        return not_found("Saved item")
+    except ValidationError as exc:
+        return error_response("VALIDATION_ERROR", str(exc))
+    # Unexpected errors propagate to the global handler for logging.
 
 
 # ---------------------------------------------------------------------------
@@ -331,15 +321,13 @@ def save_entry_to_library():
     if err:
         return err
 
-    try:
-        entry = _service.save_entry_to_library(
-            user_id=user_id, entry_type=entry_type, name=name,
-            notes=data.get("notes"), url=data.get("url"),
-            unit_price=unit_price, quantity=quantity, hours=hours,
-        )
-        return jsonify(_serialize_entry(entry)), 201
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
+    entry = _service.save_entry_to_library(
+        user_id=user_id, entry_type=entry_type, name=name,
+        notes=data.get("notes"), url=data.get("url"),
+        unit_price=unit_price, quantity=quantity, hours=hours,
+    )
+    return jsonify(_serialize_entry(entry)), 201
 
 
 # ---------------------------------------------------------------------------
@@ -370,8 +358,7 @@ def update_standalone_entry(entry_id: str):
         return jsonify(_serialize_entry(entry)), 200
     except NotFoundError:
         return not_found("Entry")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @saved_items_bp.delete("/saved-items/entries/<entry_id>")
@@ -384,8 +371,7 @@ def delete_standalone_entry(entry_id: str):
         return "", 204
     except NotFoundError:
         return not_found("Entry")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 # ---------------------------------------------------------------------------
@@ -436,7 +422,8 @@ def populate_entry(entry_id: str):
             "hours": str(entry.hours) if entry.hours is not None else None,
             "sort_order": entry.sort_order,
         }), 201
-    except (NotFoundError, ValidationError) as exc:
-        return not_found(str(exc))
-    except Exception:
-        return server_error()
+    except NotFoundError:
+        return not_found("Saved item")
+    except ValidationError as exc:
+        return error_response("VALIDATION_ERROR", str(exc))
+    # Unexpected errors propagate to the global handler for logging.

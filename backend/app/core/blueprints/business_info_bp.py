@@ -47,8 +47,7 @@ def get_business_info():
         info = _service.get_business_info()
     except NotFoundError:
         return not_found("Business info")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
     return jsonify(info), 200
 
 
@@ -75,8 +74,7 @@ def update_business_info():
         info = _service.update_business_info(data)
     except NotFoundError:
         return not_found("Business info")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
     return jsonify(info), 200
 
 

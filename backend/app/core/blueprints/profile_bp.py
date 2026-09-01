@@ -9,7 +9,7 @@ from flask import Blueprint, g, jsonify, request
 
 from ..auth.decorators import auth_required
 from ..services.profile_service import NotFoundError, ProfileService
-from .helpers import not_found, server_error
+from .helpers import not_found
 
 profile_bp = Blueprint("profile", __name__)
 _service = ProfileService()
@@ -28,8 +28,7 @@ def get_profile():
         profile = _service.get_profile(g.current_user_id)
     except NotFoundError:
         return not_found("User")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
     return jsonify(profile), 200
 
 
@@ -51,6 +50,5 @@ def update_profile():
         profile = _service.update_profile(g.current_user_id, data)
     except NotFoundError:
         return not_found("User")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
     return jsonify(profile), 200

@@ -17,7 +17,7 @@ from flask import Blueprint, g, jsonify, request
 
 from ...core.auth.decorators import auth_required
 from .service import ContactService, NotFoundError
-from ...core.blueprints.helpers import error_response, not_found, server_error
+from ...core.blueprints.helpers import error_response, not_found
 
 contacts_bp = Blueprint("contacts", __name__)
 _service = ContactService()
@@ -48,8 +48,7 @@ def list_job_site_contacts(site_id: str):
         return jsonify([_serialize_contact(c) for c in contacts]), 200
     except NotFoundError:
         return not_found("Job site")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @contacts_bp.post("/job-sites/<site_id>/contacts")
@@ -75,8 +74,7 @@ def add_contact_to_job_site(site_id: str):
         return jsonify(_serialize_contact(contact)), 201
     except NotFoundError:
         return not_found("Job site")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @contacts_bp.delete("/job-sites/<site_id>/contacts/<contact_id>")
@@ -88,8 +86,7 @@ def remove_contact_from_job_site(site_id: str, contact_id: str):
         return "", 204
     except NotFoundError:
         return not_found("Job site")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @contacts_bp.post("/job-sites/<site_id>/contacts/<contact_id>/set-primary")
@@ -101,8 +98,7 @@ def set_primary_for_job_site(site_id: str, contact_id: str):
         return jsonify({"message": "Primary contact updated."}), 200
     except NotFoundError:
         return not_found("Job site")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 # ---------------------------------------------------------------------------
@@ -121,8 +117,7 @@ def list_job_contacts(job_id: str):
         ]), 200
     except NotFoundError:
         return not_found("Job")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @contacts_bp.post("/jobs/<job_id>/contacts")
@@ -148,8 +143,7 @@ def add_contact_to_job(job_id: str):
         return jsonify(_serialize_contact(contact)), 201
     except NotFoundError:
         return not_found("Job")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @contacts_bp.delete("/jobs/<job_id>/contacts/<contact_id>")
@@ -161,8 +155,7 @@ def remove_contact_from_job(job_id: str, contact_id: str):
         return "", 204
     except NotFoundError:
         return not_found("Job")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @contacts_bp.post("/jobs/<job_id>/contacts/<contact_id>/set-primary")
@@ -174,8 +167,7 @@ def set_primary_for_job(job_id: str, contact_id: str):
         return jsonify({"message": "Primary contact updated."}), 200
     except NotFoundError:
         return not_found("Job")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @contacts_bp.get("/jobs/<job_id>/contacts/effective-primary")
@@ -193,8 +185,7 @@ def get_effective_primary_contact(job_id: str):
         }), 200
     except NotFoundError:
         return not_found("Job")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 # ---------------------------------------------------------------------------
@@ -225,5 +216,4 @@ def update_contact(contact_id: str):
         return jsonify(_serialize_contact(contact)), 200
     except NotFoundError:
         return not_found("Contact")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.

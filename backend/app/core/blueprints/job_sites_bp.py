@@ -12,7 +12,7 @@ from flask import Blueprint, g, jsonify, request
 
 from ..auth.decorators import auth_required
 from ..services.job_site_service import JobSiteService, NotFoundError
-from .helpers import error_response, not_found, server_error
+from .helpers import error_response, not_found
 
 job_sites_bp = Blueprint("job_sites", __name__)
 _service = JobSiteService()
@@ -40,22 +40,20 @@ def _serialize_site(site, job_count: int = 0, active_job_count: int = 0, invoice
 def list_job_sites():
     """List all job sites for the authenticated user."""
     user_id = g.current_user_id
-    try:
-        entries = _service.list_for_user(user_id)
-        result = []
-        for e in entries:
-            site = e["site"]
-            # Aggregate invoice status counts across all jobs in the site
-            counts = {"drafting": 0, "waiting_to_send": 0, "sent_awaiting_payment": 0, "paid": 0}
-            for job in site.jobs:
-                for inv in job.invoices:
-                    s = inv.status or "drafting"
-                    if s in counts:
-                        counts[s] += 1
-            result.append(_serialize_site(site, e["job_count"], e["active_job_count"], counts))
-        return jsonify(result), 200
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
+    entries = _service.list_for_user(user_id)
+    result = []
+    for e in entries:
+        site = e["site"]
+        # Aggregate invoice status counts across all jobs in the site
+        counts = {"drafting": 0, "waiting_to_send": 0, "sent_awaiting_payment": 0, "paid": 0}
+        for job in site.jobs:
+            for inv in job.invoices:
+                s = inv.status or "drafting"
+                if s in counts:
+                    counts[s] += 1
+        result.append(_serialize_site(site, e["job_count"], e["active_job_count"], counts))
+    return jsonify(result), 200
 
 
 @job_sites_bp.post("/job-sites")
@@ -72,12 +70,10 @@ def create_job_site():
     description = data.get("description")
     address = data.get("address")
 
-    try:
-        site = _service.create(user_id=user_id, name=name, description=description, address=address)
-        job_count = 0
-        return jsonify(_serialize_site(site, job_count)), 201
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
+    site = _service.create(user_id=user_id, name=name, description=description, address=address)
+    job_count = 0
+    return jsonify(_serialize_site(site, job_count)), 201
 
 
 @job_sites_bp.get("/job-sites/<site_id>")
@@ -94,8 +90,7 @@ def get_job_site(site_id: str):
         return jsonify(_serialize_site(site, job_count)), 200
     except NotFoundError:
         return not_found("Job site")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @job_sites_bp.put("/job-sites/<site_id>")
@@ -142,8 +137,7 @@ def update_job_site(site_id: str):
         return jsonify(_serialize_site(site, job_count)), 200
     except NotFoundError:
         return not_found("Job site")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @job_sites_bp.delete("/job-sites/<site_id>")
@@ -156,5 +150,4 @@ def delete_job_site(site_id: str):
         return "", 204
     except NotFoundError:
         return not_found("Job site")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.

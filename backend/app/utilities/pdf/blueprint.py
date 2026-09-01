@@ -26,8 +26,7 @@ def generate_estimate_pdf(estimate_id: str):
         return not_found("Estimate")
     except RuntimeError as exc:
         return server_error(str(exc))
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @pdf_bp.get("/estimates/<estimate_id>/pdf")
@@ -50,8 +49,7 @@ def download_estimate_pdf(estimate_id: str):
         return not_found("No PDF has been generated for this estimate.")
     except RuntimeError as exc:
         return server_error(str(exc))
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 # ---------------------------------------------------------------------------
@@ -70,8 +68,7 @@ def generate_invoice_pdf(invoice_id: str):
         return not_found("Invoice")
     except RuntimeError as exc:
         return server_error(str(exc))
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @pdf_bp.get("/invoices/<invoice_id>/pdf")
@@ -94,5 +91,4 @@ def download_invoice_pdf(invoice_id: str):
         return not_found("No PDF has been generated for this invoice.")
     except RuntimeError as exc:
         return server_error(str(exc))
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.

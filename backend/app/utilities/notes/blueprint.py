@@ -11,7 +11,7 @@ from flask import Blueprint, g, jsonify, request
 
 from ...core.auth.decorators import auth_required
 from .service import NoteService, NotFoundError
-from ...core.blueprints.helpers import error_response, not_found, server_error
+from ...core.blueprints.helpers import error_response, not_found
 
 notes_bp = Blueprint("notes", __name__)
 _service = NoteService()
@@ -36,8 +36,7 @@ def list_notes(job_id: str):
         return jsonify([_serialize_note(n) for n in notes]), 200
     except NotFoundError:
         return not_found("Job")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @notes_bp.post("/jobs/<job_id>/notes")
@@ -55,8 +54,7 @@ def create_note(job_id: str):
         return jsonify(_serialize_note(note)), 201
     except NotFoundError:
         return not_found("Job")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @notes_bp.put("/jobs/<job_id>/notes/<note_id>")
@@ -76,8 +74,7 @@ def update_note(job_id: str, note_id: str):
         return jsonify(_serialize_note(note)), 200
     except NotFoundError:
         return not_found("Note")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @notes_bp.delete("/jobs/<job_id>/notes/<note_id>")
@@ -89,5 +86,4 @@ def delete_note(job_id: str, note_id: str):
         return "", 204
     except NotFoundError:
         return not_found("Note")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.

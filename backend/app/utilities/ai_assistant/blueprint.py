@@ -7,7 +7,7 @@ Routes:
 from flask import Blueprint, current_app, g, jsonify, request
 
 from ...core.auth.decorators import auth_required
-from ...core.blueprints.helpers import error_response, server_error
+from ...core.blueprints.helpers import error_response
 
 ai_bp = Blueprint("ai", __name__)
 
@@ -42,20 +42,16 @@ def chat():
     if not api_key:
         return error_response("CONFIG_ERROR", "AI features are not configured. Set OPENAI_API_KEY.", status=503)
 
-    try:
-        from .service import AIService
+    # Unexpected errors propagate to the global handler for logging.
+    from .service import AIService
 
-        ai_service = AIService(
-            api_key=api_key,
-            model=current_app.config.get("OPENAI_MODEL", "gpt-4o-mini"),
-        )
-        result = ai_service.chat(
-            user_id=g.current_user_id,
-            messages=messages,
-            screen_context=screen_context,
-        )
-        return jsonify(result), 200
-
-    except Exception as e:
-        current_app.logger.error(f"AI chat error: {e}")
-        return server_error()
+    ai_service = AIService(
+        api_key=api_key,
+        model=current_app.config.get("OPENAI_MODEL", "gpt-4o-mini"),
+    )
+    result = ai_service.chat(
+        user_id=g.current_user_id,
+        messages=messages,
+        screen_context=screen_context,
+    )
+    return jsonify(result), 200

@@ -12,7 +12,7 @@ from flask import Blueprint, g, jsonify, request
 
 from ...core.auth.decorators import auth_required
 from .service import EstimateService, NotFoundError, ValidationError, compute_line_item_totals
-from ...core.blueprints.helpers import error_response, not_found, server_error
+from ...core.blueprints.helpers import error_response, not_found
 
 estimates_bp = Blueprint("estimates", __name__)
 _service = EstimateService()
@@ -138,8 +138,7 @@ def list_estimates(job_id: str):
         return jsonify(result), 200
     except NotFoundError:
         return not_found("Job")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @estimates_bp.post("/jobs/<job_id>/estimates")
@@ -210,8 +209,7 @@ def create_estimate(job_id: str):
         return jsonify(_serialize_estimate(est, _service.calculate_totals(str(est.id), user_id))), 201
     except NotFoundError:
         return not_found("Job")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @estimates_bp.get("/estimates/<estimate_id>")
@@ -223,8 +221,7 @@ def get_estimate(estimate_id: str):
         return jsonify(_serialize_estimate(est, _service.calculate_totals(estimate_id, user_id))), 200
     except NotFoundError:
         return not_found("Estimate")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @estimates_bp.patch("/estimates/<estimate_id>")
@@ -269,8 +266,7 @@ def patch_estimate(estimate_id: str):
         return jsonify(_serialize_estimate(est, _service.calculate_totals(estimate_id, user_id))), 200
     except NotFoundError:
         return not_found("Estimate")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @estimates_bp.post("/estimates/<estimate_id>/populate-defaults")
@@ -283,8 +279,7 @@ def populate_estimate_defaults(estimate_id: str):
         return jsonify(_serialize_estimate(est, _service.calculate_totals(estimate_id, user_id))), 200
     except NotFoundError:
         return not_found("Estimate")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @estimates_bp.put("/estimates/<estimate_id>")
@@ -302,8 +297,7 @@ def delete_estimate(estimate_id: str):
         return "", 204
     except NotFoundError:
         return not_found("Estimate")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 # ---------------------------------------------------------------------------
@@ -319,8 +313,7 @@ def list_line_items(estimate_id: str):
         return jsonify([_serialize_line_item(i) for i in items]), 200
     except NotFoundError:
         return not_found("Estimate")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @estimates_bp.post("/estimates/<estimate_id>/line-items")
@@ -411,7 +404,6 @@ def save_line_item_to_library(estimate_id: str, item_id: str):
     """Copy a line item (and its entries) into the user's saved items library."""
     user_id = g.current_user_id
     try:
-        from ..saved_items.service import SavedItemService
         from ...models import SavedItem, SavedItemEntry
         from ...extensions import db
 
@@ -448,8 +440,7 @@ def save_line_item_to_library(estimate_id: str, item_id: str):
         return jsonify({"id": str(saved.id), "name": saved.name}), 201
     except NotFoundError:
         return not_found("Line item")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 # ---------------------------------------------------------------------------
