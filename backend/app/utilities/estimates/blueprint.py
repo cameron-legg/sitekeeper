@@ -18,6 +18,19 @@ estimates_bp = Blueprint("estimates", __name__)
 _service = EstimateService()
 
 
+def _set_error_context(**kwargs) -> None:
+    """Stash structured context on flask.g for the global error handler.
+
+    When an unexpected exception propagates from a route, the handler in
+    create_app() reads g.error_context and stores it on the backend_error_log
+    row — so we can see WHICH estimate/line-item/entry (and payload shape)
+    triggered the failure. Never include secrets or PII here.
+    """
+    existing = getattr(g, "error_context", None) or {}
+    existing.update({k: v for k, v in kwargs.items() if v is not None})
+    g.error_context = existing
+
+
 def _compute_pdf_status(doc) -> str:
     if doc.pdf_generated_at is None:
         return "none"
@@ -315,6 +328,12 @@ def list_line_items(estimate_id: str):
 def add_line_item(estimate_id: str):
     user_id = g.current_user_id
     data = request.get_json(silent=True) or {}
+    _set_error_context(
+        op="add_line_item",
+        estimate_id=estimate_id,
+        has_hourly_rate=data.get("hourly_rate") is not None,
+        raw_sort_order=data.get("sort_order"),
+    )
     name = data.get("name", "").strip()
     if not name:
         return error_response("VALIDATION_ERROR", "Name is required.", field="name")
@@ -332,8 +351,10 @@ def add_line_item(estimate_id: str):
         return jsonify(_serialize_line_item(item)), 201
     except NotFoundError:
         return not_found("Estimate")
-    except Exception:
-        return server_error()
+    except ValidationError as exc:
+        return error_response("VALIDATION_ERROR", str(exc))
+    # Any other exception propagates to the global handler, which logs it
+    # to backend_error_log with the context set above.
 
 
 @estimates_bp.put("/estimates/<estimate_id>/line-items/<item_id>")
@@ -341,6 +362,12 @@ def add_line_item(estimate_id: str):
 def update_line_item(estimate_id: str, item_id: str):
     user_id = g.current_user_id
     data = request.get_json(silent=True) or {}
+    _set_error_context(
+        op="update_line_item",
+        estimate_id=estimate_id,
+        item_id=item_id,
+        raw_sort_order=data.get("sort_order"),
+    )
     hourly_rate = None
     if data.get("hourly_rate") is not None:
         hourly_rate, err = _parse_decimal(data["hourly_rate"], "hourly_rate")
@@ -356,21 +383,22 @@ def update_line_item(estimate_id: str, item_id: str):
         return jsonify(_serialize_line_item(item)), 200
     except NotFoundError:
         return not_found("Line item")
-    except Exception:
-        return server_error()
+    except ValidationError as exc:
+        return error_response("VALIDATION_ERROR", str(exc))
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @estimates_bp.delete("/estimates/<estimate_id>/line-items/<item_id>")
 @auth_required
 def delete_line_item(estimate_id: str, item_id: str):
     user_id = g.current_user_id
+    _set_error_context(op="delete_line_item", estimate_id=estimate_id, item_id=item_id)
     try:
         _service.delete_line_item(estimate_id, item_id, user_id)
         return "", 204
     except NotFoundError:
         return not_found("Line item")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.
 
 
 # ---------------------------------------------------------------------------
@@ -433,10 +461,20 @@ def save_line_item_to_library(estimate_id: str, item_id: str):
 def add_entry(estimate_id: str, item_id: str):
     user_id = g.current_user_id
     data = request.get_json(silent=True) or {}
+    entry_type = data.get("entry_type", "")
+    _set_error_context(
+        op="add_entry",
+        estimate_id=estimate_id,
+        item_id=item_id,
+        entry_type=entry_type or "(missing)",
+        raw_sort_order=data.get("sort_order"),
+        has_unit_price=data.get("unit_price") is not None,
+        has_quantity=data.get("quantity") is not None,
+        has_hours=data.get("hours") is not None,
+    )
     name = data.get("name", "").strip()
     if not name:
         return error_response("VALIDATION_ERROR", "Name is required.", field="name")
-    entry_type = data.get("entry_type", "")
     if entry_type not in ("material", "hours", "fee"):
         return error_response("VALIDATION_ERROR", "entry_type must be 'material', 'hours', or 'fee'.", field="entry_type")
 
@@ -464,10 +502,13 @@ def add_entry(estimate_id: str, item_id: str):
             hours=hours, sort_order=int(data.get("sort_order", 0)),
         )
         return jsonify(_serialize_entry(entry)), 201
-    except (NotFoundError, ValidationError) as exc:
-        return not_found(str(exc))
-    except Exception:
-        return server_error()
+    except NotFoundError:
+        # A missing estimate or line item — this is a 404, not a validation error.
+        return not_found("Line item")
+    except ValidationError as exc:
+        # Bad entry_type etc. — a 400, not a 404 (previous code returned 404 here).
+        return error_response("VALIDATION_ERROR", str(exc), field="entry_type")
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @estimates_bp.put("/estimates/<estimate_id>/line-items/<item_id>/entries/<entry_id>")
@@ -475,6 +516,16 @@ def add_entry(estimate_id: str, item_id: str):
 def update_entry(estimate_id: str, item_id: str, entry_id: str):
     user_id = g.current_user_id
     data = request.get_json(silent=True) or {}
+    _set_error_context(
+        op="update_entry",
+        estimate_id=estimate_id,
+        item_id=item_id,
+        entry_id=entry_id,
+        raw_sort_order=data.get("sort_order"),
+        has_unit_price=data.get("unit_price") is not None,
+        has_quantity=data.get("quantity") is not None,
+        has_hours=data.get("hours") is not None,
+    )
 
     unit_price = hours = quantity = None
     if data.get("unit_price") is not None:
@@ -500,18 +551,21 @@ def update_entry(estimate_id: str, item_id: str, entry_id: str):
         return jsonify(_serialize_entry(entry)), 200
     except NotFoundError:
         return not_found("Entry")
-    except Exception:
-        return server_error()
+    except ValidationError as exc:
+        return error_response("VALIDATION_ERROR", str(exc))
+    # Unexpected errors propagate to the global handler for logging.
 
 
 @estimates_bp.delete("/estimates/<estimate_id>/line-items/<item_id>/entries/<entry_id>")
 @auth_required
 def delete_entry(estimate_id: str, item_id: str, entry_id: str):
     user_id = g.current_user_id
+    _set_error_context(
+        op="delete_entry", estimate_id=estimate_id, item_id=item_id, entry_id=entry_id
+    )
     try:
         _service.delete_entry(estimate_id, item_id, entry_id, user_id)
         return "", 204
     except NotFoundError:
         return not_found("Entry")
-    except Exception:
-        return server_error()
+    # Unexpected errors propagate to the global handler for logging.

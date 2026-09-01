@@ -19,6 +19,7 @@ import {
 } from "@expo-google-fonts/montserrat";
 import RootNavigator from "./src/core/navigation/RootNavigator";
 import AIProvider from "./src/utilities/ai_assistant/components/AIProvider";
+import ErrorToast from "./src/core/components/ErrorToast";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,6 +50,7 @@ function App() {
         <AIProvider>
           <RootNavigator />
         </AIProvider>
+        <ErrorToast />
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

@@ -102,6 +102,9 @@ class Tenant(PlatformBase):
     bucket = Column(String(100), nullable=False)  # e.g. nocoresources
     domain = Column(String(255), nullable=False)  # e.g. nocoresources.jobsyte.app
     enabled_utilities = Column(JSONB, nullable=True)  # null = all enabled
+    # When true, this tenant's users receive detailed error responses
+    # (error type + stack trace). Most tenants see only a generic message.
+    debug_errors = Column(Boolean, nullable=False, default=False)
     created_at = Column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )

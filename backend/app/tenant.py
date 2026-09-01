@@ -91,6 +91,7 @@ def _load_tenants_from_platform() -> dict | None:
                     "domain": t.domain,
                     "name": t.name,
                     "utilities": t.enabled_utilities,
+                    "debug_errors": bool(t.debug_errors),
                 }
             return result
         finally:

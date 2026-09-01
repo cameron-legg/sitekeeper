@@ -113,6 +113,9 @@ def create_app(config=None):
     app.register_blueprint(portal_tenants_bp, url_prefix="/api/v1/portal")
     app.register_blueprint(superadmin_bp, url_prefix="/api/v1/superadmin")
 
+    # ── Global error handling ────────────────────────────────────────────
+    _register_error_handlers(app)
+
     # Health check endpoint
     @app.route("/api/v1/health")
     def health():
@@ -120,3 +123,113 @@ def create_app(config=None):
         return {"status": "ok", "tenant": tenant}
 
     return app
+
+
+def _register_error_handlers(app):
+    """Register global handlers that convert exceptions into JSON envelopes.
+
+    Two handlers:
+    - AppError: expected domain errors (validation, not-found, etc.). 4xx are
+      returned as-is and NOT logged; 5xx AppErrors are logged.
+    - Exception: any unhandled exception (a real bug). Always logged to the
+      tenant's backend_error_log with a full stack trace and returned as a
+      generic 500 — unless the tenant has debug_errors enabled, in which case
+      the error type + stack trace are included in the response.
+
+    Every 5xx response carries a ``request_id`` so a user can quote it and we
+    can find the exact logged row.
+    """
+    import traceback
+    import uuid
+
+    from flask import g, jsonify, request
+    from werkzeug.exceptions import HTTPException
+
+    from .errors import AppError
+
+    def _tenant_wants_detail() -> bool:
+        config = getattr(g, "tenant_config", None) or {}
+        return bool(config.get("debug_errors"))
+
+    def _log_server_error(exc: Exception, status_code: int) -> str:
+        """Record a 5xx error to the tenant DB. Returns the request_id."""
+        request_id = str(uuid.uuid4())
+        stack = "".join(
+            traceback.format_exception(type(exc), exc, exc.__traceback__)
+        )
+        # Always emit to the stdlib logger / journald as well.
+        logger.error(
+            "Unhandled error [%s] on %s %s: %s",
+            request_id,
+            request.method,
+            request.path,
+            exc,
+        )
+        try:
+            from .error_logging import record_error
+
+            record_error(
+                request_id=request_id,
+                error_type=type(exc).__name__,
+                message=str(exc),
+                stack_trace=stack,
+                http_method=request.method,
+                path=request.full_path.rstrip("?") if request.query_string else request.path,
+                status_code=status_code,
+                user_id=getattr(g, "current_user_id", None),
+                tenant_slug=getattr(g, "tenant_slug", None),
+                # Routes may stash extra structured context on g.error_context
+                # (e.g. which estimate/line-item/entry was involved). Never put
+                # secrets or PII here.
+                context=getattr(g, "error_context", None),
+            )
+        except Exception:  # noqa: BLE001 — never let logging break the handler
+            logger.exception("record_error raised (swallowed).")
+        return request_id
+
+    def _server_error_body(exc: Exception, request_id: str) -> dict:
+        body: dict = {
+            "code": "SERVER_ERROR",
+            "message": "Something went wrong. Our team has been notified.",
+            "request_id": request_id,
+        }
+        if _tenant_wants_detail():
+            body["type"] = type(exc).__name__
+            body["detail"] = str(exc)
+            body["stack_trace"] = "".join(
+                traceback.format_exception(type(exc), exc, exc.__traceback__)
+            )
+        return body
+
+    @app.errorhandler(AppError)
+    def _handle_app_error(exc: AppError):
+        if exc.is_server_error:
+            request_id = _log_server_error(exc, exc.status)
+            return jsonify({"error": _server_error_body(exc, request_id)}), exc.status
+        # Expected 4xx — return as-is, do not log.
+        return jsonify({"error": exc.to_dict()}), exc.status
+
+    @app.errorhandler(HTTPException)
+    def _handle_http_exception(exc: HTTPException):
+        # Preserve Flask/werkzeug HTTP errors (404 routing, 405, 413, etc.).
+        # These are not application bugs, so they are not logged.
+        code = exc.code or 500
+        if code >= 500:
+            request_id = _log_server_error(exc, code)
+            return jsonify({"error": _server_error_body(exc, request_id)}), code
+        return (
+            jsonify(
+                {
+                    "error": {
+                        "code": exc.name.upper().replace(" ", "_"),
+                        "message": exc.description or exc.name,
+                    }
+                }
+            ),
+            code,
+        )
+
+    @app.errorhandler(Exception)
+    def _handle_unexpected(exc: Exception):
+        request_id = _log_server_error(exc, 500)
+        return jsonify({"error": _server_error_body(exc, request_id)}), 500

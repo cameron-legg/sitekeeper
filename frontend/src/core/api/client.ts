@@ -10,6 +10,15 @@
 import axios from "axios";
 import { Platform } from "react-native";
 import { useAuthStore } from "../store/authStore";
+import { showError } from "../store/errorStore";
+
+// Allow callers to opt out of the global error toast for a specific request
+// (e.g. when a screen renders the error inline instead).
+declare module "axios" {
+  export interface AxiosRequestConfig {
+    suppressGlobalError?: boolean;
+  }
+}
 
 // On web in production, use relative URLs so API calls go to the same origin
 // (important for multi-tenant subdomains like nocoresources.entouch.org).
@@ -48,13 +57,45 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// On 401, clear auth — RootNavigator will switch to AuthStack automatically
+// Response interceptor:
+// - On 401, clear auth — RootNavigator switches to AuthStack automatically.
+// - On any other error, surface a global toast via the error store. The
+//   backend envelope is {"error": {code, message, request_id?, type?, detail?,
+//   stack_trace?}}. Detailed fields are only present for tenants whose
+//   debug_errors flag is enabled.
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status: number | undefined = error.response?.status;
+
+    if (status === 401) {
       useAuthStore.getState().clearAuth();
+      return Promise.reject(error);
     }
+
+    // Requests can opt out of the global toast (e.g. to render an inline
+    // form error instead) by setting `suppressGlobalError: true` on the config.
+    if (!error.config?.suppressGlobalError) {
+      const envelope = error.response?.data?.error;
+      if (envelope) {
+        showError({
+          message: envelope.message || "Something went wrong.",
+          code: envelope.code,
+          requestId: envelope.request_id,
+          type: envelope.type,
+          detail: envelope.detail,
+          stackTrace: envelope.stack_trace,
+          status,
+        });
+      } else if (error.request && !error.response) {
+        // Network error — no response received.
+        showError({
+          message: "Network error. Please check your connection and try again.",
+          code: "NETWORK_ERROR",
+        });
+      }
+    }
+
     return Promise.reject(error);
   }
 );

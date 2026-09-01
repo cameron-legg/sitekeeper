@@ -26,7 +26,7 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql import func
 from sqlalchemy.types import TIMESTAMP
@@ -799,3 +799,52 @@ class BusinessInfo(db.Model):
 
     def __repr__(self):
         return f"<BusinessInfo {self.business_name}>"
+
+
+# ---------------------------------------------------------------------------
+# BackendErrorLog  (per-tenant record of unhandled server errors)
+# ---------------------------------------------------------------------------
+
+
+class BackendErrorLog(db.Model):
+    """A logged backend error, stored in the tenant's own database.
+
+    Written by the global Flask error handler whenever an unhandled (5xx)
+    exception bubbles out of a request. This data is intentionally NOT
+    exposed to tenant users — only the platform/superadmin panel reads it
+    (by connecting to each tenant DB directly).
+
+    The write path is fail-safe: a failure to record an error must never
+    turn one error into two, so the error_log_service swallows its own
+    exceptions and falls back to the stdlib logger.
+    """
+
+    __tablename__ = "backend_error_log"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # Correlation id also returned to the client so a user can quote it when
+    # reporting a problem and we can find the exact row.
+    request_id = Column(UUID(as_uuid=True), nullable=False, index=True, default=uuid.uuid4)
+    # The tenant the error was reported on (slug, e.g. "nocoresources").
+    tenant_slug = Column(String(63), nullable=True, index=True)
+    # Exception class name, e.g. "IntegrityError" — handy for grouping.
+    error_type = Column(String(255), nullable=True)
+    # Exception message / short summary.
+    message = Column(Text, nullable=True)
+    # Full Python traceback.
+    stack_trace = Column(Text, nullable=True)
+    # Request context — which endpoint blew up.
+    http_method = Column(String(10), nullable=True)
+    path = Column(Text, nullable=True)
+    status_code = Column(Integer, nullable=False, default=500)
+    # Who hit it (tenant user id), if the request was authenticated.
+    user_id = Column(UUID(as_uuid=True), nullable=True)
+    # Catch-all for extra structured detail (query params, app version, etc.)
+    # without needing a schema change. Never store secrets/PII here.
+    context = Column(JSONB, nullable=True)
+    created_at = Column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), index=True
+    )
+
+    def __repr__(self):
+        return f"<BackendErrorLog {self.error_type} @ {self.created_at}>"

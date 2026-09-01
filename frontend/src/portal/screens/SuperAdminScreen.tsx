@@ -16,6 +16,7 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
+  Modal,
 } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
@@ -44,6 +45,31 @@ interface TenantMetrics {
   logins: number;
   db_size_mb: number;
   bucket_size_mb: number;
+  error_count: number;
+}
+
+interface BackendError {
+  id: string;
+  request_id: string | null;
+  tenant_slug: string | null;
+  error_type: string | null;
+  message: string | null;
+  stack_trace: string | null;
+  http_method: string | null;
+  path: string | null;
+  status_code: number;
+  user_id: string | null;
+  context: Record<string, unknown> | null;
+  created_at: string | null;
+}
+
+interface TenantErrorsResponse {
+  slug: string;
+  name: string;
+  total: number;
+  limit: number;
+  offset: number;
+  errors: BackendError[];
 }
 
 export default function SuperAdminScreen() {
@@ -108,6 +134,36 @@ export default function SuperAdminScreen() {
       }
     },
   });
+
+  // Per-tenant error viewer
+  const [errorsSlug, setErrorsSlug] = useState<string | null>(null);
+  const [selectedError, setSelectedError] = useState<BackendError | null>(null);
+
+  const errorsQuery = useQuery<TenantErrorsResponse>({
+    queryKey: ["superadmin-tenant-errors", errorsSlug],
+    queryFn: async () => {
+      const client = axios.create({
+        baseURL: getBaseURL(),
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const { data } = await client.get<TenantErrorsResponse>(
+        `/api/v1/superadmin/tenants/${errorsSlug}/errors`,
+        { params: { limit: 100 } }
+      );
+      return data;
+    },
+    enabled: Boolean(token) && Boolean(errorsSlug),
+  });
+
+  function openErrors(slug: string) {
+    setSelectedError(null);
+    setErrorsSlug(slug);
+  }
+
+  function closeErrors() {
+    setErrorsSlug(null);
+    setSelectedError(null);
+  }
 
   function handleLogin() {
     setLoginError(null);
@@ -208,6 +264,7 @@ export default function SuperAdminScreen() {
               <Text style={[styles.cell, styles.headerCell, styles.cellNum]}>Logins</Text>
               <Text style={[styles.cell, styles.headerCell, styles.cellNum]}>DB (MB)</Text>
               <Text style={[styles.cell, styles.headerCell, styles.cellNum]}>Files (MB)</Text>
+              <Text style={[styles.cell, styles.headerCell, styles.cellNum]}>Errors</Text>
               <Text style={[styles.cell, styles.headerCell, styles.cellAction]}>Action</Text>
             </View>
 
@@ -227,6 +284,18 @@ export default function SuperAdminScreen() {
                 <Text style={[styles.cell, styles.cellNum]}>{t.logins}</Text>
                 <Text style={[styles.cell, styles.cellNum]}>{t.db_size_mb}</Text>
                 <Text style={[styles.cell, styles.cellNum]}>{t.bucket_size_mb}</Text>
+                <View style={[styles.cellNum, styles.errorCell]}>
+                  <TouchableOpacity onPress={() => openErrors(t.slug)} disabled={!t.error_count}>
+                    <Text
+                      style={[
+                        styles.errorCountText,
+                        t.error_count > 0 ? styles.errorCountActive : styles.errorCountZero,
+                      ]}
+                    >
+                      {t.error_count}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
                 <View style={[styles.cellAction]}>
                   <TouchableOpacity
                     style={styles.impersonateBtn}
@@ -241,6 +310,97 @@ export default function SuperAdminScreen() {
           </View>
         </ScrollView>
       )}
+
+      {/* Per-tenant error log viewer */}
+      <Modal
+        visible={Boolean(errorsSlug)}
+        animationType="slide"
+        transparent
+        onRequestClose={closeErrors}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Errors — {errorsQuery.data?.name || errorsSlug}
+                {errorsQuery.data ? `  (${errorsQuery.data.total})` : ""}
+              </Text>
+              <TouchableOpacity onPress={closeErrors} hitSlop={8}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {errorsQuery.isFetching && (
+              <View style={styles.modalLoading}>
+                <ActivityIndicator color={BRAND_COLORS.accent} />
+              </View>
+            )}
+
+            {errorsQuery.isError && !errorsQuery.isFetching && (
+              <Text style={styles.modalErrorText}>Failed to load errors.</Text>
+            )}
+
+            {errorsQuery.data && !errorsQuery.isFetching && errorsQuery.data.errors.length === 0 && (
+              <Text style={styles.modalEmpty}>No errors logged for this tenant.</Text>
+            )}
+
+            {/* Detail view */}
+            {selectedError ? (
+              <ScrollView style={styles.detailScroll}>
+                <TouchableOpacity onPress={() => setSelectedError(null)}>
+                  <Text style={styles.backLink}>← Back to list</Text>
+                </TouchableOpacity>
+                <Text style={styles.detailHeading}>
+                  {selectedError.error_type || "Error"}
+                </Text>
+                <Text style={styles.detailMeta}>
+                  {selectedError.http_method} {selectedError.path} · {selectedError.status_code}
+                </Text>
+                <Text style={styles.detailMeta}>
+                  {selectedError.created_at
+                    ? new Date(selectedError.created_at).toLocaleString()
+                    : "—"}
+                </Text>
+                {selectedError.request_id ? (
+                  <Text style={styles.detailMeta}>Ref: {selectedError.request_id}</Text>
+                ) : null}
+                {selectedError.user_id ? (
+                  <Text style={styles.detailMeta}>User: {selectedError.user_id}</Text>
+                ) : null}
+                <Text style={styles.detailMessage}>{selectedError.message}</Text>
+                {selectedError.stack_trace ? (
+                  <Text style={styles.stackTrace}>{selectedError.stack_trace}</Text>
+                ) : null}
+              </ScrollView>
+            ) : (
+              errorsQuery.data && (
+                <ScrollView style={styles.detailScroll}>
+                  {errorsQuery.data.errors.map((e) => (
+                    <TouchableOpacity
+                      key={e.id}
+                      style={styles.errorRow}
+                      onPress={() => setSelectedError(e)}
+                    >
+                      <View style={styles.errorRowTop}>
+                        <Text style={styles.errorRowType}>{e.error_type || "Error"}</Text>
+                        <Text style={styles.errorRowDate}>
+                          {e.created_at ? new Date(e.created_at).toLocaleString() : "—"}
+                        </Text>
+                      </View>
+                      <Text style={styles.errorRowPath}>
+                        {e.http_method} {e.path} · {e.status_code}
+                      </Text>
+                      <Text style={styles.errorRowMsg} numberOfLines={2}>
+                        {e.message}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -347,4 +507,63 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   impersonateBtnText: { color: "#e2e8f0", fontSize: 11, fontWeight: "600" },
+
+  // Error count cell
+  errorCell: { alignItems: "flex-end", justifyContent: "center" },
+  errorCountText: { fontSize: 13, fontWeight: "700" },
+  errorCountActive: { color: "#f87171", textDecorationLine: "underline" },
+  errorCountZero: { color: "#475569" },
+
+  // Errors modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  modalCard: {
+    backgroundColor: "#0f172a",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#1e293b",
+    width: "100%",
+    maxWidth: 720,
+    maxHeight: "85%",
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  modalTitle: { color: "#fff", fontSize: 17, fontWeight: "700", flex: 1, paddingRight: 12 },
+  modalClose: { color: "#94a3b8", fontSize: 18, fontWeight: "700" },
+  modalLoading: { padding: 24, alignItems: "center" },
+  modalErrorText: { color: "#fca5a5", padding: 16, textAlign: "center" },
+  modalEmpty: { color: "#64748b", padding: 24, textAlign: "center" },
+  detailScroll: { flexGrow: 0 },
+  errorRow: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#1e293b",
+    paddingVertical: 10,
+  },
+  errorRowTop: { flexDirection: "row", justifyContent: "space-between" },
+  errorRowType: { color: "#f87171", fontSize: 13, fontWeight: "700" },
+  errorRowDate: { color: "#64748b", fontSize: 11 },
+  errorRowPath: { color: "#94a3b8", fontSize: 12, marginTop: 2 },
+  errorRowMsg: { color: "#e2e8f0", fontSize: 13, marginTop: 4 },
+  backLink: { color: BRAND_COLORS.accent, fontSize: 13, fontWeight: "600", marginBottom: 12 },
+  detailHeading: { color: "#f87171", fontSize: 16, fontWeight: "700" },
+  detailMeta: { color: "#94a3b8", fontSize: 12, marginTop: 4 },
+  detailMessage: { color: "#e2e8f0", fontSize: 14, marginTop: 12, marginBottom: 12 },
+  stackTrace: {
+    color: "#cbd5e1",
+    fontSize: 11,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    backgroundColor: "#020617",
+    padding: 12,
+    borderRadius: 6,
+  },
 });

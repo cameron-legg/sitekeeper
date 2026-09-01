@@ -116,6 +116,100 @@ def list_all_tenants():
         session.close()
 
 
+@superadmin_bp.get("/tenants/<slug>/errors")
+@superadmin_required
+def list_tenant_errors(slug: str):
+    """Get the backend error log for a single tenant (paginated, newest first).
+
+    Query params:
+        limit  (int, default 50, max 200)
+        offset (int, default 0)
+
+    Responses:
+        200  { total, limit, offset, errors: [ ... ] }
+        404  tenant not found
+    """
+    try:
+        limit = min(int(request.args.get("limit", 50)), 200)
+    except (TypeError, ValueError):
+        limit = 50
+    try:
+        offset = max(int(request.args.get("offset", 0)), 0)
+    except (TypeError, ValueError):
+        offset = 0
+
+    # Resolve the tenant's database from the platform DB.
+    session = get_platform_session()
+    try:
+        tenant = session.query(Tenant).filter_by(slug=slug).first()
+        if tenant is None:
+            return _error("NOT_FOUND", f"Tenant '{slug}' not found.", status=404)
+        database_name = tenant.database_name
+        tenant_name = tenant.name
+    finally:
+        session.close()
+
+    base_url = current_app.config.get(
+        "BASE_DATABASE_URL",
+        os.environ.get("BASE_DATABASE_URL", "postgresql://sitekeeper:sitekeeper@localhost:5434"),
+    )
+    tenant_db_url = f"{base_url}/{database_name}"
+
+    try:
+        engine = create_engine(tenant_db_url)
+        try:
+            with engine.connect() as conn:
+                total = conn.execute(
+                    text("SELECT COUNT(*) FROM backend_error_log")
+                ).scalar() or 0
+
+                rows = conn.execute(
+                    text(
+                        """
+                        SELECT id, request_id, tenant_slug, error_type, message,
+                               stack_trace, http_method, path, status_code,
+                               user_id, context, created_at
+                        FROM backend_error_log
+                        ORDER BY created_at DESC
+                        LIMIT :limit OFFSET :offset
+                        """
+                    ),
+                    {"limit": limit, "offset": offset},
+                ).mappings().all()
+        finally:
+            engine.dispose()
+    except Exception as e:
+        logger.warning("Failed to fetch errors for %s: %s", database_name, e)
+        return _error("QUERY_FAILED", "Failed to read the tenant error log.", status=500)
+
+    errors = [
+        {
+            "id": str(r["id"]),
+            "request_id": str(r["request_id"]) if r["request_id"] else None,
+            "tenant_slug": r["tenant_slug"],
+            "error_type": r["error_type"],
+            "message": r["message"],
+            "stack_trace": r["stack_trace"],
+            "http_method": r["http_method"],
+            "path": r["path"],
+            "status_code": r["status_code"],
+            "user_id": str(r["user_id"]) if r["user_id"] else None,
+            "context": r["context"],
+            "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+        }
+        for r in rows
+    ]
+
+    return jsonify({
+        "slug": slug,
+        "name": tenant_name,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "errors": errors,
+    }), 200
+
+
 def _fetch_tenant_metrics(db_url: str, db_name: str, bucket: str) -> dict:
     """Query a single tenant database for metrics."""
     metrics = {
@@ -129,6 +223,7 @@ def _fetch_tenant_metrics(db_url: str, db_name: str, bucket: str) -> dict:
         "logins": 0,
         "db_size_mb": 0.0,
         "bucket_size_mb": 0.0,
+        "error_count": 0,
     }
 
     try:
@@ -182,6 +277,16 @@ def _fetch_tenant_metrics(db_url: str, db_name: str, bucket: str) -> dict:
                 text("SELECT pg_database_size(current_database())")
             ).scalar()
             metrics["db_size_mb"] = round((db_size or 0) / (1024 * 1024), 2)
+
+        # Backend error count — separate connection so a missing table (very
+        # old tenant DBs not yet migrated) can't poison the metrics above.
+        try:
+            with engine.connect() as conn:
+                metrics["error_count"] = conn.execute(
+                    text("SELECT COUNT(*) FROM backend_error_log")
+                ).scalar() or 0
+        except Exception:
+            metrics["error_count"] = 0
 
         engine.dispose()
     except Exception as e:
