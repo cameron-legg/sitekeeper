@@ -237,8 +237,12 @@ deploy_frontend() {
 
     info "Building frontend for web (API_URL=$API_URL, version=$APP_VERSION)..."
 
+    # --clear wipes the Metro transform cache. Without it, EXPO_PUBLIC_* values
+    # (like the version) can be frozen from a previous build's cache and shipped
+    # stale — which breaks the version check (baked version never matches
+    # version.json, so the reload banner shows forever).
     (cd frontend && EXPO_PUBLIC_API_URL="$API_URL" EXPO_PUBLIC_APP_VERSION="$APP_VERSION" \
-        npx --yes expo export --platform web --output-dir dist)
+        npx --yes expo export --platform web --output-dir dist --clear)
 
     [[ -f frontend/dist/index.html ]] || die "Build failed — frontend/dist/index.html not found."
 
