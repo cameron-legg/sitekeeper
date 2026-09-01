@@ -47,7 +47,7 @@ def chat():
 
     ai_service = AIService(
         api_key=api_key,
-        model=current_app.config.get("OPENAI_MODEL", "gpt-4o-mini"),
+        model=current_app.config.get("OPENAI_MODEL", "gpt-4.1-mini"),
     )
     result = ai_service.chat(
         user_id=g.current_user_id,

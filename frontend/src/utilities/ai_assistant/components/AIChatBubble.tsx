@@ -308,11 +308,6 @@ export default function AIChatBubble({ screenName, screenParams }: AIChatBubbleP
                 case "list_time_entries":
                   queryClient.invalidateQueries({ queryKey: ["time-entries"] });
                   break;
-                case "upload_photo":
-                case "delete_photo":
-                case "list_photos":
-                  queryClient.invalidateQueries({ queryKey: ["photos"] });
-                  break;
               }
             }
           }

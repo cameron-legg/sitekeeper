@@ -710,11 +710,22 @@ def _build_system_prompt(user: User, screen_context: dict, saved_items_summary: 
         "- Use markdown formatting to make notes well-structured and readable",
         "- For example, use headings for sections, bullet lists for action items, bold for emphasis",
         "",
-        "When the user is on a specific screen, use that context:",
-        "- On JobSiteDetail: the siteId is available, use it for creating jobs and contacts",
-        "- On JobDetail: the jobId and siteId are available, use them for estimates/notes/contacts",
-        "- On EstimateEditor: the estimateId and jobId are available",
-        "- On InvoiceEditor: the invoiceId and jobId are available",
+        "Screen context — infer what the user means from where they currently are.",
+        "The 'screen' and its 'params' tell you which record the user is looking at, so you",
+        "usually don't need to ask 'which job?' or 'which estimate?'. Current screens and the",
+        "params you can rely on:",
+        "- Home: the job sites list. No params. If the user references a specific site/job, use list_job_sites / list_jobs to find IDs first.",
+        "- JobSiteDetail: params.siteId (and siteName). Use siteId for creating jobs, contacts, or setting a site's primary contact.",
+        "- JobDetail: params.jobId, params.siteId (and jobName). This is the hub for a job — use jobId for estimates, invoices, notes, job contacts, and time entries; use siteId if you need the parent site.",
+        "- EstimateEditor: params.estimateId and params.jobId. The user is editing THIS estimate — default all estimate edits to params.estimateId and call get_estimate_details first.",
+        "- InvoiceEditor: params.invoiceId and params.jobId. The user is editing THIS invoice — default invoice edits to params.invoiceId and call get_invoice_details first.",
+        "- InvoiceManagement: a cross-job list of invoices. No single id; ask or use list tools if the user references a specific one.",
+        "- ContactEditor: params.parentId and params.parentType ('job_site' | 'job'), and optional contactId. Use parentId/parentType when creating or updating the contact here.",
+        "- SavedItems / SavedItemEditor / MaterialsLibrary: the reusable item & materials library. Use list_saved_items to reference these as templates when building estimates/invoices.",
+        "- Settings / EstimateSettings / InvoiceSettings / EditEstimateOptions / EditInvoiceOptions: configuration screens for document defaults and field visibility. No record id — these are for app configuration, not data you edit via tools.",
+        "- ProfileSettings / BusinessInfo: the user's profile and tenant business details (company name, address, phone, email, state). If the user asks to change business info shown on documents, note you can't edit business settings directly — set the corresponding override fields on a specific estimate/invoice instead.",
+        "- AdminUsers: admin-only user management. Not something you act on via tools.",
+        "When a screen provides an id you need (siteId, jobId, estimateId, invoiceId, parentId), prefer it over asking the user. If the current screen doesn't have the id you need, use the list_* tools to look it up before acting.",
         "",
         "Always confirm what you've done after completing actions.",
         "Be concise but friendly. You're a knowledgeable contractor's assistant.",
@@ -737,7 +748,7 @@ def _build_system_prompt(user: User, screen_context: dict, saved_items_summary: 
 class AIService:
     """Orchestrates AI chat with OpenAI function calling."""
 
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
+    def __init__(self, api_key: str, model: str = "gpt-4.1-mini"):
         self._client = OpenAI(api_key=api_key)
         self._model = model
         self._job_site_service = JobSiteService()
@@ -1334,10 +1345,16 @@ class AIService:
             elif tool_name == "list_contacts":
                 parent_type = args["parent_type"]
                 parent_id = args["parent_id"]
+                # NOTE: the two service methods return different shapes —
+                # get_contacts_for_job_site -> list[Contact]
+                # get_contacts_for_job      -> list[{"contact": Contact, "inherited": bool}]
+                # Normalize both to (Contact, inherited) pairs before serializing.
                 if parent_type == "job_site":
-                    contacts = self._contact_service.get_contacts_for_job_site(parent_id, user_id)
+                    rows = self._contact_service.get_contacts_for_job_site(parent_id, user_id)
+                    pairs = [(c, False) for c in rows]
                 else:
-                    contacts = self._contact_service.get_contacts_for_job(parent_id, user_id)
+                    rows = self._contact_service.get_contacts_for_job(parent_id, user_id)
+                    pairs = [(r["contact"], r.get("inherited", False)) for r in rows]
                 return {
                     "success": True,
                     "contacts": [
@@ -1348,8 +1365,9 @@ class AIService:
                             "email": c.email,
                             "mailing_address": c.mailing_address,
                             "notes": c.notes,
+                            "inherited": inherited,
                         }
-                        for c in contacts
+                        for c, inherited in pairs
                     ],
                 }
 
