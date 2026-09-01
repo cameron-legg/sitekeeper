@@ -11,6 +11,7 @@ import axios from "axios";
 import { Platform } from "react-native";
 import { useAuthStore } from "../store/authStore";
 import { showError } from "../store/errorStore";
+import { APP_VERSION } from "../config/app";
 
 // Allow callers to opt out of the global error toast for a specific request
 // (e.g. when a screen renders the error inline instead).
@@ -48,11 +49,16 @@ const apiClient = axios.create({
   },
 });
 
-// Attach the JWT to every outgoing request
+// Attach the JWT (and the running build version) to every outgoing request.
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  // Tag requests with the running frontend build so backend error logs can
+  // record which version produced an error (helps spot stale-tab issues).
+  if (APP_VERSION) {
+    config.headers["X-App-Version"] = APP_VERSION;
   }
   return config;
 });

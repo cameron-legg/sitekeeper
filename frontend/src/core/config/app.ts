@@ -13,6 +13,14 @@ export const APP_NAME = "JobSyte";
 export const AI_NAME = `${APP_NAME} AI`;
 
 /**
+ * Build version, baked in at build time via EXPO_PUBLIC_APP_VERSION
+ * (set by deploy.sh to the git short SHA). Used to detect when the deployed
+ * frontend is newer than the running tab (see useVersionCheck). Empty in local
+ * dev, where the version check is effectively disabled.
+ */
+export const APP_VERSION = process.env.EXPO_PUBLIC_APP_VERSION ?? "";
+
+/**
  * Brand colors — derived from the JobSyte logo.
  * "Job" is rendered in dark navy, "Syte" in orange.
  */

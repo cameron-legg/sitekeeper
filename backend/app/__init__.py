@@ -165,6 +165,16 @@ def _register_error_handlers(app):
             request.path,
             exc,
         )
+        # Build the structured context: any route-supplied context, plus the
+        # frontend build version (sent by the axios client as X-App-Version) so
+        # we can tell which build produced the error — useful for spotting
+        # stale-tab issues. Never put secrets or PII here.
+        context = dict(getattr(g, "error_context", None) or {})
+        app_version = request.headers.get("X-App-Version")
+        if app_version:
+            context["app_version"] = app_version
+        context = context or None
+
         try:
             from .error_logging import record_error
 
@@ -178,10 +188,7 @@ def _register_error_handlers(app):
                 status_code=status_code,
                 user_id=getattr(g, "current_user_id", None),
                 tenant_slug=getattr(g, "tenant_slug", None),
-                # Routes may stash extra structured context on g.error_context
-                # (e.g. which estimate/line-item/entry was involved). Never put
-                # secrets or PII here.
-                context=getattr(g, "error_context", None),
+                context=context,
             )
         except Exception:  # noqa: BLE001 — never let logging break the handler
             logger.exception("record_error raised (swallowed).")

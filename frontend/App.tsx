@@ -20,6 +20,7 @@ import {
 import RootNavigator from "./src/core/navigation/RootNavigator";
 import AIProvider from "./src/utilities/ai_assistant/components/AIProvider";
 import ErrorToast from "./src/core/components/ErrorToast";
+import UpdateBanner from "./src/core/components/UpdateBanner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,6 +52,7 @@ function App() {
           <RootNavigator />
         </AIProvider>
         <ErrorToast />
+        <UpdateBanner />
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

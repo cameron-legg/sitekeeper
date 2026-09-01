@@ -228,12 +228,24 @@ except Exception:
 # FRONTEND
 # =============================================================================
 deploy_frontend() {
-    info "Building frontend for web (API_URL=$API_URL)..."
+    # Version stamp for cache-busting / stale-tab detection. Uses the current
+    # git commit short SHA (falls back to a timestamp outside a git checkout).
+    # Baked into the bundle via EXPO_PUBLIC_APP_VERSION and written to
+    # dist/version.json, which the running app polls (on focus) to detect a
+    # new deploy and prompt a reload.
+    APP_VERSION="$(git rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)"
 
-    (cd frontend && EXPO_PUBLIC_API_URL="$API_URL" npx --yes expo export --platform web \
-        --output-dir dist)
+    info "Building frontend for web (API_URL=$API_URL, version=$APP_VERSION)..."
+
+    (cd frontend && EXPO_PUBLIC_API_URL="$API_URL" EXPO_PUBLIC_APP_VERSION="$APP_VERSION" \
+        npx --yes expo export --platform web --output-dir dist)
 
     [[ -f frontend/dist/index.html ]] || die "Build failed — frontend/dist/index.html not found."
+
+    # Stamp the deployed version into the web root. Served with no-cache by
+    # nginx so clients always see the current value.
+    printf '{"version":"%s"}\n' "$APP_VERSION" > frontend/dist/version.json
+    info "  Wrote version.json (version=$APP_VERSION)"
 
     info "  Uploading to server..."
     rsync -az --delete frontend/dist/ "$SSH_HOST":/tmp/sitekeeper_dist/
